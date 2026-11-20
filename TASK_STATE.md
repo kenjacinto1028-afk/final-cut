@@ -17,9 +17,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v13.6 — Sitewide A+B cinematic design (2026-11-21)
 - [x] Confirm FinalCut repository, main baseline v13.5 and existing TASK_STATE.md; work in separate feature branch.
-- [ ] Audit global CSS, navigation, each game screen, dialogs and responsive breakpoints.
-- [ ] Implement coherent restrained A+B palette, typography, spacing and responsive design tokens across game.
-- [ ] Refine dashboard, navigation, hero/panels and information hierarchy across all pages without touching the game engine.
-- [ ] Restyle production, tables, talent, finance, rivals, filmography, awards, film drawers and decision/tutorial dialogs consistently.
+- [x] Audited `style.css`, `ui.js`, desktop/mobile navigation, 16+ screens, drawer, awards and tutorial; checked existing v13.5 stage CSS.
+- [x] Added `theme-ab.css`, loaded after existing `style.css` from `index.html`; scoped noir/teal/brass palette, tables and responsive rules.
+- [x] Revised `ui.js` navigation numbering, dashboard editorial header/actions, keyboard-friendly production rows and per-screen context prelude; engine unchanged.
+- [x] Themed all major screens, reference panels, drawer, modal, nonmodal tutorial and year-end honors; Awards page prioritizes live campaigns/trophies while collapsing reference/historical lists.
 - [ ] Test full UI load, gameplay controls, save compatibility, mobile layouts and reduced-motion; document verification.
 - [ ] Merge validated branch to main and verify GitHub Pages deployment.
