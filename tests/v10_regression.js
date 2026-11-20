@@ -79,7 +79,7 @@ check('Every major historical record is kept without reroll on save/load',()=>{
 check('v9 game migrates region, judged history and incomplete archives honestly',()=>{
  const s=JSON.parse(store.get('backlot_save'));s.version=9;delete s.studio.homeRegion;delete s.filmArchive;
  delete s.awards.judged;store.set('backlot_save',JSON.stringify(s));
- assert(E.load().ok);assert.equal(E.state.version,10);assert.equal(E.homeRegion(),'northamerica');
+ assert(E.load().ok);assert.equal(E.state.version,11);assert.equal(E.homeRegion(),'northamerica');
  assert(E.state.filmArchive.incompleteBefore!=null);assert(E.state.awards.judged);
 });
 check('Annual ceremonies eventually judge without duplicate rerolls',()=>{

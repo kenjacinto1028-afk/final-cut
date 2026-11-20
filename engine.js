@@ -2,7 +2,7 @@
 // Final Cut — engine.js
 // State, turn loop and all game rules. No DOM access here.
 // Load order: content.js → engine.js → media.js → ui.js
-var SAVE_VERSION = 10;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
+var SAVE_VERSION = 11;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
 
 var Engine = (function () {
   'use strict';
@@ -305,6 +305,7 @@ var Engine = (function () {
     opts = opts || {};
     state = {
       version: SAVE_VERSION,
+      campaignId: Date.now().toString(36) + "-" + Math.floor(Math.random()*1e9).toString(36),
       week: 0,
       cash: TUNING.startCash,
       debt: 0,
@@ -332,6 +333,7 @@ var Engine = (function () {
       events: { cooldownUntil: 0, nextWeek: TUNING.events.startWeek, seen: {}, recentProduction: [] },
       awards: { history: [], pool: [], judged: {} },
       filmArchive: { rivals: [], incompleteBefore: null },
+      annualReviews: [],
       market: null,
       recruitment: { declined: {} },
       staff: null,
@@ -784,6 +786,15 @@ var Engine = (function () {
     const share = budget ? (budget - fees) / budget : 1;
     return clamp(share / (1 - T.freeFeeShare), T.minProdQuality, 1);
   }
+  function sequelEligibility(id) {
+    const parent=getProject(id);
+    if (!parent || parent.format!=='feature' || parent.stage!=='done' || parent.result!=='Hit')
+      return {ok:false, reason:'Only a completed hit feature can launch a sequel.'};
+    if (state.projects.some(p=>p.sequelOf===parent.id && p.stage!=='done'))
+      return {ok:false, reason:'A sequel to this film is already in development.'};
+    return {ok:true,parent:parent};
+  }
+  function franchiseFilms(fid) { return filmHistory().filter(f=>f.franchiseId===fid).sort((a,b)=>a.releaseWeek-b.releaseWeek); }
   function previewProject(o) {
     const f = TUNING.formats[o.format];
     if (!f) return { ok: false, reason: 'Pick a format.' };
@@ -803,6 +814,7 @@ var Engine = (function () {
     else if (state.studio.tier < (tier.minTier || 0)) reason = 'The ' + tier.name + ' budget needs the ' + tierName(tier.minTier) + ' tier.';
     else if (o.format === 'pilot' && tvSlotsUsed() >= growthTier().maxSeries) reason = 'No room for another show (' + growthTier().maxSeries + ' at this tier, pilots included).';
     else if (!o.title || !o.title.trim()) reason = 'Enter a title.';
+    else if (o.sequelOf != null && (o.format!=='feature' || !sequelEligibility(o.sequelOf).ok)) reason = 'This sequel needs a completed, profitable hit feature as its source.';
     else if (!byId(CONTENT.GENRES, o.genre)) reason = 'Pick a genre.';
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
     else if (cc.reason) reason = cc.reason;
@@ -832,15 +844,26 @@ var Engine = (function () {
     }
     const castNames = {};
     SLOTS.forEach(s => { if (typeof cast[s] === 'number') castNames[s] = getTalent(cast[s]).name; });
+    const parent = o.sequelOf != null ? getProject(o.sequelOf) : null;
+    const seriesId = parent ? (parent.franchiseId || 'player:'+parent.id) : null;
+    const installment = parent ? 1 + state.projects.reduce((n,x) => (x.id === parent.id || x.franchiseId === seriesId) ? Math.max(n,x.installment || 1) : n, 0) : 1;
     const p = {
       id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: o.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
       cast: cast, castNames: castNames, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
       stage: 'development', stageWeeksLeft: f.stages.development, startWeek: state.week,
+      sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null
     };
+    if (parent) {
+      // Put the originating film into the same permanent franchise history.
+      if (!parent.franchiseId) { parent.franchiseId = seriesId; parent.franchiseName = parent.title; parent.installment = 1; }
+      // Recognition improves opening awareness but increasing installments face diminishing novelty.
+      p.hypeMod += Math.max(1, 10-Math.max(0,installment-2)*2);
+      p.qualityMod -= Math.max(0,installment-2)*1.5;
+    }
     state.cash -= pv.fees;
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
     state.projects.push(p);
@@ -850,6 +873,11 @@ var Engine = (function () {
     save();
     emit('project', p);
     return { ok: true, project: p };
+  }
+  function setPosterStyle(id,styleId) {
+    const p=getProject(id);if(!p)return {ok:false,reason:'Film not found.'};
+    if(!Number.isInteger(styleId)||styleId<0||styleId>7)return {ok:false,reason:'Invalid design.'};
+    p.posterStyleId=styleId;save();emit('poster',p);return {ok:true};
   }
   function randomTitle() {
     const t = CONTENT.TITLES;
@@ -885,7 +913,7 @@ var Engine = (function () {
     if (p.stage === 'post') {
       if (!p.flags.cutDone) { raise(p, CONTENT.FIXED_DECISIONS.cut); return; }
       if (p.format === 'feature' && !p.flags.marketingDone) { raiseMarketing(p); return; }
-      if (p.format === 'feature' && !p.flags.regionsDone) { raiseDistribution(p); return; }
+      if ((p.format === 'feature' || p.format === 'short') && !p.flags.regionsDone) { raiseDistribution(p); return; }
       if (p.format === 'feature' && !p.flags.dateDone) { raiseReleaseDate(p); return; }
       release(p);
       return;
@@ -1020,19 +1048,19 @@ var Engine = (function () {
     const overseas = regions.filter(id => id !== home);
     const cost = overseas.reduce((n, id) => {
       const r = byId(CONTENT.REGIONS, id);
-      return n + Math.round((750 + p.budget * 0.024) * r.cost * eraCost);
+      return n + Math.round((p.format === 'short' ? (65 + p.budget * 0.012) : (750 + p.budget * 0.024)) * r.cost * eraCost);
     }, 0);
     const extra = overseas.reduce((n, id) => {
       const r = byId(CONTENT.REGIONS, id);
       return n + 0.16 * r.audience * (r.taste[p.genre] || 1);
     }, 0);
     return { regions: regions, cost: cost, openingMult: Math.round((1 + extra) * 100) / 100,
-      estimated: 'Potential opening ×' + (1 + extra).toFixed(2) + ' before extra cost' };
+      estimated: p.format === 'short' ? 'Screening reach +' + Math.round(Math.min(.3, extra*.23)*100) + '% (modest short-film income)' : 'Potential opening ×' + (1 + extra).toFixed(2) + ' before extra cost' };
   }
   function setDistribution(id, regions) {
     const p = getProject(id);
-    if (!p || p.format !== 'feature' || ['release', 'done'].includes(p.stage))
-      return { ok: false, reason: 'Distribution can only be changed before a feature opens.' };
+    if (!p || !['feature','short'].includes(p.format) || ['release', 'done'].includes(p.stage))
+      return { ok: false, reason: 'Distribution can only be changed before a film opens.' };
     const q = regionQuote(p, regions);
     p.regions = q.regions;
     save();
@@ -1042,13 +1070,14 @@ var Engine = (function () {
     const home = homeRegion();
     const all = CONTENT.REGIONS.map(r => r.id);
     const wide = [home].concat(all.filter(id => id !== home).slice(0, 2));
+    const isShort = p.format === 'short';
     const presets = [
       { name: 'Home only', regions: [home] },
-      { name: 'Wide — home plus two overseas markets', regions: wide },
-      { name: 'Worldwide — all five regions', regions: all },
+      { name: isShort ? 'Regional short-film screening circuit' : 'Wide — home plus two overseas markets', regions: isShort ? [home, wide[1]] : wide },
+      { name: isShort ? 'International short-film circuit' : 'Worldwide — all five regions', regions: all },
       { name: 'Keep chosen regions (' + (p.regions || [home]).length + ')', regions: p.regions || [home] }
     ];
-    raise(p, { id: 'regions', text: 'Where should "' + p.title + '" be released? Overseas markets add possible earnings, localization costs, and recognition. Open the film details to customize your market selection.',
+    raise(p, { id: 'regions', text: 'Where should "' + p.title + '" be shown? ' + (isShort ? 'Short films earn modest screening and licensing income, not theatrical grosses. International exposure costs more and does not guarantee festival recognition.' : 'Overseas markets add possible earnings, localization costs, and recognition.') + ' Open the film details to customize your markets.',
       choices: presets.map(x => { const q = regionQuote(p, x.regions);
         return { label: x.name + ' · ' + fmtMoney(q.cost) + ' extra · ' + q.estimated,
           effects: { regions: q.regions }, result: 'Distribution for "' + p.title + '": ' + q.regions.map(id => byId(CONTENT.REGIONS, id).name).join(', ') + '.' }; }) });
@@ -1193,6 +1222,41 @@ var Engine = (function () {
     if (e.staffMorale) Object.keys(st.staff.depts).forEach(id => { const d = st.staff.depts[id]; if (d.heads) d.morale = clamp(d.morale + e.staffMorale, 0, 100); });
   }
 
+// ===== SECTION: FILM_RECEPTION =====
+  // Film reception is a deterministic saved snapshot after release; no ongoing
+  // happiness meter and no extra weekly actions. Original critical score remains canonical.
+  function audienceScore(f, demand) {
+    const g = byId(CONTENT.GENRES, f.genre) || { audience:1 };
+    const interest = typeof demand === 'number' ? demand : 1;
+    return clamp(Math.round(f.quality * .65 + (f.hype || 0) * .20 +
+      12 * (g.audience || 1) + 10 * (interest - 1) + rnd(-10,10)), 1, 100);
+  }
+  function receptionText(f) {
+    const audience = f.audience == null ? f.critic : f.audience;
+    const critic = f.critic == null ? f.quality : f.critic;
+    let headline, reason;
+    if (audience >= critic + 18) { headline = 'Audience favorite'; reason = 'Moviegoers responded more strongly than reviewers.'; }
+    else if (critic >= audience + 18) { headline = 'Critical darling'; reason = 'Reviewers praised the craft more than general audiences did.'; }
+    else if (critic >= 78 && audience >= 70) { headline = 'Breakout acclaim'; reason = 'Strong filmmaking connected with critics and moviegoers alike.'; }
+    else if (critic < 45 && audience < 50) { headline = 'A difficult release'; reason = 'Both critical response and audience enthusiasm were muted.'; }
+    else { headline = 'A mixed reception'; reason = 'Audiences and reviewers found different strengths in the finished film.'; }
+    return { headline:headline, text:reason + ' (' + genreName(f.genre) + ', ' + (byId(CONTENT.TOPICS,f.topic)||{name:f.topic||'original story'}).name + ').' };
+  }
+  function annualReview() {
+    const d = dateOf();
+    const year = d.year;
+    if (state.annualReviews && state.annualReviews.some(x=>x.year===year)) return;
+    const films = state.projects.filter(p=>p.releaseWeek!=null && dateOf(p.releaseWeek).year===year);
+    const ranked = films.slice().sort((a,b)=>(b.gross||0)-(a.gross||0));
+    const critic = films.slice().sort((a,b)=>(b.critic||0)-(a.critic||0));
+    const wins = films.reduce((sum,p)=>sum+(p.awards||[]).filter(x=>x.won).length+(p.festResults||[]).filter(x=>/prize|winner|won/i.test(x.result||'')).length,0);
+    const report = { year, films:films.length, topGrossId:ranked[0]?ranked[0].id:null,
+      topCriticId:critic[0]?critic[0].id:null, awards:wins, cash:state.cash, releases:state.studio.releases };
+    (state.annualReviews = state.annualReviews || []).push(report);
+    addLog('Year '+year+' studio review: '+films.length+' releases, '+wins+' wins, closing cash '+fmtMoney(state.cash)+'.','studio');
+    emit('year_review', report);
+  }
+
 // ===== SECTION: RELEASE =====
   function release(p) {
     const g = byId(CONTENT.GENRES, p.genre) || { audience: 1, critics: 0 };
@@ -1200,6 +1264,8 @@ var Engine = (function () {
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + rnd(-10, 10)), 1, 100);
+    p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
+    p.review = receptionText(p);
     p.stage = 'release';
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
@@ -1216,6 +1282,12 @@ var Engine = (function () {
     });
     p.staffSnapshot = Object.keys(state.staff.depts).map(id => ({ department: id, heads: state.staff.depts[id].heads, skill: state.staff.depts[id].skill }));
     if (p.format === 'short') {
+      const quoted = regionQuote(p, p.regions);
+      if (state.cash < quoted.cost) { p.regions = [homeRegion()]; addLog('Not enough cash for overseas screenings of "' + p.title + '"; using the home circuit.', 'finance'); }
+      const rollout = regionQuote(p, p.regions);
+      p.regions = rollout.regions; p.distributionCost = rollout.cost;
+      p.spent += rollout.cost; state.cash -= rollout.cost;
+      p.shortCircuitReach = Math.min(.3, Math.max(0, rollout.openingMult - 1) * .23);
       p.festivalPlan = festivalPlan(p);
       const f = festivalDefinition(p.festivalPlan[0]) || CONTENT.AWARDS.circuit[0];
       p.festival = f.name; p.festivalTier = f.level; p.festivalTierId = f.id;
@@ -1286,11 +1358,12 @@ var Engine = (function () {
   function festivalResult(p) {
     // Shorts complete their independent screenings after three weeks. Festival results
     // are determined *only* by the real festival calendar, not this payout date.
-    const revenue = Math.round((p.quality < 40 ? p.budget * 0.15 : p.budget * (0.5 + p.quality / 70)) * eraMods().festival);
+    const revenue = Math.round((p.quality < 40 ? p.budget * 0.15 : p.budget * (0.5 + p.quality / 70)) * eraMods().festival * (1 + (p.shortCircuitReach || 0)));
+    p.shortCircuitIncome = Math.max(0, revenue - Math.round(revenue / (1 + (p.shortCircuitReach || 0))));
     p.revenue += revenue;
     p.stage = 'done';
     if (p.result !== 'Won') p.result = 'Screened';
-    const fame = gainStudioFame(1);
+    const fame = gainStudioFame(1 + Math.min(.65, Math.max(0,(p.regions || []).length - 1) * .15));
     growStat('business', 0, 1);
     addTalentFame(p);
     addLog('"' + p.title + '" finishes its short-film screening run: ' + fmtMoney(revenue) + ' revenue, fame +' + fame + '. Festival entries will be judged on their scheduled dates.', 'release');
@@ -1303,6 +1376,11 @@ var Engine = (function () {
     const ratio = p.gross / p.budget;
     const fame = 3 + clamp(Math.round(ratio * 4), 0, 12);
     p.result = profit < 0 ? 'Flop' : (profit >= p.budget ? 'Hit' : 'Profit');
+    if (p.sequelOf != null && p.result === 'Flop') {
+      p.franchiseBacklash = true;
+      gainStudioFame(-1.2);
+      addLog('Audiences cool on the '+(p.franchiseName||p.title)+' franchise after a disappointing sequel.', 'release');
+    }
     const awardedFame = gainStudioFame(fame + Math.min(2, Math.max(0, (p.regions || []).length - 1) * 0.5));
     growStat('business', 1, 2);
     addTalentFame(p);
@@ -1329,9 +1407,10 @@ var Engine = (function () {
       quality: f.quality, critic: f.critic == null ? null : f.critic,
       hype: f.hype || 0, gross: f.gross || 0, revenue: f.revenue || 0,
       profit: f.stage === 'done' ? f.revenue - f.budget : null,
+      audience: f.audience == null ? null : f.audience,
       result: f.result || 'In theaters', stage: f.stage,
       credits: f.credits || {}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
-      regionalGross: f.regionalGross || {},
+      regionalGross: f.regionalGross || {}, sequelOf:f.sequelOf||null, franchiseId:f.franchiseId||null, installment:f.installment||1, franchiseName:f.franchiseName||null,
       awards: record.awards || [], festResults: record.festResults || [],
       legacy: !f.topic || f.critic == null
     });
@@ -1347,9 +1426,9 @@ var Engine = (function () {
       id: 'player:' + p.id, projectId: p.id, studio: state.studio.name, format: p.format,
       title: p.title, genre: p.genre, topic: p.topic, startWeek: p.startWeek,
       releaseWeek: p.releaseWeek, year: dateOf(p.releaseWeek).year,
-      budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, hype: p.hype,
+      budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
       gross: p.gross || 0, revenue: p.revenue || 0, profit: p.revenue - p.spent,
-      result: p.result || 'In release', stage: p.stage, region: state.studio.homeRegion || 'northamerica',
+      result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: names, staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
       decisions: p.usedEvents || [], legacy: p.releaseWeek != null && !p.regions
@@ -1663,19 +1742,22 @@ var Engine = (function () {
     if (r.cash < budget) budget *= 0.5;
     budget = Math.round(Math.min(budget, audienceCap() * R.maxBudgetCap) / 1000) * 1000;
     const tq = Math.min(R.talentQualityMax, rivalTalent(r).length * R.talentQuality);
-    const genre = rivalGenre(r);
+    const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
+    const sequelSource=hits.length && Math.random()<.07 ? pick(hits) : null;
+    const genre = sequelSource ? sequelSource.genre : rivalGenre(r);
       const topics = CONTENT.TOPICS.filter(t => t.good.includes(genre));
-      const subject = topics.length ? pick(topics) : pick(CONTENT.TOPICS);
+      const subject = sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
       const owned = rivalTalent(r);
       const credits = {};
       [['director', 'director'], ['writer', 'writer'], ['lead', 'actor'], ['crew', 'crew']].forEach(pair => {
         const people = owned.filter(t => t.role === pair[1]);
         credits[pair[0]] = people.length ? pick(people).name : pick(CONTENT.FIRST_NAMES) + ' ' + pick(CONTENT.LAST_NAMES);
       });
-    const f = { id: r.nextFilmId++, title: randomTitle(), genre: genre, topic: subject.id,
+    const f = { id: r.nextFilmId++, title: sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
+      sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
       quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
-      hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype), 0, 100),
+      hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype + (sequelSource ? 7 : 0)), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);
     f.week = bestWeek(r, f, state.week + lead - 2, state.week + lead + 3);
@@ -1742,6 +1824,8 @@ var Engine = (function () {
     f.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
     f.stage = 'release';
     f.critic = clamp(Math.round(f.quality + rnd(-12, 12)), 1, 100);
+    f.audience = audienceScore(f, genreDemand(f.genre));
+    f.review = receptionText(f);
     f.weeksIn = 0;
     archiveRivalFilm(r, f);
     f.studioReleasesAtRelease = r.releases;
@@ -1777,6 +1861,10 @@ var Engine = (function () {
     r.fame = clamp(r.fame + (f.result === 'Hit' ? 4 : f.result === 'Profit' ? 1 : -2), 0, 100);
     archiveRivalFilm(r, f);
     if (f.result === 'Hit' && f.gross >= R.newsGross * eraScale()) addLog(rtx('hit', { rival: r.name, title: f.title, gross: fmtMoney(f.gross) }), 'rival');
+    const prevStreak = r.hitStreak || 0;
+    r.hitStreak = f.result === 'Hit' ? prevStreak + 1 : 0;
+    if (r.hitStreak === 3) addLog(r.name + ' is on a three-film hit streak. Rival exhibitors are taking notice.', 'rival');
+    if (prevStreak >= 3 && f.result === 'Flop') addLog(r.name + ' breaks its winning streak with the disappointing release of  + f.title + .', 'rival');
     const done = r.films.filter(x => x.stage === 'done');
     if (done.length > R.keepFilms) r.films.splice(r.films.indexOf(done[0]), 1);
   }
@@ -2660,6 +2748,7 @@ var Engine = (function () {
     checkCalendar();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
+    if (dateOf().week === TUNING.weeksPerYear) annualReview();
     checkBankruptcy();
     save();
     emit('turn');
@@ -2721,10 +2810,20 @@ var Engine = (function () {
           result: f.result, stage: f.stage, credits: f.credits || {},
           awards: [], festResults: [], regions: [], regionalGross: {}, legacy: true });
       }));
+      obj.version = 10;
+    }
+    if (obj.version === 10) {
+      // v11 adds custom poster references, audience reaction, sequel lineage and
+      // annual reviews without recomputing any historic film results.
+      obj.campaignId = obj.campaignId || ('migrated-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1e8).toString(36));
+      obj.annualReviews = obj.annualReviews || [];
+      (obj.projects || []).forEach(p => { if (p.posterCustom == null) p.posterCustom = false; });
       obj.version = SAVE_VERSION;
     }
     if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'Save is from version ' + obj.version + '; this build uses version ' + SAVE_VERSION + '. Start a new game.' };
     state = obj;
+    state.annualReviews = state.annualReviews || [];
+    state.campaignId = state.campaignId || ('migrated-' + Date.now().toString(36));
     state.filmArchive = state.filmArchive || { rivals: [], incompleteBefore: state.week };
     state.awards.judged = state.awards.judged || {};
     state.studio.homeRegion = state.studio.homeRegion || 'northamerica';
@@ -2742,7 +2841,7 @@ var Engine = (function () {
     TUNING: TUNING, SLOTS: SLOTS,
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
-    startProject: startProject, previewProject: previewProject, randomTitle: randomTitle,
+    startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle,
     formats: formats, activeProject: activeProject, activeProjects: activeProjects, capacity: capacity, getProject: getProject,
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
     weeklyBurn: weeklyBurn, weeklyProfit: weeklyProfit, weeklySalaries: weeklySalaries,
@@ -2752,7 +2851,7 @@ var Engine = (function () {
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
-    filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings,
+    filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
     talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, traitsOf: traitsOf, effReliability: effReliability,

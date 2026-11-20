@@ -27,12 +27,13 @@ check('25 unique topics and expected additions', () => {
   assert(C.TOPICS.every(t => Array.isArray(t.good) && Array.isArray(t.bad)));
 });
 check('Six festival tiers with open qualification', () => {
-  assert.deepStrictEqual(Array.from(C.AWARDS.circuit, f => f.level), ['Local','Regional','National','Continental','International','World']);
+  assert.deepStrictEqual(Array.from(C.AWARDS.circuit.slice(0,6), f => f.level), ['Local','Regional','National','Continental','International','World']);
+  assert.strictEqual(C.AWARDS.circuit.length, 16);
   assert(C.AWARDS.circuit.every(f => Number.isFinite(f.entryScore) && !('studioTier' in f)));
 });
 check('Game begins and market lists all topics', () => {
   E.newGame({ studioName: 'Regression Pictures', founderName: 'Tester' });
-  assert.strictEqual(E.state.version, 9);
+  assert.strictEqual(E.state.version, 11);
   assert.strictEqual(E.state.market.topics && Object.keys(E.state.market.topics).length, 25);
   assert.strictEqual(E.marketInfo().topics.length, 25);
 });
@@ -75,7 +76,7 @@ check('v8 saves migrate to v9 preserving studio progress', () => {
   localStorage.setItem('backlot_save', JSON.stringify(saved));
   const loaded = E.load();
   assert(loaded.ok, loaded.reason);
-  assert.strictEqual(E.state.version, 9);
+  assert.strictEqual(E.state.version, 11);
   assert.strictEqual(E.state.cash, 123456);
   assert.strictEqual(E.state.studio.fame, 52);
   assert.strictEqual(E.state.studio.prestige, 12);
@@ -96,7 +97,12 @@ check('Short-film completion reaches festival and does not crash', () => {
   assert.strictEqual(E.state.projects[0].stage, 'done');
   const p = E.state.projects[0];
   assert(C.AWARDS.circuit.some(f => f.id === p.festivalTierId));
+  while (weeks++ < 125 && !(p.festResults && p.festResults.length) && !E.state.gameOver) {
+    while (E.state.pending) E.choose(0);
+    E.nextTurn();
+  }
   assert(p.festResults && p.festResults.length && p.festResults[0].tier);
+  assert(p.festResults[0].year >= E.dateOf(p.releaseWeek).year);
 });
 check('TV pilot production and pickup flow stays playable', () => {
   E.newGame({studioName:'Pilot Test Studio',founderName:'Tester'});

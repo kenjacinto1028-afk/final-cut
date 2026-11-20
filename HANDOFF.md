@@ -1,19 +1,21 @@
-# Final Cut — Current Handoff
+# Final Cut — Current Handoff (v11)
 
-Version: **v10**, 2026-11-20. Branch target: `main`, repository `kenjacinto1028-afk/final-cut`.
+Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
-## Run
-Open `index.html` in a browser (or deploy root directory as a static site). Scripts must load in order: `content.js`, `engine.js`, `media.js`, `ui.js`. No build tools required. Headless strategy sim uses Node: `node sim.js careful 1 123`.
+## Running the game
+Open `index.html` or deploy this directory through GitHub Pages. It loads `content.js`, `engine.js`, `poster-store.js`, `media.js`, `ui.js` in that order. No build/dependency installation is needed. For reliable custom-poster persistence use a stable HTTPS site origin rather than private/ephemeral browsing.
 
-## Architecture
-- `content.js`: definitions for regions, films, genres/topics, talent, decisions, festivals, annual ceremonies.
-- `engine.js`: simulation, studio state, saved history, markets, festivals, regional distribution and rankings.
-- `ui.js`: browser screens, filmography, archive, rankings, project/draft and film detail drawers.
-- `style.css`: responsive premium light/charcoal design; `media.js`: media effects; `sim.js`: headless long-run simulation.
-- `docs/CHANGELOG_V10.md`: what changed; `docs/TEST_REPORT_V10.md`: verification and caveats.
+## Modules
+- `content.js`: genres, topics, events, market, regions, festival and award definitions.
+- `engine.js`: projects, turn/film/rival/TV rules, history, regions, franchise links, save format v11.
+- `poster-store.js`: browser-local custom JPG/PNG/WebP poster blobs in campaign-scoped IndexedDB; separate from main save.
+- `media.js`: original SVG poster templates/portraits/stills and brief optional UI effects.
+- `ui.js`: navigation, projects, filmography and rankings, poster upload/crop and backup import/export.
+- `style.css`: charcoal/ivory responsive UI and reduced-motion styles.
+- `sim.js`: deterministic 1970–2031 automated strategy runs.
 
-## Features
-User picks a home region on new game. Feature films select territories at release planning and pay additional distribution costs in exchange for possible overseas revenues. My Filmography and World Film Archive record completed films and release history; world and studio rankings cover film merit, genre, topic, critics, gross and awards. AI rivals can expand toward 15 active studios; special festivals and annual award ceremonies appear by decade. New AI films have named credited artists. V9 saves migrate with transparent incomplete legacy histories.
+## V11 functionality
+Short films can choose region circuits after post-production. Releases track critic/audience reaction. Player hits can spawn sequels, AI studios occasionally create hit sequels. Movies have eight procedural poster variants and player-owned movies can use local uploaded posters; use a full backup to move poster art to another device. Illustrated people and film stills plus limited UI animations remain cosmetic.
 
-## Developer workflow
-Keep source separated by responsibility, update `TASK_STATE.md` per batch, add regression checks, test 4 strategy bots and verify actual browser layouts before release. Beware storage growth and high-fame award balance. Do not drop or silently fabricate archived films when repairing old saves.
+## Tests and limits
+Run `node tests/regression.js`, `node tests/v10_regression.js`, `node tests/v11_regression.js`, `python tests/v11_browser.py`, and `node sim.js careful 1 123`. See `docs/CHANGELOG_V11.md` and `docs/TEST_REPORT_V11.md` for exact coverage. Four strategies/two seeds produced 6/8 scoring completions, 2 bankruptcies. Local browser sandbox does not permit end-to-end live-origin IndexedDB testing; test after GitHub Pages deployment. V10 is preserved in its earlier release archive.

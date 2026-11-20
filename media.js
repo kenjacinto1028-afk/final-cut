@@ -337,8 +337,10 @@ var Media = (function () {
     try { year = Engine.dateOf(week).year; eraId = Engine.eraOf(year).id; } catch (e) { /* no engine (tests) */ }
     const E = POSTER_ERAS[eraId] || POSTER_ERAS.newhollywood;
     const pal = GENRE_PAL[p.genre] || GENRE_PAL.drama;
-    const r = rng(hash((p.id || 0) + '|' + p.title + '|' + p.genre));
-    const uid = 'p' + (p.id || 0) + '_' + (hash(p.title) % 9973);
+    const familySeed = hash((p.id || 0) + '|' + p.title + '|' + p.genre + '|' + (p.topic || ''));
+    const family = Number.isFinite(Number(opts.styleId)) ? Number(opts.styleId) % 8 : Number.isFinite(Number(p.posterStyleId)) ? Number(p.posterStyleId) % 8 : familySeed % 8;
+    const r = rng(hash((p.id || 0) + '|' + p.title + '|' + p.genre + '|' + family));
+    const uid = 'p' + (p.id || 0) + '_' + (hash(p.title) % 9973) + '_' + family;
     const studio = opts.studio || (s ? s.studio.name : 'Final Cut');
     const title = E.upper ? String(p.title).toUpperCase() : String(p.title);
     const lines = wrapTitle(title, E.upper ? 13 : 16);
@@ -353,9 +355,24 @@ var Media = (function () {
     let svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" role="img" aria-label="' + xml('Poster for ' + p.title) + '">';
     svg += background(E, pal, r, uid);
     let art = motif(p.genre, pal, r);
-    if (E.frame) art = '<svg x="10" y="10" width="180" height="200" viewBox="0 0 200 222" preserveAspectRatio="xMidYMid slice">' + art + '</svg>';
-    if (E.block) svg += '<rect x="' + (14 + r() * 20).toFixed(0) + '" y="34" width="' + (120 + r() * 40).toFixed(0) + '" height="150" fill="' + pal[0] + '"/>';
-    svg += E.block ? '<g opacity=".95"><svg x="20" y="34" width="160" height="150" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">' + motif(p.genre, pal, rng(hash(p.title))) + '</svg></g>' : art;
+    if (family === 0) {
+      if (E.frame) art = '<svg x="10" y="10" width="180" height="200" viewBox="0 0 200 222" preserveAspectRatio="xMidYMid slice">' + art + '</svg>';
+      if (E.block) svg += '<rect x="' + (14 + r() * 20).toFixed(0) + '" y="34" width="' + (120 + r() * 40).toFixed(0) + '" height="150" fill="' + pal[0] + '"/>';
+      svg += E.block ? '<g opacity=".95"><svg x="20" y="34" width="160" height="150" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">' + motif(p.genre, pal, rng(hash(p.title))) + '</svg></g>' : art;
+    } else {
+      // Eight original, era-aware artwork compositions. Art stays above the title area.
+      // An independent family seed also gives AI films visually varied posters.
+      const inner = '<svg x="0" y="0" width="200" height="210" viewBox="0 0 200 220" preserveAspectRatio="xMidYMid slice">' + art + '</svg>';
+      const accent = pal[1], pale = pal[2], deep = pal[3];
+      if (family === 1) svg += '<rect y="25" width="200" height="175" fill="' + deep + '"/><svg x="0" y="25" width="104" height="170" viewBox="0 0 200 220" preserveAspectRatio="xMidYMid slice">' + art + '</svg><rect x="104" y="25" width="96" height="170" fill="' + accent + '" opacity=".45"/><path d="M104 25V197" stroke="' + pale + '" stroke-width="3"/>';
+      else if (family === 2) svg += '<path d="M10 208L100 25L190 208Z" fill="' + accent + '" opacity=".5"/><circle cx="100" cy="98" r="51" fill="' + pale + '" opacity=".18"/><svg x="42" y="26" width="116" height="170" viewBox="0 0 200 220" preserveAspectRatio="xMidYMid meet">' + art + '</svg>';
+      else if (family === 3) svg += '<rect x="0" y="35" width="200" height="162" fill="' + deep + '"/><svg x="0" y="35" width="200" height="120" viewBox="0 0 200 220" preserveAspectRatio="xMidYMid slice">' + art + '</svg><path d="M0 170L52 117L100 148L146 100L200 155V200H0Z" fill="' + accent + '" opacity=".76"/>';
+      else if (family === 4) svg += '<rect x="18" y="47" width="164" height="132" fill="' + deep + '"/><svg x="45" y="63" width="110" height="100" viewBox="0 0 200 220">' + art + '</svg><path d="M8 28V202M192 28V202" stroke="' + accent + '" stroke-width="5"/>';
+      else if (family === 5) svg += '<rect x="0" y="40" width="200" height="145" fill="' + pale + '"/><svg x="6" y="45" width="120" height="140" viewBox="0 0 200 220">' + art + '</svg><svg x="102" y="61" width="95" height="116" viewBox="0 0 200 220">' + motif(p.genre,pal,rng(familySeed+23)) + '</svg><path d="M0 180L200 36" stroke="' + accent + '" stroke-width="9" opacity=".58"/>';
+      else if (family === 6) svg += '<circle cx="52" cy="113" r="57" fill="' + accent + '"/><circle cx="142" cy="93" r="61" fill="' + deep + '"/><svg x="3" y="40" width="115" height="155" viewBox="0 0 200 220">' + art + '</svg><svg x="90" y="37" width="103" height="151" viewBox="0 0 200 220">' + motif(p.genre,pal,rng(familySeed+37)) + '</svg>';
+      else svg += '<rect x="20" y="28" width="160" height="164" rx="80" fill="' + accent + '" opacity=".75"/><svg x="29" y="38" width="142" height="145" viewBox="0 0 200 220">' + art + '</svg><circle cx="100" cy="110" r="74" fill="none" stroke="' + pale + '" stroke-width="2"/>';
+      svg += '<rect x="0" y="198" width="200" height="102" fill="' + pal[0] + '" opacity=".96"/>';
+    }
     if (E.grid) { for (let i = 0; i < 8; i++) { const y = 200 + i * i * 1.6; svg += '<line x1="0" y1="' + y.toFixed(1) + '" x2="200" y2="' + y.toFixed(1) + '" stroke="#ff58b5" stroke-width=".7" opacity=".7"/>'; } for (let i = -6; i <= 6; i++) svg += '<line x1="100" y1="196" x2="' + (100 + i * 40) + '" y2="300" stroke="#ff58b5" stroke-width=".6" opacity=".6"/>'; }
     if (E.vignette) svg += '<defs><radialGradient id="v' + uid + '" cx=".5" cy=".45" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></radialGradient></defs><rect width="200" height="300" fill="url(#v' + uid + ')"/>';
     if (E.grain) for (let i = 0; i < 60; i++) svg += '<rect x="' + (r() * 200).toFixed(1) + '" y="' + (r() * 300).toFixed(1) + '" width=".8" height=".8" fill="#3b2f1f" opacity=".25"/>';
@@ -380,40 +397,51 @@ var Media = (function () {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '"' + (w ? ' width="' + w + '"' : '') + (h ? ' height="' + h + '"' : '') + (extra || '') + ' role="img" aria-label="' + xml(label) + '">';
   }
   // Portrait: palette from the person's first genre fit, shape family from the role, busier and framed more heavily with fame.
+  // Stable 12+ fictional illustrated portrait archetypes: no real people/likenesses.
+  // A person's name/id determines all features; fame changes the frame, not their face.
   function portraitSVG(t, size) {
-    size = size || 96;
-    const r = rng(hash('portrait|' + t.id + '|' + t.name));
-    const pal = GENRE_PAL[(t.affinity || [])[0]] || GENRE_PAL.drama;
-    const bg = pal[0], acc = pal[1], lit = pal[2], dk = pal[3];
-    const fame = t.fame || 0, n = 2 + Math.round(fame / 25);
-    let s = svgOpen('0 0 100 100', size, size, 'Portrait art for ' + t.name) + '<rect width="100" height="100" fill="' + bg + '"/>';
-    if (t.role === 'director') {
-      for (let i = 0; i < n; i++) {
-        const a = Math.round(r() * 360), k = 20 + r() * 34;
-        s += '<polygon points="50,' + (50 - k).toFixed(1) + ' ' + (50 + k * 0.87).toFixed(1) + ',' + (50 + k * 0.5).toFixed(1) + ' ' + (50 - k * 0.87).toFixed(1) + ',' + (50 + k * 0.5).toFixed(1) +
-          '" fill="' + [acc, lit, dk][i % 3] + '" opacity="' + (0.55 + r() * 0.4).toFixed(2) + '" transform="rotate(' + a + ' 50 50)"/>';
-      }
-    } else if (t.role === 'writer') {
-      const rows = 4 + n;
-      for (let i = 0; i < rows; i++) {
-        s += '<rect x="' + (12 + r() * 14).toFixed(1) + '" y="' + (14 + i * (72 / rows)).toFixed(1) + '" width="' + (22 + r() * 52).toFixed(1) + '" height="4" fill="' + (i % 3 === 0 ? acc : lit) + '" opacity="' + (0.6 + r() * 0.4).toFixed(2) + '"/>';
-      }
-      s += '<circle cx="' + (68 + r() * 18).toFixed(1) + '" cy="' + (66 + r() * 16).toFixed(1) + '" r="' + (9 + r() * 7).toFixed(1) + '" fill="' + acc + '"/>';
-    } else if (t.role === 'actor') {
-      for (let i = 0; i < n; i++) {
-        s += '<circle cx="' + (20 + r() * 60).toFixed(1) + '" cy="' + (20 + r() * 60).toFixed(1) + '" r="' + (12 + r() * 20).toFixed(1) + '" fill="' + [acc, lit, dk][i % 3] + '" opacity="' + (0.5 + r() * 0.45).toFixed(2) + '"/>';
-      }
-      s += '<circle cx="50" cy="50" r="' + (8 + r() * 8).toFixed(1) + '" fill="none" stroke="' + lit + '" stroke-width="2.5"/>';
-    } else {   // crew: a grid of tiles with one lens
-      const cell = 78 / 3;
-      for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) {
-        s += '<rect x="' + (11 + x * cell + 1.5).toFixed(1) + '" y="' + (11 + y * cell + 1.5).toFixed(1) + '" width="' + (cell - 3).toFixed(1) + '" height="' + (cell - 3).toFixed(1) +
-          '" fill="' + [acc, lit, dk][Math.floor(r() * 3)] + '" opacity="' + (0.5 + r() * 0.5).toFixed(2) + '"/>';
-      }
-      s += '<circle cx="' + (24 + Math.floor(r() * 3) * 26) + '" cy="' + (24 + Math.floor(r() * 3) * 26) + '" r="10" fill="' + lit + '" stroke="' + dk + '" stroke-width="3"/>';
-    }
-    s += '<rect x="1.5" y="1.5" width="97" height="97" fill="none" stroke="' + (fame >= 50 ? acc : lit) + '" stroke-width="' + (1.5 + fame / 30).toFixed(1) + '"/>';
-    return s + '</svg>';
+    size=size||96;
+    const r=rng(hash('face-v11|' + t.id + '|' + t.name));
+    const pal=GENRE_PAL[(t.affinity||[])[0]]||GENRE_PAL.drama;
+    const skin=['#f8d7b2','#d8a06f','#ab734c','#714c39','#e7bd93','#9b6242'][Math.floor(r()*6)];
+    const hair=['#1b1820','#4b3028','#8a4f30','#c59b61','#40302f','#6f412f'][Math.floor(r()*6)];
+    const top=['#203f5b','#6f3448','#456f58','#897245','#433e70','#2d5d68'][Math.floor(r()*6)];
+    const shape=Math.floor(r()*6),eyes=1.4+r()*.4, brow=35+r()*3;
+    const faceWidth=21+r()*3,faceHeight=29+r()*3;
+    let out=svgOpen('0 0 100 100',size,size,'Illustrated portrait of '+t.name);
+    out+='<rect width="100" height="100" fill="'+pal[0]+'"/><path d="M0 78L100 30V100H0Z" fill="'+pal[1]+'" opacity=".18"/>';
+    out+='<path d="M5 105Q10 76 36 73L64 73Q90 76 96 105Z" fill="'+top+'"/>';
+    out+='<path d="M45 67V83Q50 89 55 83V67" fill="'+skin+'"/>';
+    if(shape%2===0)out+='<ellipse cx="50" cy="46" rx="'+(faceWidth+3)+'" ry="'+(faceHeight+5)+'" fill="'+hair+'"/>';
+    out+='<ellipse cx="50" cy="48" rx="'+faceWidth+'" ry="'+faceHeight+'" fill="'+skin+'" stroke="#251c1b" stroke-opacity=".26" stroke-width=".8"/>';
+    // Varied authentic cartoon hair silhouettes.
+    if(shape===0)out+='<path d="M27 44Q22 12 53 13Q75 11 74 43Q59 26 48 32Q36 34 27 44Z" fill="'+hair+'"/>';
+    else if(shape===1)out+='<path d="M25 41Q20 18 46 17Q71 7 77 38Q58 34 43 27Q35 39 25 41Z" fill="'+hair+'"/>';
+    else if(shape===2)out+='<path d="M28 39Q23 22 38 21Q43 11 55 20Q70 12 73 34L70 44Q62 30 51 31Q38 28 28 39Z" fill="'+hair+'"/><path d="M26 37Q20 48 27 60M74 36Q80 50 72 63" stroke="'+hair+'" stroke-width="6" fill="none"/>';
+    else if(shape===3)out+='<path d="M27 39Q24 19 50 18Q75 19 73 36Q57 26 38 32Z" fill="'+hair+'"/><path d="M25 38Q20 57 29 67M75 39Q79 58 70 70" fill="none" stroke="'+hair+'" stroke-width="9"/>';
+    else if(shape===4)out+='<path d="M26 38Q25 18 48 17Q64 15 73 30L73 36Q53 23 26 38Z" fill="'+hair+'"/>';
+    else out+='<path d="M25 45Q20 19 45 17Q71 11 76 40L70 43Q50 27 39 35Z" fill="'+hair+'"/><path d="M74 36Q86 52 72 77" stroke="'+hair+'" stroke-width="8" fill="none"/>';
+    out+='<path d="M34 '+brow+'Q41 '+(brow-3)+' 46 '+brow+'M54 '+brow+'Q61 '+(brow-3)+' 66 '+brow+'" stroke="'+hair+'" stroke-width="1.6" stroke-linecap="round" fill="none"/>';
+    out+='<ellipse cx="40" cy="44" rx="'+eyes+'" ry="2.3" fill="#24212a"/><ellipse cx="60" cy="44" rx="'+eyes+'" ry="2.3" fill="#24212a"/>';
+    out+='<path d="M49 47L47 55Q50 57 53 55" stroke="#7d574a" stroke-width="1.2" fill="none"/>';
+    out+='<path d="M42 63Q50 '+(shape%2===0?68:65)+' 58 63" stroke="#703f3e" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+    if(r()>.67)out+='<path d="M31 42H47V51H31ZM53 42H69V51H53ZM47 45H53" stroke="#302d3a" stroke-width="1.8" fill="none"/>';
+    out+='<path d="M35 81L47 91L50 83L53 91L65 81" fill="none" stroke="'+pal[2]+'" stroke-width="1.5" opacity=".75"/>';
+    out+='<rect x="1.5" y="1.5" width="97" height="97" rx="4" fill="none" stroke="'+(t.fame>=50?pal[1]:pal[2])+'" stroke-width="'+(t.fame>=50?3:1.6)+'"/>';
+    return out+'</svg>';
+  }
+  // Lightweight original film still for a selected movie: generated once from its stable identity.
+  function filmStillSVG(f){
+    const r=rng(hash('film-still|'+f.id+'|'+f.title)),pal=GENRE_PAL[f.genre]||GENRE_PAL.drama;
+    let s=svgOpen('0 0 480 220',0,0,'Illustrated still for '+f.title,' preserveAspectRatio="xMidYMid slice"');
+    s+='<defs><linearGradient id="still'+hash(f.title)+'" x1="0" y1="0" x2="0" y2="1"><stop stop-color="'+pal[3]+'"/><stop offset="1" stop-color="'+pal[0]+'"/></linearGradient></defs>';
+    s+='<rect width="480" height="220" fill="url(#still'+hash(f.title)+')"/>';
+    s+='<circle cx="'+(160+r()*160).toFixed(1)+'" cy="60" r="40" fill="'+pal[1]+'" opacity=".7"/>';
+    s+='<path d="M0 176L80 115L148 168L262 95L355 164L430 107L480 160V220H0Z" fill="'+pal[2]+'" opacity=".46"/>';
+    s+='<path d="M0 200L115 149L225 185L375 136L480 185V220H0Z" fill="'+pal[3]+'" opacity=".8"/>';
+    s+='<svg x="155" y="25" width="170" height="148" viewBox="0 0 200 220">'+motif(f.genre,pal,r)+'</svg>';
+    s+='<rect width="480" height="220" fill="none" stroke="'+pal[1]+'" stroke-width="7" opacity=".68"/>';
+    return s+'</svg>';
   }
   // Era backdrop: a wide banner (600 × 100, crops to fit) in the look of each era (same ids as CONTENT.ERAS).
   function backdropSVG(eraId) {
@@ -650,6 +678,19 @@ var Media = (function () {
   // Engine events: newgame, load, turn, advance, project, stage, decision_pending, decision, release, festival, finished, finance,
   // warning, era, gameover, contract, founder_role, quarter, market, tv, tier, staff, rival, poach, awards, score.
   // 8.1: mood changes. 8.4: sound effects (sfxFor). 8.5: confetti on a festival win or ceremony win, shake on a crisis.
+  // UI-only, nonblocking cinematic cue; no effect on simulation outcomes.
+  let visualCueLast = 0;
+  function visualCue(kind,title,subtitle) {
+    if (!motionOK() || typeof document === 'undefined' || !document.body || document.hidden) return;
+    const now = Date.now(); if (now - visualCueLast < 450) return; visualCueLast = now;
+    document.querySelectorAll('.fc-cinematic-cue').forEach(x=>x.remove());
+    const box=document.createElement('div');
+    box.className='fc-cinematic-cue cue-'+kind;box.setAttribute('role','status');
+    const h=document.createElement('strong');h.textContent=title;
+    const p=document.createElement('span');p.textContent=subtitle||'';
+    box.append(h,p);document.body.appendChild(box);
+    setTimeout(()=>box.remove(),1100);
+  }
   function wonAtCeremony(rec) { return !!(rec && rec.cats && rec.cats.some(c => c.nominees.some(n => n.winner && n.projectId != null))); }
   function onEngineEvent(type, data) {
     if (type === 'finished' && data && data.result === 'Hit') triumph(8);
@@ -657,6 +698,10 @@ var Media = (function () {
     else if (type === 'awards' && wonAtCeremony(data)) triumph(12);
     else if (type === 'tier' || type === 'score') triumph(10);
     else if (type === 'newgame' || type === 'load') { triumphBars = 0; resetCounts(); }
+    if (type === 'release' && data && data.format !== 'pilot') visualCue('premiere','NOW SHOWING',data.title+' · '+(data.critic||0)+'/100 critics');
+    if (type === 'festival' && data && /won|prize/i.test(data.result||'')) visualCue('laurel','FESTIVAL HONORS',data.festival||'Jury recognition');
+    if (type === 'awards' && wonAtCeremony(data)) visualCue('award','AWARDS NIGHT','A film from your studio has won');
+    if (type === 'era' && data) visualCue('era','NEW ERA',data.name||'The industry is changing');
     if (audio.timer) updateMood();
     queueSfx(sfxFor(type, data));
     if (type === 'awards' && wonAtCeremony(data)) confetti();
@@ -685,7 +730,7 @@ var Media = (function () {
   init();
 
   return { settings: settings, setMusic: setMusic, toggleMusic: toggleMusic, setVolume: setVolume, musicState: musicState, posterSVG: posterSVG,
-    portraitSVG: portraitSVG, backdropSVG: backdropSVG, trophySVG: trophySVG, badgeSVG: badgeSVG,
+    portraitSVG: portraitSVG, filmStillSVG: filmStillSVG, backdropSVG: backdropSVG, trophySVG: trophySVG, badgeSVG: badgeSVG,
     setSfx: setSfx, toggleSfx: toggleSfx, setReduceMotion: setReduceMotion, toggleReduceMotion: toggleReduceMotion,
     countUp: countUp, confetti: confetti, shake: shake, motionOK: motionOK };
 })();

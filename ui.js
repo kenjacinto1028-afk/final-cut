@@ -52,6 +52,27 @@ var UI = (function () {
   function isPicture(name) { return /picture/i.test(String(name || '')); }
   // A money value that counts up when it changed (Media.countUp runs after every render). key must be unique per value.
   function cu(key, n) { return '<span data-key="' + esc(key) + '" data-count="' + Math.round(n) + '">' + money(n) + '</span>'; }
+  function posterFor(f) {
+    const id = f.projectId == null ? (typeof f.id === 'number' ? f.id : null) : f.projectId;
+    const p = id == null ? null : Engine.getProject(id);
+    const u = p && p.posterCustom && typeof PosterStore !== 'undefined' ? PosterStore.url(p.id) : null;
+    return u ? '<img class="poster-custom" alt="Custom poster for ' + esc(f.title) + '" src="' + esc(u) + '">' : (hasMedia() ? Media.posterSVG(p || f) : '');
+  }
+  // Three curated design alternatives; can always restore the seeded default.
+  function designChoices(p) {
+    const seed = p.title.split('').reduce((n,c)=>n*31+c.charCodeAt(0), 17) >>> 0;
+    return [seed%8,(seed+3)%8,(seed+6)%8];
+  }
+  function posterActions(p) {
+    if(!p) return '';
+    const styles=designChoices(p);
+    return '<div class="poster-picker"><h3>Film poster</h3><p class="muted">Cosmetic art only — never changes film outcomes.</p>' +
+      '<div class="poster-variants">' + styles.map((v,i)=>'<button class="poster-variant' + (p.posterStyleId===v?' selected':'') + '" onclick="UI.selectPosterStyle('+p.id+','+v+')" aria-label="Select poster design '+(i+1)+'">'+Media.posterSVG(p,{styleId:v})+'<small>Design '+(i+1)+'</small></button>').join('') + '</div>' +
+      '<div class="actions"><label class="poster-upload">Upload custom poster <input type="file" accept="image/png,image/jpeg,image/webp" onchange="UI.beginPosterUpload('+p.id+',this)"></label>' +
+      '<button onclick="UI.selectPosterStyle('+p.id+',-1)">Generated default</button>' +
+      (p.posterCustom?'<button onclick="UI.removePoster('+p.id+')">Remove uploaded poster</button>':'')+'</div>' +
+      '<p class="muted">Custom posters stay on this device unless included in a backup export. Choosing a generated design replaces uploaded art.</p></div>';
+  }
   function portrait(t) { return hasMedia() ? '<div class="portrait">' + Media.portraitSVG(t, 120) + '</div>' : ''; }
   function eraBanner(eraId) { return hasMedia() ? '<div class="banner" aria-hidden="true">' + Media.backdropSVG(eraId) + '</div>' : ''; }
   function trophyIcon(won, picture, tip) { return hasMedia() ? '<span class="ico"' + (tip ? ' title="' + esc(tip) + '"' : '') + '>' + Media.trophySVG({ won: won, picture: picture }) + '</span>' : ''; }
@@ -195,7 +216,9 @@ var UI = (function () {
           : '<button class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
             (v[0] === 'roster' && expiring ? '<span class="badge">' + expiring + '</span>' : '') + '</button>'
         ).join('') + '</div>').join('') +
-      '<div class="nav-foot">' + soundControls() + '<button class="navbtn danger-nav" onclick="UI.quit()">New game</button></div>';
+      '<div class="nav-foot">' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
+      '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
+      '<button class="navbtn danger-nav" onclick="UI.quit()">New game</button></div>';
   }
   // 8.1 music toggle and volume, 8.4 sound effects toggle, 8.5 reduce-motion toggle (Media keeps the settings; display only here).
   function soundControls() {
@@ -240,6 +263,7 @@ var UI = (function () {
       '<label>Home region <select id="f_region">' + CONTENT.REGIONS.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('') + '</select></label>' +
       '<button class="primary" onclick="UI.startGame()">Start new game</button>' +
       (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue saved game</button>' : '') +
+      ' <label class="poster-upload">Import save + posters <input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '</div><div class="start-sound">' + soundControls() + '</div>';
   }
 
@@ -279,6 +303,11 @@ var UI = (function () {
         (Engine.founderFreelancing() ? ' The founder freelances for ' + money(Engine.freelanceIncome()) + '/week.' : '') +
         ' <button class="accent" onclick="UI.go(\'newproject\')">Start a project</button></p>';
     }
+    if ((s.annualReviews || []).length) { const r = s.annualReviews[s.annualReviews.length - 1];
+      h += '<div class="year-review"><h2>Year '+r.year+' in review</h2><p>'+r.films+' films released · '+r.awards+' awards · closing cash '+money(r.cash)+'</p>' +
+        (r.topGrossId ? '<p>Highest gross: <a href="#" onclick="UI.openProject('+r.topGrossId+');return false">'+esc((Engine.getProject(r.topGrossId)||{}).title)+'</a></p>' : '') +
+        '<button onclick="UI.go(\'filmography\')">Browse film history</button></div>';
+    }
     h += '</section><aside class="studio-wire"><h2>The Studio Wire</h2><p><a href="#" onclick="UI.go(\'news\');return false">All news</a></p>' + newsList(Engine.news(null, Engine.TUNING.news.headlines)) + '</aside></div>';
     return h;
   }
@@ -296,7 +325,7 @@ var UI = (function () {
   function setDraft(key, val) {
     if (key === 'tier') val = Number(val);
     draft[key] = val;
-    if (key === 'format') draft.tier = 0;
+    if (key === 'format') { draft.tier = 0; if(val!=='feature') delete draft.sequelOf; }
     if (key !== 'title') render();
   }
   function setCast(slot, val) { draft.cast[slot] = val; render(); }
@@ -323,7 +352,7 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1><p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
+    let h = '<h1>New project</h1>' + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
     h += '<label>Title <input value="' + esc(draft.title) + '" oninput="UI.setDraft(\'title\', this.value)"> <button onclick="UI.randomizeTitle()">Random</button></label>';
     h += '<label>Format <select onchange="UI.setDraft(\'format\', this.value)">' +
       fmts.map(f => opt(f.id, f.name + (f.unlocked ? '' : ' (needs ' + (Engine.state.studio.tier < f.minTier ? tierName(f.minTier) : 'fame ' + f.unlockFame) + ')'), f.id === draft.format, !f.unlocked)).join('') + '</select></label>';
@@ -420,6 +449,15 @@ var UI = (function () {
     opts.criterion = ['genre','topic'].includes(filmBrowse.criterion) ? 'overall' : filmBrowse.criterion;
     return opts;
   }
+  const previousRanks=new Map();
+  function rankMovement(f){
+    if (!Number.isInteger(f.worldRank)) return '';
+    const prev=previousRanks.get(f.id);
+    previousRanks.set(f.id, f.worldRank);
+    if (prev == null || prev === f.worldRank) return '';
+    const delta=prev-f.worldRank;
+    return '<small class="'+(delta>0?'rank-up':'rank-down')+'" title="Change in worldwide ranking"> '+(delta>0?'▲':'▼')+Math.abs(delta)+'</small>';
+  }
   function filmTable(rows, ranked, mine) {
     const q = filmBrowse.query.toLowerCase().trim();
     if (q) rows = rows.filter(f => [f.title,f.studio,nameOf(CONTENT.GENRES,f.genre),nameOf(CONTENT.TOPICS,f.topic)].join(' ').toLowerCase().includes(q));
@@ -435,7 +473,7 @@ var UI = (function () {
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
     h += '<div class="tbl-wrap"><table><thead><tr>' + (ranked ? '<th>World #</th>' + (mine ? '<th>Studio #</th>' : '') : '') +
       (mine && !ranked ? '<th>Studio #</th><th>World #</th>' : '') + '<th>Film</th><th>Studio</th><th>Year</th><th>Genre / Topic</th><th class="num">Critics</th><th class="num">Gross</th><th class="num">' + (ranked ? 'Ranking score' : 'Awards') + '</th></tr></thead><tbody>' +
-      page.map(f => '<tr>' + (ranked ? '<td><strong>#' + f.worldRank + '</strong></td>' + (mine ? '<td>#' + f.studioRank + '</td>' : '') : (mine ? '<td>' + (positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—') + '</td><td>' + (positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—') + '</td>' : '')) +
+      page.map(f => '<tr>' + (ranked ? '<td><strong>#' + f.worldRank + '</strong>' + rankMovement(f) + '</td>' + (mine ? '<td>#' + f.studioRank + '</td>' : '') : (mine ? '<td>' + (positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—') + '</td><td>' + (positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—') + '</td>' : '')) +
         '<td>' + filmLabel(f) + '</td><td>' + esc(f.studio) + (f.projectId != null ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + f.year + '</td>' +
         '<td>' + esc(nameOf(CONTENT.GENRES,f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS,f.topic || '')) + '</td><td class="num">' + (f.critic == null ? '—' : f.critic) +
         '</td><td class="num">' + money(f.gross || 0) + '</td><td class="num">' + (ranked ? f.score : (f.awards || []).filter(a => a.won).length + (f.festResults || []).filter(a => /prize|grand|winner|won/i.test(a.result || '')).length) +
@@ -896,19 +934,29 @@ var UI = (function () {
   function openFilm(id) { drawer = { kind: 'film', id: id }; drawerMsg = ''; renderDrawer(); }
   function filmDrawer(f) {
     let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
+    h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
+    if(hasMedia() && f.genre) h += '<div class="film-still">' + Media.filmStillSVG(f) + '</div>';
+    if(f.projectId != null) h += posterActions(Engine.getProject(f.projectId));
+    if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
+      '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
+    if (f.projectId != null && Engine.sequelEligibility(f.projectId).ok) h += '<button class="primary" onclick="UI.beginSequel('+f.projectId+')">Develop a sequel</button>';
     h += '<h3>Production</h3><dl>' + dl('Format', esc(f.format)) + dl('Started', f.startWeek == null ? 'Not recorded' : dateLabel(f.startWeek)) +
       dl('Released', dateLabel(f.releaseWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS, f.region || ''))) +
       dl('Budget', money(f.budget || 0)) + dl('Status', esc(f.result || f.stage || '—')) + '</dl>';
     h += '<h3>Cast and crew</h3><dl>' + [['director','Director'],['writer','Writer'],['lead','Lead actor'],['crew','Crew']].map(a =>
       dl(a[1], esc((f.credits || {})[a[0]] || 'Not recorded'))).join('') + '</dl>';
     if ((f.staff || []).length) h += '<p class="muted">Studio departments at release: ' + f.staff.map(x => esc(x.department) + ' (' + x.heads + ' staff, skill ' + x.skill + ')').join('; ') + '</p>';
-    h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') +
+    h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') + dl('Audience', f.audience == null ? 'Not recorded' : f.audience+'/100') +
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
     h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + ' (' + a.year + ')').join('<br>') || 'None') +
       dl('Festivals', (f.festResults || []).map(a => esc(a.festival) + ' · ' + esc(a.result)).join('<br>') || 'None') + '</dl>';
     if ((f.decisions || []).length) h += '<h3>Production decisions</h3><p class="muted">' + f.decisions.map(esc).join(' · ') + '</p>';
+    if (f.review || f.audience != null) {
+      const review = f.review || Engine.receptionText(f);
+      h += '<p class="film-review"><strong>' + esc(review.headline) + '</strong> — ' + esc(review.text) + '</p>';
+    }
     if (f.legacy) h += '<p class="muted">Some historic credits and market data were not recorded in earlier versions.</p>';
     if (f.projectId != null) h += '<button onclick="UI.openProject(' + f.projectId + ')">Open original project record</button>';
     return h;
@@ -940,7 +988,9 @@ var UI = (function () {
     const profit = profitOf(p);
     const pct = p.budget ? Math.min(100, Math.round(p.spent / p.budget * 100)) : 0;
     let h = drawerHead(p.title, esc(nameOf(Engine.formats(), p.format)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
-    if (typeof Media !== 'undefined') h += '<div class="poster">' + Media.posterSVG(p) + '</div>';   // 8.2
+    if (typeof Media !== 'undefined') h += '<div class="poster">' + posterFor(p) + '</div>' + posterActions(p);
+    if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
+    if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
     h += awardIcons(p);   // 8.3
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
@@ -948,11 +998,12 @@ var UI = (function () {
     h += dl('Talent fees', money(p.fees || 0));
     h += dl('Spent', money(p.spent) + ' <div class="bar"><div style="width:' + pct + '%"></div></div>');
     h += dl('Critics', p.critic == null ? '–' : p.critic + '/100');
+    h += dl('Audience', p.audience == null ? '–' : p.audience + '/100');
     if (p.format === 'feature') h += dl('Gross', cu('gross-' + p.id, p.gross));
     h += dl('Revenue', cu('revenue-' + p.id, p.revenue));
     h += dl('Profit', profit == null ? '–' : '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>');
     h += dl('Result', esc(p.result || '–'));
-    if (p.format === 'feature') {
+    if (p.format === 'feature' || p.format === 'short') {
       const regionNames = (p.regions || [Engine.homeRegion()]).map(id => nameOf(CONTENT.REGIONS, id));
       h += dl('Release regions', esc(regionNames.join(', ')) + ' <span class="muted">· HQ ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span>');
       h += dl('Overseas distribution cost', money(p.distributionCost || 0));
@@ -966,13 +1017,14 @@ var UI = (function () {
     const sr = Engine.series().find(x => x.projectId === p.id);
     if (sr) h += dl('Series', 'Season ' + sr.season + ' · ' + (sr.status === 'airing' ? 'episode ' + sr.aired + '/' + sr.episodes : sr.status) + (sr.seasonAvgs.length ? ' · averages ' + sr.seasonAvgs.join(', ') : ''));
     h += '</dl>';
-    if (p.format === 'feature' && p.releaseWeek == null) {
+    if ((p.format === 'feature' || p.format === 'short') && p.releaseWeek == null) {
       const quote = Engine.regionQuote(p, p.regions);
-      h += '<h2>Distribution planning</h2><p class="muted">Choose your markets before theatrical release. Home distribution is included; extra regions have costs and possible additional box office.</p>' +
+      h += '<h2>Distribution planning</h2><p class="muted">Choose markets before release. The home market is included. Shorts gain modest screening income; features gain potential box office. Overseas distribution has extra costs.</p>' +
         '<div class="region-grid">' + CONTENT.REGIONS.map(r => '<label><input type="checkbox" ' + ((p.regions || []).includes(r.id) ? 'checked ' : '') + (r.id === Engine.homeRegion() ? 'disabled ' : '') +
           'onchange="UI.toggleRegion(' + p.id + ',\'' + r.id + '\',this.checked)"> ' + esc(r.name) + '</label>').join('') + '</div>' +
         '<p>Estimated extra cost: <strong>' + money(quote.cost) + '</strong> · ' + quote.estimated + '</p>';
     }
+    if (p.review) h += '<p class="film-review"><strong>' + esc(p.review.headline) + '</strong> — ' + esc(p.review.text) + '</p>';
     h += '<h2>Cast and crew</h2><dl>' + Engine.castSummary(p).map(c =>
       dl(esc(c.label), typeof c.id === 'number' && Engine.getTalent(c.id)
         ? '<a href="#" onclick="UI.openTalent(' + c.id + ');return false">' + esc(c.name) + '</a>' + (c.skill != null ? ' <span class="muted">· ' + c.skill + '</span>' : '')
@@ -1119,9 +1171,20 @@ var UI = (function () {
   function nextWeek() { Engine.nextTurn(); render(); }
   function advance() { Engine.advance(); render(); }
   function choose(i) { Engine.choose(i); render(); }
+  function beginSequel(id) {
+    const q=Engine.sequelEligibility(id);
+    if(!q.ok){drawerMsg=q.reason;renderDrawer();return;}
+    const p=q.parent;
+    draft.format='feature';draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
+    draft.genre=p.genre;draft.topic=p.topic;draft.tier=p.tier;
+    draft.sequelOf=p.id;
+    draft.cast={director:'',writer:'',lead:'',crew:''};
+    closeDrawer();go('newproject');
+  }
+  function cancelSequel(){delete draft.sequelOf;render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' }; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { draft.title = ''; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' }; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -1145,17 +1208,103 @@ var UI = (function () {
     render();
   }
 
+// ===== SECTION: POSTER_ART_AND_BACKUP =====
+  let posterEdit = null;
+  async function selectPosterStyle(id,style) {
+    const p=Engine.getProject(id);if(!p)return;
+    // A generated design must visibly replace an uploaded poster. Reclaim the
+    // local image bytes so hidden artwork does not accumulate across projects.
+    if(p.posterCustom) {
+      try { await PosterStore.remove(id); }
+      catch(e) { drawerMsg='Could not remove uploaded art: '+e.message;renderDrawer();return; }
+      p.posterCustom=false;
+    }
+    if(style===-1){delete p.posterStyleId;Engine.save();}
+    else Engine.setPosterStyle(id,style);
+    renderDrawer();
+  }
+  async function removePoster(id) {
+    const p=Engine.getProject(id);if(!p)return;
+    try {await PosterStore.remove(id);p.posterCustom=false;Engine.save();renderDrawer();}
+    catch(e) {drawerMsg=e.message;renderDrawer();}
+  }
+  async function beginPosterUpload(id,input) {
+    const f=input.files&&input.files[0];if(!f)return;
+    if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>8500000){drawerMsg='Select a JPG, PNG or WebP under 8 MB.';renderDrawer();return;}
+    try {
+      const img=await createImageBitmap(f);
+      if(img.width<150||img.height<200||img.width*img.height>50000000)throw new Error('Poster must be at least 150×200 and under 50 megapixels.');
+      posterEdit={id,img,zoom:100,x:50,y:50};
+      const el=$('poster-editor');
+      el.hidden=false;
+      el.innerHTML='<div class="poster-editor-card"><h2>Crop your film poster</h2><p>Preview (portrait 2:3)</p>'+
+        '<canvas id="poster-crop" width="600" height="900" role="img" aria-label="Poster crop preview"></canvas>'+
+        '<label>Zoom <input id="poster-zoom" type="range" min="100" max="250" value="100" oninput="UI.posterCropPreview()"></label>'+
+        '<label>Horizontal position <input id="poster-x" type="range" min="0" max="100" value="50" oninput="UI.posterCropPreview()"></label>'+
+        '<label>Vertical position <input id="poster-y" type="range" min="0" max="100" value="50" oninput="UI.posterCropPreview()"></label>'+
+        '<div class="actions"><button class="primary" onclick="UI.saveCustomPoster()">Use this poster</button><button onclick="UI.closePosterEditor()">Cancel</button></div></div>';
+      posterCropPreview();
+    }catch(e){drawerMsg='Poster could not be opened: '+e.message;renderDrawer();}
+  }
+  function posterCropPreview(){
+    if(!posterEdit)return;
+    const c=$('poster-crop');if(!c)return;
+    const ctx=c.getContext('2d'),im=posterEdit.img;
+    const zoom=Number($('poster-zoom').value)/100,px=Number($('poster-x').value)/100,py=Number($('poster-y').value)/100;
+    const scale=Math.max(600/im.width,900/im.height)*zoom,w=im.width*scale,h=im.height*scale;
+    ctx.clearRect(0,0,600,900);ctx.drawImage(im,(600-w)*px,(900-h)*py,w,h);
+  }
+  function closePosterEditor(){if(posterEdit&&posterEdit.img.close)posterEdit.img.close();posterEdit=null;$('poster-editor').hidden=true;$('poster-editor').innerHTML='';}
+  async function saveCustomPoster(){
+    if(!posterEdit)return;
+    const id=posterEdit.id,canvas=$('poster-crop');
+    try{
+      const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image encoding failed.')),'image/webp',.81));
+      const out=blob.type==='image/webp'?blob:await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image encoding failed.')),'image/jpeg',.76));
+      await PosterStore.put(id,out);
+      const p=Engine.getProject(id);if(p){p.posterCustom=true;Engine.save();}
+      closePosterEditor();renderDrawer();
+    }catch(e){alert('Poster could not be saved: '+e.message);}
+  }
+  async function exportBackup(){
+    if(!Engine.state)return;
+    try{
+      const ids=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
+      const images=await PosterStore.bundle(ids);
+      const data=JSON.stringify({format:'finalcut-v11-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
+      const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download='FinalCut-backup-'+Engine.dateOf().year+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    }catch(e){alert('Backup export failed: '+e.message);}
+  }
+  async function importBackup(input){
+    const f=input.files&&input.files[0];if(!f)return;
+    if(f.size>25000000){alert('The backup exceeds 25 MB.');return;}
+    try{
+      const b=JSON.parse(await f.text());
+      if(b.format!=='finalcut-v11-backup'||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version))throw new Error('Not a supported Final Cut backup.');
+      if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
+      localStorage.setItem('backlot_save',JSON.stringify(b.game));
+      const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
+      PosterStore.resetCache();
+      await PosterStore.restore(b.posters||{});
+      resetHistory();closeDrawer();render();
+      alert('Backup imported. Custom posters were restored to this browser.');
+    }catch(e){alert('Backup import failed: '+e.message);}
+    finally{input.value='';}
+  }
+
 // ===== SECTION: INIT =====
   function init() {
     render();
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
     $('scrim').addEventListener('click', closeDrawer);
+    document.addEventListener('finalcut-poster-change', () => { if(drawer)renderDrawer(); });
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, startGame: startGame, loadGame: loadGame,
+  return { go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
-    toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion };
+    toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();
