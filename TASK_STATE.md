@@ -10,7 +10,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v13.5 — Correct repository remediation (2026-11-21)
 - [x] Verify repository target `kenjacinto1028-afk/final-cut`, review v13.4 checkpoint and identify missing Production Center/theatrical changes.
-- [ ] Extend release-window balance for both player and rival film runs without altering saved-game schema.
-- [ ] Build automatic Production Center in existing FinalCut Projects page with film slate, milestones, budgets, decisions and box-office status.
-- [ ] Add coherent subdued cinematic styling and mobile behavior without replacing current presentation.
-- [ ] Add and execute tests, publish the correction to main only after passing checks.
+- [x] Updated `engine.js` player/AI theatrical legs, max 20-week window, 2.5% closing rule, recorded weekly gross; save v13 unchanged.
+- [x] Implemented `ui.js` native Production Center with poster/slate/milestones/uncertain quality estimate, existing decisions and archive.
+- [x] Added scoped A+B dark charcoal/teal/gold responsive styles in `style.css`; untouched existing tutorial/awards/audio.
+- [ ] New `tests/v13_5_production_center.js` plus existing v13, v13.4 and balance suites all passed on GitHub Actions 44839564122; awaiting PR merge and Pages deployment.
