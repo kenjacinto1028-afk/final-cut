@@ -150,10 +150,10 @@ var UI = (function () {
 // ===== SECTION: NAV =====
   // [id, label, soon?]  soon = tab shown but disabled until that view exists.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log']]],
+    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log']]],
     ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
     ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
-    ['World', [['news', 'News'], ['awards', 'Awards'], ['score', 'Score']]]
+    ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
   ];
   let view = 'dashboard';
   let hist = ['dashboard'];   // visited views, oldest first
@@ -223,7 +223,7 @@ var UI = (function () {
       '<span class="tb-hist"><button ' + (hpos > 0 ? '' : 'disabled') + ' onclick="UI.back()" aria-label="Back" title="Back">‹</button>' +
       '<button ' + (hpos < hist.length - 1 ? '' : 'disabled') + ' onclick="UI.forward()" aria-label="Forward" title="Forward">›</button></span>' +
       '<span class="crumb">' + crumb() + '</span>' +
-      '<span class="tb-date">' + dateLabel() + ' <span class="muted">· ' + esc(era.name) + '</span></span>' +
+      '<span class="tb-date">' + dateLabel() + ' <span class="muted">· ' + esc(era.name) + ' · ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span></span>' +
       '<span class="tb-cash ' + (s.cash < 0 ? 'neg' : '') + '"><small>Cash</small> ' + money(s.cash) + '</span>' +
       '<span class="tb-score"><a href="#" onclick="UI.go(\'score\');return false">Score ' + sc.value + '</a>' + (sc.locked ? ' <span class="muted">final</span>' : '') + '</span>' +
       '<span class="spacer"></span>' +
@@ -237,6 +237,7 @@ var UI = (function () {
       '<div class="form">' +
       '<label>Studio name <input id="f_studio" placeholder="Untitled Pictures"></label>' +
       '<label>Founder name <input id="f_founder" placeholder="Random if empty"></label>' +
+      '<label>Home region <select id="f_region">' + CONTENT.REGIONS.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('') + '</select></label>' +
       '<button class="primary" onclick="UI.startGame()">Start new game</button>' +
       (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue saved game</button>' : '') +
       '</div><div class="start-sound">' + soundControls() + '</div>';
@@ -384,6 +385,99 @@ var UI = (function () {
         { key: 'result', label: 'Result', value: p => p.result }
       ]
     });
+  }
+
+// ===== SECTION: FILM_ARCHIVES =====
+  const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', format: 'all', query: '', page: 0 };
+  const rankTypes = [['overall','Best Overall'],['genre','Best by Genre'],['topic','Best by Topic'],
+    ['gross','Top Grossing'],['critics','Critics’ Favorites'],['awards','Award Leaders']];
+  function setFilmFilter(field, value) {
+    if (Object.prototype.hasOwnProperty.call(filmBrowse, field)) filmBrowse[field] = value;
+    if (field === 'criterion' && value === 'genre' && !filmBrowse.genre) filmBrowse.genre = CONTENT.GENRES[0].id;
+    if (field === 'criterion' && value === 'topic' && !filmBrowse.topic) filmBrowse.topic = CONTENT.TOPICS[0].id;
+    filmBrowse.page = 0; render();
+  }
+  function filmPage(offset) { filmBrowse.page = Math.max(0, filmBrowse.page + offset); render(); }
+  function filmFilters(includeRank) {
+    const select = (key, options) => '<label>' + esc(key === 'criterion' ? 'Ranking' : key.charAt(0).toUpperCase() + key.slice(1)) + ' <select onchange="UI.setFilmFilter(\'' + key + '\',this.value)">' +
+      options.map(o => '<option value="' + esc(o[0]) + '"' + (String(filmBrowse[key]) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>';
+    let h = '<div class="archive-filters">';
+    if (includeRank) h += select('criterion', rankTypes);
+    h += select('format', includeRank ? [['feature','Features'],['short','Short films']] : [['all','All formats'],['feature','Features'],['short','Short films'],['pilot','TV pilots']]);
+    h += select('genre', [['','All genres']].concat(CONTENT.GENRES.map(g => [g.id,g.name])));
+    h += select('topic', [['','All topics']].concat(CONTENT.TOPICS.map(t => [t.id,t.name])));
+    h += select('region', [['','All release markets']].concat(CONTENT.REGIONS.map(r => [r.id,r.name])));
+    h += select('decade', [['','All decades']].concat([1970,1980,1990,2000,2010,2020,2030].map(y => [y,String(y)+'s'])));
+    return h + '</div>';
+  }
+  function filmLabel(f) { return '<a href="#" onclick="UI.openFilm(\'' + esc(f.id) + '\');return false">' + esc(f.title) + '</a>'; }
+  function rankOptions(mine) {
+    const opts = { mine: !!mine, format: filmBrowse.format === 'all' || filmBrowse.format === 'pilot' ? 'feature' : filmBrowse.format, decade: filmBrowse.decade || null, region: filmBrowse.region || null };
+    if (filmBrowse.genre) opts.genre = filmBrowse.genre;
+    if (filmBrowse.topic) opts.topic = filmBrowse.topic;
+    if (filmBrowse.criterion === 'genre' && !opts.genre) opts.genre = CONTENT.GENRES[0].id;
+    if (filmBrowse.criterion === 'topic' && !opts.topic) opts.topic = CONTENT.TOPICS[0].id;
+    opts.criterion = ['genre','topic'].includes(filmBrowse.criterion) ? 'overall' : filmBrowse.criterion;
+    return opts;
+  }
+  function filmTable(rows, ranked, mine) {
+    const q = filmBrowse.query.toLowerCase().trim();
+    if (q) rows = rows.filter(f => [f.title,f.studio,nameOf(CONTENT.GENRES,f.genre),nameOf(CONTENT.TOPICS,f.topic)].join(' ').toLowerCase().includes(q));
+    const size = 60, maxPage = Math.max(0,Math.ceil(rows.length/size)-1);
+    filmBrowse.page = Math.min(filmBrowse.page,maxPage);
+    const start = filmBrowse.page*size, page = rows.slice(start,start+size);
+    const positions = new Map();
+    if (mine && !ranked) ['feature','short'].forEach(fmt => {
+      const opt = rankOptions(true); opt.format=fmt; opt.criterion='overall';
+      Engine.filmRankings(opt).forEach(x => positions.set(x.id,x));
+    });
+    let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
+      '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
+    h += '<div class="tbl-wrap"><table><thead><tr>' + (ranked ? '<th>World #</th>' + (mine ? '<th>Studio #</th>' : '') : '') +
+      (mine && !ranked ? '<th>Studio #</th><th>World #</th>' : '') + '<th>Film</th><th>Studio</th><th>Year</th><th>Genre / Topic</th><th class="num">Critics</th><th class="num">Gross</th><th class="num">' + (ranked ? 'Ranking score' : 'Awards') + '</th></tr></thead><tbody>' +
+      page.map(f => '<tr>' + (ranked ? '<td><strong>#' + f.worldRank + '</strong></td>' + (mine ? '<td>#' + f.studioRank + '</td>' : '') : (mine ? '<td>' + (positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—') + '</td><td>' + (positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—') + '</td>' : '')) +
+        '<td>' + filmLabel(f) + '</td><td>' + esc(f.studio) + (f.projectId != null ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + f.year + '</td>' +
+        '<td>' + esc(nameOf(CONTENT.GENRES,f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS,f.topic || '')) + '</td><td class="num">' + (f.critic == null ? '—' : f.critic) +
+        '</td><td class="num">' + money(f.gross || 0) + '</td><td class="num">' + (ranked ? f.score : (f.awards || []).filter(a => a.won).length + (f.festResults || []).filter(a => /prize|grand|winner|won/i.test(a.result || '')).length) +
+        '</td></tr>').join('') +
+      (!page.length ? '<tr><td colspan="10" class="muted">No films match these filters yet.</td></tr>' : '') + '</tbody></table></div>';
+    if (maxPage) h += '<div class="archive-pages"><button onclick="UI.filmPage(-1)" ' + (filmBrowse.page===0?'disabled':'') + '>Previous</button>' +
+      '<span>Page ' + (filmBrowse.page+1) + '/' + (maxPage+1) + '</span><button onclick="UI.filmPage(1)" ' + (filmBrowse.page===maxPage?'disabled':'') + '>Next</button></div>';
+    return h;
+  }
+  function setFilmQuery(value) {
+    filmBrowse.query = value;
+    filmBrowse.page = 0;
+    render();
+  }
+  function filmResultsMarkup() {
+    const my = view === 'filmography', ranked = view === 'rankings' || (my && filmBrowse.tab === 'ranks');
+    if (ranked) return filmTable(Engine.filmRankings(rankOptions(my)),true,my);
+    let films = Engine.filmHistory().filter(f => !my || f.projectId != null);
+    if (filmBrowse.genre) films = films.filter(f=>f.genre === filmBrowse.genre);
+    if (filmBrowse.topic) films = films.filter(f=>f.topic === filmBrowse.topic);
+    if (filmBrowse.region) films = films.filter(f=>(f.regions||[]).includes(filmBrowse.region));
+    if (filmBrowse.decade) films = films.filter(f=>Math.floor(f.year/10)*10 === Number(filmBrowse.decade));
+    if (filmBrowse.format && filmBrowse.format !== 'all') films = films.filter(f=>f.format === filmBrowse.format);
+    films.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
+    return filmTable(films,false,my);
+  }
+  function viewFilmography() {
+    return '<h1>My Filmography</h1><p class="muted">Your studio’s complete release history, including production teams, financials and awards. Studio and world positions use the same ranking formula.</p>' +
+      '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
+      '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
+      filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
+  }
+  function viewArchive() {
+    const h=Engine.state.filmArchive;
+    return '<h1>World Film Archive</h1><p class="muted">Player and AI films remain here even when their studios close. ' +
+      (h && h.incompleteBefore != null ? 'Older imported saves may have incomplete early AI credits and releases.' : 'New films have persistent historical records.') +
+      '</p>' + filmFilters(false) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
+  }
+  function viewRankings() {
+    if (filmBrowse.format === 'all' || filmBrowse.format === 'pilot') filmBrowse.format = 'feature';
+    return '<h1>Film Rankings</h1><p class="muted">Worldwide lists include every archived studio film; merit balances reviews, production quality, era-adjusted reach and recognition. Short films have a separate ranking.</p>' +
+      filmFilters(true) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
 
 // ===== SECTION: VIEW_TALENT =====
@@ -651,10 +745,10 @@ var UI = (function () {
       dl('Typical film', money(r.typicalBudget) + ' <span class="muted">· overhead ' + money(r.overhead) + '/wk</span>') +
       (r.focusNames.length ? dl('Chasing genres', esc(r.focusNames.join(', '))) : '') +
       dl('Quarter results', r.results.length ? r.results.map(signed).join(' · ') : '<span class="muted">None yet</span>') +
-      dl('Founded', dateLabel(r.foundedWeek)) + '</dl>';
+      dl('Founded', dateLabel(r.foundedWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS,r.region))) + '</dl>';
     h += '<h3>Recent releases</h3>' + (released.length
       ? '<div class="tbl-wrap"><table><thead><tr><th>Title</th><th>Genre</th><th class="num">Budget</th><th>Opened</th><th class="num">Gross</th><th>Result</th></tr></thead><tbody>' +
-        released.map(f => '<tr><td>' + esc(f.title) + '</td><td>' + esc(nameOf(CONTENT.GENRES, f.genre)) + '</td><td class="num">' + money(f.budget) + '</td><td>' + dateLabel(f.week) +
+        released.map(f => '<tr><td><a href="#" onclick="UI.openFilm(\'rival:' + r.id + ':' + f.id + '\');return false">' + esc(f.title) + '</a></td><td>' + esc(nameOf(CONTENT.GENRES, f.genre)) + '</td><td class="num">' + money(f.budget) + '</td><td>' + dateLabel(f.week) +
           '</td><td class="num">' + money(f.gross) + '</td><td>' + filmResult(f) + '</td></tr>').join('') + '</tbody></table></div>'
       : '<p class="muted">No releases yet.</p>');
     if (planned.length) {
@@ -707,12 +801,14 @@ var UI = (function () {
   // 6.3. Display only: Engine.awardsInfo(). Campaigns go through Engine.awardCampaign. 8.3: trophy icons in the trophy case.
   function viewAwards() {
     const a = Engine.awardsInfo();
-    let h = '<h1>Awards</h1><div class="strip">' + stat('Next ceremony', dateLabel(a.next.week) + '<div class="muted">covers ' + a.next.covers + ' releases</div>') +
+    let h = '<h1>Awards</h1><div class="strip">' + stat('Next ceremony', esc(a.next.name) + ' · ' + dateLabel(a.next.week) + '<div class="muted">covers ' + a.next.covers + ' releases</div>') +
       stat('Studio prestige', a.prestige) + stat('Trophies', a.trophies.length) + '</div>';
     h += '<p class="muted">' + esc(a.name) + ' judges features released the year before: ' + a.categories.map(c => esc(c.name)).join(', ') +
       '. Nominations and wins raise studio fame, prestige (a little extra hype, fading each year) and the fame of the talent involved. Campaigns add to a film\'s score before the ceremony.</p>';
-    h += '<h2>Festival circuit</h2><p class="muted">Local → World: films are automatically shortlisted for suitable festivals based mainly on quality and critics. Studio size never prevents elite recognition. Features get up to three submissions within a year; shorts receive one. Festival buzz contributes to awards.</p><ul class="plain">' +
-      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + '</span></li>').join('') + '</ul>';
+    h += '<h2>Annual awards ceremonies</h2><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
+      a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul>';
+    h += '<h2>Festival circuit</h2><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
+      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + (f.focus ? ' · focus: ' + esc(f.focus) : '') + '</span></li>').join('') + '</ul>';
     h += '<h2>Films in the running</h2>';
     h += a.eligible.length
       ? '<div class="tbl-wrap"><table><thead><tr><th>Film</th><th>Ceremony</th><th class="num">Score</th><th class="num">Buzz</th><th>Campaign</th><th></th></tr></thead><tbody>' +
@@ -727,7 +823,7 @@ var UI = (function () {
     h += '<h2>Past ceremonies</h2>' + (a.history.length ? a.history.map((rec, i) =>
       '<details' + (i === 0 ? ' open' : '') + '><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
       rec.cats.map(c => '<p><strong>' + esc(c.name) + '</strong></p><ul class="plain">' + c.nominees.map(n =>
-        '<li>' + (n.winner ? '🏆 <strong>' : '') + esc(n.title) + (n.winner ? '</strong>' : '') + ' <span class="muted">· ' + (n.projectId != null ? '<strong>' + esc(n.studio) + '</strong>' : esc(n.studio)) + '</span></li>').join('') + '</ul>').join('') +
+        '<li>' + (n.winner ? '🏆 <strong>' : '') + (n.filmId ? '<a href="#" onclick="UI.openFilm(\'' + esc(n.filmId) + '\');return false">' + esc(n.title) + '</a>' : esc(n.title)) + (n.winner ? '</strong>' : '') + ' <span class="muted">· ' + (n.projectId != null ? '<strong>' + esc(n.studio) + '</strong>' : esc(n.studio)) + '</span></li>').join('') + '</ul>').join('') +
       '</details>').join('') : '<p class="muted">The first ceremony is in ' + a.next.year + '.</p>');
     return h;
   }
@@ -797,6 +893,35 @@ var UI = (function () {
   let drawerMsg = '';
   function openProject(id) { drawer = { kind: 'project', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
+  function openFilm(id) { drawer = { kind: 'film', id: id }; drawerMsg = ''; renderDrawer(); }
+  function filmDrawer(f) {
+    let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
+    h += '<h3>Production</h3><dl>' + dl('Format', esc(f.format)) + dl('Started', f.startWeek == null ? 'Not recorded' : dateLabel(f.startWeek)) +
+      dl('Released', dateLabel(f.releaseWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS, f.region || ''))) +
+      dl('Budget', money(f.budget || 0)) + dl('Status', esc(f.result || f.stage || '—')) + '</dl>';
+    h += '<h3>Cast and crew</h3><dl>' + [['director','Director'],['writer','Writer'],['lead','Lead actor'],['crew','Crew']].map(a =>
+      dl(a[1], esc((f.credits || {})[a[0]] || 'Not recorded'))).join('') + '</dl>';
+    if ((f.staff || []).length) h += '<p class="muted">Studio departments at release: ' + f.staff.map(x => esc(x.department) + ' (' + x.heads + ' staff, skill ' + x.skill + ')').join('; ') + '</p>';
+    h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') +
+      dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
+      dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
+    if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
+    h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + ' (' + a.year + ')').join('<br>') || 'None') +
+      dl('Festivals', (f.festResults || []).map(a => esc(a.festival) + ' · ' + esc(a.result)).join('<br>') || 'None') + '</dl>';
+    if ((f.decisions || []).length) h += '<h3>Production decisions</h3><p class="muted">' + f.decisions.map(esc).join(' · ') + '</p>';
+    if (f.legacy) h += '<p class="muted">Some historic credits and market data were not recorded in earlier versions.</p>';
+    if (f.projectId != null) h += '<button onclick="UI.openProject(' + f.projectId + ')">Open original project record</button>';
+    return h;
+  }
+  function toggleRegion(id, region, checked) {
+    const p = Engine.getProject(id);
+    if (!p) return;
+    const next = (p.regions || [Engine.homeRegion()]).filter(x => x !== region);
+    if (checked) next.push(region);
+    const result = Engine.setDistribution(id, next);
+    drawerMsg = result.ok ? '' : result.reason;
+    renderDrawer();
+  }
   function closeDrawer() { drawer = null; renderDrawer(); }
   function decisionLabel(p, id) {
     if (id === 'marketing') return 'Marketing budget for the release';
@@ -827,14 +952,28 @@ var UI = (function () {
     h += dl('Revenue', cu('revenue-' + p.id, p.revenue));
     h += dl('Profit', profit == null ? '–' : '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>');
     h += dl('Result', esc(p.result || '–'));
+    if (p.format === 'feature') {
+      const regionNames = (p.regions || [Engine.homeRegion()]).map(id => nameOf(CONTENT.REGIONS, id));
+      h += dl('Release regions', esc(regionNames.join(', ')) + ' <span class="muted">· HQ ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span>');
+      h += dl('Overseas distribution cost', money(p.distributionCost || 0));
+      if (p.regionalGross && Object.keys(p.regionalGross).length) h += dl('Regional gross', Object.keys(p.regionalGross).map(id => esc(nameOf(CONTENT.REGIONS, id)) + ': ' + money(p.regionalGross[id])).join('<br>'));
+    }
     if ((p.festResults || []).length) h += dl('Festivals', p.festResults.map(f => esc(f.result) + ' · ' + (f.tier ? esc(f.tier) + ' tier · ' : '') + esc(f.festival)).join('<br>'));
-    if ((p.awards || []).length) h += dl('Awards', p.awards.map(a => (a.won ? '🏆 Won ' : 'Nominated: ') + esc(nameOf(CONTENT.AWARDS.categories, a.cat)) + ' (' + a.year + ')').join('<br>'));
+    if ((p.awards || []).length) h += dl('Awards', p.awards.map(a => (a.won ? '🏆 Won ' : 'Nominated: ') + esc(a.category || nameOf(CONTENT.AWARDS.categories, a.cat)) + ' · ' + esc(a.ceremony || CONTENT.AWARDS.ceremony) + ' (' + a.year + ')').join('<br>'));
     if (p.market) h += dl('Opening market', mult(p.market.mult) + ' <span class="muted">(genre ' + mult(p.market.genre) + (p.market.taste != null ? ', era taste ' + mult(p.market.taste) : '') + (p.market.topic != null ? ', topic ' + mult(p.market.topic) : '') +
       ', season ' + mult(p.market.season) + ', economy ' + mult(p.market.cycle) + ', ' + p.market.competitors + ' rivals)</span>');
     (p.windows || []).forEach(w => { h += dl(esc(Engine.windowName(w.id)), money(w.paid) + ' of ' + money(w.total) + (w.paid < w.total ? ' <span class="muted">· from ' + dateLabel(w.from) + '</span>' : '')); });
     const sr = Engine.series().find(x => x.projectId === p.id);
     if (sr) h += dl('Series', 'Season ' + sr.season + ' · ' + (sr.status === 'airing' ? 'episode ' + sr.aired + '/' + sr.episodes : sr.status) + (sr.seasonAvgs.length ? ' · averages ' + sr.seasonAvgs.join(', ') : ''));
-    h += '</dl><h2>Cast and crew</h2><dl>' + Engine.castSummary(p).map(c =>
+    h += '</dl>';
+    if (p.format === 'feature' && p.releaseWeek == null) {
+      const quote = Engine.regionQuote(p, p.regions);
+      h += '<h2>Distribution planning</h2><p class="muted">Choose your markets before theatrical release. Home distribution is included; extra regions have costs and possible additional box office.</p>' +
+        '<div class="region-grid">' + CONTENT.REGIONS.map(r => '<label><input type="checkbox" ' + ((p.regions || []).includes(r.id) ? 'checked ' : '') + (r.id === Engine.homeRegion() ? 'disabled ' : '') +
+          'onchange="UI.toggleRegion(' + p.id + ',\'' + r.id + '\',this.checked)"> ' + esc(r.name) + '</label>').join('') + '</div>' +
+        '<p>Estimated extra cost: <strong>' + money(quote.cost) + '</strong> · ' + quote.estimated + '</p>';
+    }
+    h += '<h2>Cast and crew</h2><dl>' + Engine.castSummary(p).map(c =>
       dl(esc(c.label), typeof c.id === 'number' && Engine.getTalent(c.id)
         ? '<a href="#" onclick="UI.openTalent(' + c.id + ');return false">' + esc(c.name) + '</a>' + (c.skill != null ? ' <span class="muted">· ' + c.skill + '</span>' : '')
         : esc(c.name))).join('') + '</dl>';
@@ -886,9 +1025,9 @@ var UI = (function () {
   function renderDrawer() {
     const el = $('drawer'), scrim = $('scrim');
     const s = Engine.state;
-    const obj = s && drawer ? (drawer.kind === 'talent' ? Engine.getTalent(drawer.id) : Engine.getProject(drawer.id)) : null;
+    const obj = s && drawer ? (drawer.kind === 'film' ? Engine.filmById(drawer.id) : drawer.kind === 'talent' ? Engine.getTalent(drawer.id) : Engine.getProject(drawer.id)) : null;
     if (!obj) { drawer = null; el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); scrim.hidden = true; fxPass(); return; }
-    el.innerHTML = drawer.kind === 'talent' ? talentDrawer(obj) : projectDrawer(obj);
+    el.innerHTML = drawer.kind === 'film' ? filmDrawer(obj) : drawer.kind === 'talent' ? talentDrawer(obj) : projectDrawer(obj);
     el.classList.add('open');
     el.setAttribute('aria-hidden', 'false');
     scrim.hidden = false;
@@ -947,6 +1086,9 @@ var UI = (function () {
     if (!s) h = viewStart();
     else if (view === 'newproject') h = viewNewProject();
     else if (view === 'projects') h = viewProjects();
+    else if (view === 'filmography') h = viewFilmography();
+    else if (view === 'archive') h = viewArchive();
+    else if (view === 'rankings') h = viewRankings();
     else if (view === 'talent') h = viewTalent();
     else if (view === 'roster') h = viewRoster();
     else if (view === 'founder') h = viewFounder();
@@ -967,7 +1109,7 @@ var UI = (function () {
   }
 
 // ===== SECTION: ACTIONS =====
-  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value }); go('dashboard'); }
+  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value, homeRegion: $('f_region').value }); go('dashboard'); }
   function loadGame() { const r = Engine.load(); setFlash(r.ok ? '' : r.reason); resetHistory(); render(); }
   function quit() {
     if (Engine.state && !Engine.state.gameOver && !confirm('Start a new game? Your current save will be replaced when you start.')) return;
@@ -1013,7 +1155,7 @@ var UI = (function () {
 
   return { go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
-    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openTalent: openTalent, closeDrawer: closeDrawer,
+    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion };
 })();

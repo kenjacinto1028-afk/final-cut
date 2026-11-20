@@ -621,6 +621,16 @@ CONTENT.EVENTS = [
     ] }
 ];
 
+// ===== SECTION: REGIONS =====
+// Fictional broad markets. Numbers are design balance multipliers, not real box-office data.
+CONTENT.REGIONS = [
+  { id: 'northamerica', name: 'North America', audience: 1.05, taste: { action: 1.08, comedy: 1.07 }, cost: 1.0 },
+  { id: 'europe', name: 'Europe', audience: 0.84, taste: { drama: 1.13, documentary: 1.15 }, cost: 1.02 },
+  { id: 'asiapacific', name: 'Asia-Pacific', audience: 1.0, taste: { scifi: 1.12, action: 1.10 }, cost: 1.12 },
+  { id: 'latinamerica', name: 'Latin America', audience: 0.73, taste: { romance: 1.15, comedy: 1.10 }, cost: 0.90 },
+  { id: 'mea', name: 'Middle East & Africa', audience: 0.61, taste: { drama: 1.09, action: 1.09 }, cost: 0.84 }
+];
+
 // ===== SECTION: AWARDS =====
 // 6.3. Fictional festival circuit (features) and one annual ceremony. Odds, costs and rewards live in engine.js TUNING.awards.
 // circuit: week = week of the year the festival runs. Films released in the last year are submitted automatically.
@@ -631,11 +641,11 @@ CONTENT.AWARDS = {
   // entryScore is an advisory merit threshold for automatic applications, not an absolute prize requirement.
   circuit: [
     { id: 'local', name: 'Lakeshore Film Festival', tier: 1, level: 'Local', week: 8, prize: 'Local Jury Prize', entryScore: 0, selection: 43, winner: 67 },
-    { id: 'regional', name: 'Red Mesa Film Festival', tier: 2, level: 'Regional', week: 16, prize: 'Regional Jury Prize', entryScore: 32, selection: 51, winner: 74 },
-    { id: 'national', name: 'Northfield National Film Festival', tier: 3, level: 'National', week: 24, prize: 'National Grand Prize', entryScore: 48, selection: 61, winner: 81 },
-    { id: 'continental', name: 'Harbor Lights Continental', tier: 4, level: 'Continental', week: 32, prize: 'Continental Jury Prize', entryScore: 63, selection: 71, winner: 88 },
-    { id: 'international', name: 'Northfield International', tier: 5, level: 'International', week: 40, prize: 'International Grand Prize', entryScore: 77, selection: 81, winner: 96 },
-    { id: 'world', name: 'Golden Atlas World Festival', tier: 6, level: 'World', week: 48, prize: 'World Grand Prize', entryScore: 87, selection: 91, winner: 104 }
+    { id: 'regional', name: 'Red Mesa Film Festival', tier: 2, level: 'Regional', week: 16, prize: 'Regional Jury Prize', entryScore: 43, selection: 51, winner: 74 },
+    { id: 'national', name: 'Northfield National Film Festival', tier: 3, level: 'National', week: 24, prize: 'National Grand Prize', entryScore: 57, selection: 61, winner: 81 },
+    { id: 'continental', name: 'Harbor Lights Continental', tier: 4, level: 'Continental', week: 32, prize: 'Continental Jury Prize', entryScore: 70, selection: 71, winner: 88 },
+    { id: 'international', name: 'Northfield International', tier: 5, level: 'International', week: 40, prize: 'International Grand Prize', entryScore: 82, selection: 81, winner: 96 },
+    { id: 'world', name: 'Golden Atlas World Festival', tier: 6, level: 'World', week: 48, prize: 'World Grand Prize', entryScore: 91, selection: 91, winner: 104 }
   ],
   categories: [
     { id: 'picture', name: 'Best Picture', slot: null },
@@ -649,6 +659,36 @@ CONTENT.AWARDS = {
     { id: 'big', name: 'Full awards campaign' }
   ]
 };
+// Two specialist festivals debut per decade beginning in 1980. Fictional settings.
+CONTENT.AWARDS.circuit.forEach(f => { f.startYear = 1970; f.formats = ['short', 'feature']; f.focus = null; });
+CONTENT.AWARDS.circuit.push(
+  { id:'citylights', name:'Citylights Independent Film Festival', tier:2, level:'Regional', week:20, prize:'Independent Jury Prize', entryScore:40, selection:52, winner:78, startYear:1980, formats:['short','feature'], focus:'indie' },
+  { id:'nightfall', name:'Nightfall Genre Film Festival', tier:3, level:'National', week:44, prize:'Midnight Jury Prize', entryScore:52, selection:63, winner:83, startYear:1980, formats:['short','feature'], focus:'horror' },
+  { id:'reelstories', name:'Reel Stories Documentary Festival', tier:4, level:'Continental', week:36, prize:'Documentary Grand Prize', entryScore:63, selection:74, winner:90, startYear:1990, formats:['short','feature'], focus:'documentary' },
+  { id:'newvoices', name:'New Voices First-Film Festival', tier:2, level:'Regional', week:13, prize:'New Filmmaker Prize', entryScore:40, selection:54, winner:76, startYear:1990, formats:['short','feature'], focus:'debut' },
+  { id:'coastalaudience', name:'Coastal Audience Film Festival', tier:3, level:'National', week:27, prize:'Audience Choice Trophy', entryScore:53, selection:65, winner:83, startYear:2000, formats:['short','feature'], focus:'audience' },
+  { id:'beyondtomorrow', name:'Beyond Tomorrow Science Fiction Fest', tier:4, level:'Continental', week:46, prize:'Visionary Sci-Fi Prize', entryScore:64, selection:75, winner:92, startYear:2000, formats:['short','feature'], focus:'scifi' },
+  { id:'shortframe', name:'Short Frame International', tier:5, level:'International', week:4, prize:'Best International Short', entryScore:72, selection:83, winner:97, startYear:2010, formats:['short'], focus:'short' },
+  { id:'goldenhour', name:'Golden Hour Romance Showcase', tier:2, level:'Regional', week:34, prize:'Golden Heart Prize', entryScore:40, selection:53, winner:77, startYear:2010, formats:['short','feature'], focus:'romance' },
+  { id:'globalstory', name:'Global Stories Film Festival', tier:5, level:'International', week:23, prize:'Global Stories Jury Prize', entryScore:75, selection:83, winner:98, startYear:2020, formats:['short','feature'], focus:'international' },
+  { id:'midnightlantern', name:'Midnight Lantern Thriller Festival', tier:3, level:'National', week:50, prize:'Suspense Jury Award', entryScore:54, selection:64, winner:83, startYear:2020, formats:['short','feature'], focus:'thriller' }
+);
+
+// Film-industry ceremonies founded gradually. No new ceremony requires separate player management.
+CONTENT.AWARDS.ceremonies = [
+  { id:'golden', name:'The Golden Reel Awards', startYear:1970, week:10, style:'balanced', formats:['feature'],
+    categories:CONTENT.AWARDS.categories },
+  { id:'critics', name:'Critics Circle Honors', startYear:1980, week:18, style:'critics', formats:['feature'],
+    categories:[{id:'criticsfilm',name:'Film of the Year'}, {id:'criticsdirection',name:'Critics’ Best Direction',slot:'director'},
+      {id:'criticsscreenplay',name:'Critics’ Best Screenplay',slot:'writer'}] },
+  { id:'independent', name:'Independent Screen Awards', startYear:1990, week:26, style:'indie', formats:['feature','short'],
+    categories:[{id:'indiefeature',name:'Best Independent Feature',format:'feature'}, {id:'indieshort',name:'Best Short Film',format:'short'},
+      {id:'newtalent',name:'Emerging Filmmaker',debut:true}] },
+  { id:'audience', name:'Audience Spotlight Awards', startYear:2000, week:38, style:'audience', formats:['feature'],
+    categories:[{id:'audiencefilm',name:'Audience Favorite'}, {id:'commercial',name:'Biggest Crowd-Pleaser'},
+      {id:'genrechoice',name:'Genre Favorite'}] }
+];
+
 // Placeholders: {title}, {festival}, {prize}, {ceremony}, {year}, {cat}, {studio}, {count}, {cats}, {name}.
 CONTENT.AWARD_TEXT = {
   festSelected: '"{title}" is an official selection at the {festival}.',
@@ -909,7 +949,12 @@ CONTENT.STRIKE_EVENT = {
 CONTENT.RIVAL_NAMES = ['Paragon Pictures', 'Silverline Studios', 'Northstar Films', 'Crescent Pictures', 'Ironwood Studios', 'Bluebird Pictures',
   'Meridian Films', 'Lantern House', 'Redwater Pictures', 'Golden Gate Studios', 'Harborlight Films', 'Summit Pictures',
   'Cobalt Studios', 'Pinecrest Pictures', 'Orchard Films', 'Driftwood Pictures', 'Beacon Street Films', 'Copperhead Studios',
-  'Starling Pictures', 'Monarch Films', 'Highwater Studios', 'Foxglove Pictures', 'Granite Peak Films', 'Velvet Reel Studios'];
+  'Starling Pictures', 'Monarch Films', 'Highwater Studios', 'Foxglove Pictures', 'Granite Peak Films', 'Velvet Reel Studios',
+  'Saffron Cinema', 'Blackwell Studios', 'Windmill Films', 'Midnight Harbor Pictures', 'Valley Road Motion', 'Broadleaf Productions',
+  'Halcyon Pictures', 'Paper Lantern Films', 'Sunset Square Studios', 'Canyon Ridge Films', 'Willow & Stone', 'Polaris Filmworks',
+  'Starlane Studios', 'Atlas Independent', 'Rosewater Cinema', 'Cinderblock Films', 'The Seventh Frame', 'Glasshouse Pictures',
+  'Thistle Road Films', 'Frontier Gate', 'Rainfall Motion', 'Blue Hour Cinema', 'Redwood Screen', 'Silver Orbit',
+  'Highland Republic Films', 'Daybreak Pictures', 'Westhaven Motion', 'Orchid Gate Studios'];
 // genres: genres the strategy prefers (trend chasers pick from the hottest genres instead).
 CONTENT.RIVAL_STRATEGIES = [
   { id: 'blockbuster', name: 'Blockbuster', desc: 'Big budgets and spectacle, aimed at summer and the holidays.', genres: ['action', 'scifi', 'comedy'] },

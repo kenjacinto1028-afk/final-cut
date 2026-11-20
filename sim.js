@@ -1,4 +1,4 @@
-// Headless bot sims for Final Cut v9.  usage: node sim.js <strategy> <runs> [seedBase]  (env OVR='{"economy.staffPay":1}' optional)
+// Headless bot sims for Final Cut v10.  usage: node sim.js <strategy> <runs> [seedBase]  (env OVR='{"economy.staffPay":1}' optional)
 const fs = require('fs'), vm = require('vm');
 const SRC = fs.readFileSync(__dirname + '/content.js', 'utf8') + '\n' + fs.readFileSync(__dirname + '/engine.js', 'utf8') + '\nthis.Engine=Engine;this.CONTENT=CONTENT;';
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -127,6 +127,7 @@ function run(stratId, seed, ovr) {
   const sc = st.score || E.scoreInfo();
   const feats = st.projects.filter(p => p.format === 'feature');
   return { strat: stratId, seed: seed, reason: sc.reason, year: sc.year, value: sc.value, parts: sc.parts, counts: sc.counts, profit: sc.profit,
+    saveBytes: Buffer.byteLength(JSON.stringify(st)), archiveBytes: Buffer.byteLength(JSON.stringify(st.filmArchive)), projectsBytes: Buffer.byteLength(JSON.stringify(st.projects)), rivalsBytes: Buffer.byteLength(JSON.stringify(st.rivals)), awardsBytes: Buffer.byteLength(JSON.stringify(st.awards)), archiveCount: (st.filmArchive && st.filmArchive.rivals || []).length, activeRivals: E.activeRivals().length,
     cash: Math.round(st.cash - st.debt), fame: Math.round(st.studio.fame), crit: Math.round(st.studio.criticsRep), prestige: Math.round(st.studio.prestige || 0), tier: st.studio.tier,
     features: feats.length, shorts: st.projects.length - feats.length, flops: feats.filter(p => p.result === 'Flop').length,
     detail: process.env.DETAIL ? feats.map(p => ({ y: E.dateOf(p.releaseWeek == null ? st.week : p.releaseWeek).year, b: p.budget, q: p.quality, h: p.hype, g: p.gross, rev: p.revenue, sp: p.spent, mk: p.marketingSpend, f: p.fees, r: p.result, m: p.market ? p.market.mult : null, o: p.opening, th: p.revenue - (p.windows||[]).reduce((a,w)=>a+w.paid,0) })) : undefined };

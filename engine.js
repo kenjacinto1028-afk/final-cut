@@ -2,7 +2,7 @@
 // Final Cut — engine.js
 // State, turn loop and all game rules. No DOM access here.
 // Load order: content.js → engine.js → media.js → ui.js
-var SAVE_VERSION = 9;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
+var SAVE_VERSION = 10;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
 
 var Engine = (function () {
   'use strict';
@@ -183,10 +183,10 @@ var Engine = (function () {
 
 // ===== SECTION: TUNING_RIVALS =====
   TUNING.rivals = {
-    count: 4, maxCount: 6,
+    count: 6, maxCount: 15,
     startTier: [1, 2],
     upstartDelay: [6, 20],
-    upstartYearChance: 0.2,
+    upstartYearChance: 0.44,
     tierBudget: [0, 150000, 450000, 1200000, 3000000],
     overheadShare: 0.2,
     tierFilms: [0, 3, 4, 6, 8],
@@ -197,7 +197,7 @@ var Engine = (function () {
     shrinkSell: 1,
     bankruptQuarters: 2,
     tierCooldownWeeks: 52,
-    keepClosed: 6, keepFilms: 6, maxPlanned: 4,
+    keepClosed: 15, keepFilms: 6, maxPlanned: 4,
     leadWeeks: [20, 32],
     rescheduleRange: 3, moveGain: 1.1,
     seasonPref: 1.15, avgBackground: 0.7,
@@ -263,13 +263,13 @@ var Engine = (function () {
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
     campaigns: [ { points: 0, share: 0 }, { points: 3, share: 0.03 }, { points: 7, share: 0.08 } ],
-    festWindow: 52, festMinCritic: 0, festivalMaxEntries: 3, festivalMaxShortEntries: 1,
+    festWindow: 52, festMinCritic: 0, festivalMaxEntries: 4, festivalMaxShortEntries: 3,
     festSelect: 76, festPrize: 90,
     selectBuzz: 2, prizeBuzz: 5, buzzMax: 10, selectFame: 1, prizeFame: 3, prizeTalentFame: 2,
     nomFame: 1, winFame: 3, pictureFame: 6, filmFameMax: 10, winCritics: 2,
     talentNomFame: 1, talentWinFame: 4, talentWinSkill: 1,
     prestigeNom: 1, prestigeWin: 4, prestigePicture: 8, prestigeDecay: 0.85, prestigeMax: 100, prestigeHype: 0.05,
-    keepHistory: 12
+    keepHistory: 260
   };
 
 // ===== SECTION: TUNING_NEWS =====
@@ -313,7 +313,7 @@ var Engine = (function () {
         role: 'filmmaker',
         stats: { directing: rint(18, 30), writing: rint(18, 30), business: rint(10, 25), charisma: rint(10, 25) }
       },
-      studio: { name: (opts.studioName || '').trim() || 'Untitled Pictures', fame: 0, criticsRep: 0, releases: 0, tier: 0, prestige: 0 },
+      studio: { name: (opts.studioName || '').trim() || 'Untitled Pictures', homeRegion: CONTENT.REGIONS.some(r => r.id === opts.homeRegion) ? opts.homeRegion : 'northamerica', fame: 0, criticsRep: 0, releases: 0, tier: 0, prestige: 0 },
       projects: [],
       series: [],
       nextSeriesId: 1,
@@ -330,7 +330,8 @@ var Engine = (function () {
       lastWeek: { income: 0, revenue: 0, costs: 0, interest: 0, salaries: 0, overhead: 0, payroll: 0 },
       finance: { q: emptyQuarter(), qStartCash: TUNING.startCash, lossCarry: 0, history: [] },
       events: { cooldownUntil: 0, nextWeek: TUNING.events.startWeek, seen: {}, recentProduction: [] },
-      awards: { history: [], pool: [] },
+      awards: { history: [], pool: [], judged: {} },
+      filmArchive: { rivals: [], incompleteBefore: null },
       market: null,
       recruitment: { declined: {} },
       staff: null,
@@ -834,7 +835,7 @@ var Engine = (function () {
     const p = {
       id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: o.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
-      cast: cast, castNames: castNames,
+      cast: cast, castNames: castNames, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
       stage: 'development', stageWeeksLeft: f.stages.development, startWeek: state.week,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
@@ -884,6 +885,7 @@ var Engine = (function () {
     if (p.stage === 'post') {
       if (!p.flags.cutDone) { raise(p, CONTENT.FIXED_DECISIONS.cut); return; }
       if (p.format === 'feature' && !p.flags.marketingDone) { raiseMarketing(p); return; }
+      if (p.format === 'feature' && !p.flags.regionsDone) { raiseDistribution(p); return; }
       if (p.format === 'feature' && !p.flags.dateDone) { raiseReleaseDate(p); return; }
       release(p);
       return;
@@ -1007,6 +1009,50 @@ var Engine = (function () {
       }))
     });
   }
+  function homeRegion() { return state && state.studio.homeRegion || 'northamerica'; }
+  function regionQuote(p, list) {
+    const home = homeRegion();
+    const valid = CONTENT.REGIONS.map(r => r.id);
+    const chosen = [home].concat((list || []).filter(id => id !== home && valid.includes(id)));
+    const regions = Array.from(new Set(chosen));
+    const year = dateOf().year;
+    const eraCost = year < 1980 ? 1.35 : year < 2000 ? 1.15 : year < 2010 ? 1 : 0.85;
+    const overseas = regions.filter(id => id !== home);
+    const cost = overseas.reduce((n, id) => {
+      const r = byId(CONTENT.REGIONS, id);
+      return n + Math.round((750 + p.budget * 0.024) * r.cost * eraCost);
+    }, 0);
+    const extra = overseas.reduce((n, id) => {
+      const r = byId(CONTENT.REGIONS, id);
+      return n + 0.16 * r.audience * (r.taste[p.genre] || 1);
+    }, 0);
+    return { regions: regions, cost: cost, openingMult: Math.round((1 + extra) * 100) / 100,
+      estimated: 'Potential opening ×' + (1 + extra).toFixed(2) + ' before extra cost' };
+  }
+  function setDistribution(id, regions) {
+    const p = getProject(id);
+    if (!p || p.format !== 'feature' || ['release', 'done'].includes(p.stage))
+      return { ok: false, reason: 'Distribution can only be changed before a feature opens.' };
+    const q = regionQuote(p, regions);
+    p.regions = q.regions;
+    save();
+    return Object.assign({ ok: true }, q);
+  }
+  function raiseDistribution(p) {
+    const home = homeRegion();
+    const all = CONTENT.REGIONS.map(r => r.id);
+    const wide = [home].concat(all.filter(id => id !== home).slice(0, 2));
+    const presets = [
+      { name: 'Home only', regions: [home] },
+      { name: 'Wide — home plus two overseas markets', regions: wide },
+      { name: 'Worldwide — all five regions', regions: all },
+      { name: 'Keep chosen regions (' + (p.regions || [home]).length + ')', regions: p.regions || [home] }
+    ];
+    raise(p, { id: 'regions', text: 'Where should "' + p.title + '" be released? Overseas markets add possible earnings, localization costs, and recognition. Open the film details to customize your market selection.',
+      choices: presets.map(x => { const q = regionQuote(p, x.regions);
+        return { label: x.name + ' · ' + fmtMoney(q.cost) + ' extra · ' + q.estimated,
+          effects: { regions: q.regions }, result: 'Distribution for "' + p.title + '": ' + q.regions.map(id => byId(CONTENT.REGIONS, id).name).join(', ') + '.' }; }) });
+  }
   function raiseReleaseDate(p) {
     raise(p, {
       id: 'release_date',
@@ -1057,6 +1103,7 @@ var Engine = (function () {
       p.usedEvents.push(pd.id);
       if (pd.id === 'cut') p.flags.cutDone = true;
       if (pd.id === 'marketing') p.flags.marketingDone = true;
+      if (pd.id === 'regions') { p.flags.regionsDone = true; if (c.effects.regions) p.regions = c.effects.regions.slice(); }
       if (pd.id === 'release_date') { p.flags.dateDone = true; rivalsReact(p); }
       addLog(c.result || ('"' + p.title + '": ' + c.label + '.'), pd.category ? 'event' : 'decision', pd.category);
       if (ACTIVE_STAGES.includes(p.stage) && p.stageWeeksLeft <= 0) nextStage(p);
@@ -1157,6 +1204,7 @@ var Engine = (function () {
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
     st.criticsRep = st.releases ? Math.round(st.criticsRep * 0.7 + p.critic * 0.3) : p.critic;
+    p.studioReleasesAtRelease = st.releases;
     st.releases++;
     if (p.cast.director === 'founder') growStat('directing', 2, 4);
     if (p.cast.writer === 'founder') growStat('writing', 1, 3);
@@ -1166,23 +1214,32 @@ var Engine = (function () {
       if (!t.credits.includes(p.id)) t.credits.push(p.id);
       growTalentSkill(t);
     });
+    p.staffSnapshot = Object.keys(state.staff.depts).map(id => ({ department: id, heads: state.staff.depts[id].heads, skill: state.staff.depts[id].skill }));
     if (p.format === 'short') {
-      const f = festivalDefinition(festivalPlan(p)[0]) || CONTENT.AWARDS.circuit[0];
-      p.festival = f.name;
-      p.festivalTier = f.level;
-      p.festivalTierId = f.id;
-      addLog('"' + p.title + '" is finished. Critics: ' + p.critic + '/100. Automatically entered in the ' + f.level + '-tier ' + f.name + '.', 'release');
+      p.festivalPlan = festivalPlan(p);
+      const f = festivalDefinition(p.festivalPlan[0]) || CONTENT.AWARDS.circuit[0];
+      p.festival = f.name; p.festivalTier = f.level; p.festivalTierId = f.id;
+      p.festResults = [];
+      addLog('"' + p.title + '" completes production. Critics: ' + p.critic + '/100. Submitted to ' + p.festivalPlan.length + ' scheduled festival(s), first: ' + f.name + '.', 'release');
     } else if (p.format === 'pilot') {
       pilotResult(p);
     } else {
       p.festivalPlan = festivalPlan(p);
+      const quote = regionQuote(p, p.regions);
+      if (state.cash < quote.cost) { p.regions = [homeRegion()]; addLog('Insufficient funds for overseas release of \"' + p.title + '\"; opening in the home market only.', 'finance'); }
+      const rollout = regionQuote(p, p.regions);
+      p.regions = rollout.regions;
+      p.distributionCost = rollout.cost;
+      p.spent += rollout.cost;
+      state.cash -= rollout.cost;
+      p.regionalGross = {}; p.regionalRevenue = {};
       const m = marketOutlook(p, 0);
       p.market = { genre: m.genre, taste: m.taste, topic: m.topic, season: m.season, cycle: m.cycle, competitors: m.competitors, pressure: m.pressure, mult: m.mult,
         rivals: m.rivals.map(r => r.studio + ': ' + r.title) };
       const ref = TUNING.boxOfficeRefBudget;
       const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
-        m.mult * (1 + deptBonus('distribution')) * eraMods().boxOffice;
+        m.mult * rollout.openingMult * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       const cap = audienceCap();
       p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
@@ -1203,7 +1260,22 @@ var Engine = (function () {
     let gross = p.opening * Math.pow(decay, p.weeksInRelease - 1);
     if (p.weeksInRelease > 1) gross /= 1 + TUNING.rivals.holdPenalty * rivalPressure(state.week, p.genre, null, true).weight;
     gross = Math.round(gross);
-    const income = Math.round(gross * (TUNING.studioShare + growthTier().boxShare));
+    // Reconcile local and international receipts to total theatrical gross every week.
+    const quote = regionQuote(p, p.regions || [homeRegion()]);
+    const home = homeRegion();
+    const selected = quote.regions;
+    const shares = selected.map(id => id === home ? 1 : 0.16 * (byId(CONTENT.REGIONS, id).audience || 1) * (byId(CONTENT.REGIONS, id).taste[p.genre] || 1));
+    const total = shares.reduce((a, b) => a + b, 0);
+    let assigned = 0, income = 0;
+    selected.forEach((id, i) => {
+      const amount = i === selected.length - 1 ? gross - assigned : Math.round(gross * shares[i] / total);
+      assigned += amount;
+      p.regionalGross[id] = (p.regionalGross[id] || 0) + amount;
+      const share = (TUNING.studioShare + growthTier().boxShare) * (id === home ? 1 : 0.80);
+      const localIncome = Math.round(amount * share);
+      p.regionalRevenue[id] = (p.regionalRevenue[id] || 0) + localIncome;
+      income += localIncome;
+    });
     p.gross += gross;
     p.revenue += income;
     tallyGross('you', gross);
@@ -1212,33 +1284,17 @@ var Engine = (function () {
     return income;
   }
   function festivalResult(p) {
-    const f = festivalDefinition(p.festivalTierId) || CONTENT.AWARDS.circuit[0];
-    const roll = festivalMerit(p) + rnd(-11, 11);
-    const selected = roll >= f.selection;
-    const won = roll >= f.winner;
-    let revenue = p.quality < 40 ? Math.round(p.budget * 0.15) : Math.round(p.budget * (0.5 + p.quality / 70));
-    let fame = 1;
-    p.result = 'Screened';
-    if (won) {
-      p.result = 'Won';
-      revenue += (f.tier + 1) * rint(4, 10) * 100;
-      fame += Math.min(7, f.tier + 2);
-      growStat('charisma', 1, 3);
-    } else if (selected) {
-      p.result = 'Official selection';
-      fame += Math.min(4, Math.ceil(f.tier / 2));
-    }
-    revenue = Math.round(revenue * eraMods().festival);
+    // Shorts complete their independent screenings after three weeks. Festival results
+    // are determined *only* by the real festival calendar, not this payout date.
+    const revenue = Math.round((p.quality < 40 ? p.budget * 0.15 : p.budget * (0.5 + p.quality / 70)) * eraMods().festival);
     p.revenue += revenue;
     p.stage = 'done';
-    p.festResults = [{ festival: f.name, tier: f.level, result: won ? f.prize : p.result }];
-    fame = gainStudioFame(fame);
-    if (won) state.studio.prestige = clamp((state.studio.prestige || 0) + Math.ceil(f.tier / 2), 0, 100);
+    if (p.result !== 'Won') p.result = 'Screened';
+    const fame = gainStudioFame(1);
     growStat('business', 0, 1);
     addTalentFame(p);
-    addLog('"' + p.title + '" at the ' + f.level + '-tier ' + f.name + ': ' + p.result + '. Earned ' + fmtMoney(revenue) + ', fame +' + fame + '.', 'festival');
-    if (won) state.stopFlag = true;
-    emit('festival', p);
+    addLog('"' + p.title + '" finishes its short-film screening run: ' + fmtMoney(revenue) + ' revenue, fame +' + fame + '. Festival entries will be judged on their scheduled dates.', 'release');
+    emit('finished', p);
     return revenue;
   }
   function finishFeature(p) {
@@ -1247,7 +1303,7 @@ var Engine = (function () {
     const ratio = p.gross / p.budget;
     const fame = 3 + clamp(Math.round(ratio * 4), 0, 12);
     p.result = profit < 0 ? 'Flop' : (profit >= p.budget ? 'Hit' : 'Profit');
-    const awardedFame = gainStudioFame(fame);
+    const awardedFame = gainStudioFame(fame + Math.min(2, Math.max(0, (p.regions || []).length - 1) * 0.5));
     growStat('business', 1, 2);
     addTalentFame(p);
     openWindows(p);
@@ -1255,6 +1311,86 @@ var Engine = (function () {
       (p.windows.length ? ' Next: ' + p.windows.map(w => windowName(w.id)).join(', ') + '.' : ''), 'release');
     state.stopFlag = true;
     emit('finished', p);
+  }
+
+// ===== SECTION: FILM_ARCHIVE =====
+  // The player's projects remain the canonical record; avoid duplicating them in save data.
+  // Completed rival movies are snapshotted before rivals prune their recent-release lists.
+  function archiveRivalFilm(r, f) {
+    if (!state.filmArchive) state.filmArchive = { rivals: [], incompleteBefore: null };
+    if (f.stage === 'planned') return null;
+    const id = 'rival:' + r.id + ':' + f.id;
+    let record = state.filmArchive.rivals.find(x => x.id === id);
+    if (!record) { record = { id: id }; state.filmArchive.rivals.push(record); }
+    Object.assign(record, {
+      id: id, studio: r.name, rivalId: r.id, format: 'feature', title: f.title,
+      genre: f.genre, topic: f.topic || null, startWeek: f.startWeek == null ? null : f.startWeek,
+      releaseWeek: f.week, year: dateOf(f.week).year, budget: f.budget,
+      quality: f.quality, critic: f.critic == null ? null : f.critic,
+      hype: f.hype || 0, gross: f.gross || 0, revenue: f.revenue || 0,
+      profit: f.stage === 'done' ? f.revenue - f.budget : null,
+      result: f.result || 'In theaters', stage: f.stage,
+      credits: f.credits || {}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
+      regionalGross: f.regionalGross || {},
+      awards: record.awards || [], festResults: record.festResults || [],
+      legacy: !f.topic || f.critic == null
+    });
+    return record;
+  }
+  function playerFilm(p) {
+    const names = {};
+    SLOTS.forEach(slot => {
+      const v = p.cast && p.cast[slot];
+      names[slot] = p.castNames && p.castNames[slot] || (v === 'founder' ? state.founder.name : null);
+    });
+    return {
+      id: 'player:' + p.id, projectId: p.id, studio: state.studio.name, format: p.format,
+      title: p.title, genre: p.genre, topic: p.topic, startWeek: p.startWeek,
+      releaseWeek: p.releaseWeek, year: dateOf(p.releaseWeek).year,
+      budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, hype: p.hype,
+      gross: p.gross || 0, revenue: p.revenue || 0, profit: p.revenue - p.spent,
+      result: p.result || 'In release', stage: p.stage, region: state.studio.homeRegion || 'northamerica',
+      regions: p.regions || [], regionalGross: p.regionalGross || {},
+      credits: names, staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
+      decisions: p.usedEvents || [], legacy: p.releaseWeek != null && !p.regions
+    };
+  }
+  function filmHistory() {
+    if (!state) return [];
+    const mine = state.projects.filter(p => p.releaseWeek != null).map(playerFilm);
+    return mine.concat(state.filmArchive ? state.filmArchive.rivals : []).sort((a, b) =>
+      (b.releaseWeek || 0) - (a.releaseWeek || 0) || String(a.id).localeCompare(String(b.id)));
+  }
+  function filmById(id) { return filmHistory().find(f => f.id === String(id)) || null; }
+  // The rating uses one stable formula for both studio-only and world rankings.
+  function filmScore(f, criterion) {
+    const awards = (f.awards || []).reduce((n, a) => n + (a.won ? 4 : 1), 0);
+    const festivals = (f.festResults || []).reduce((n, a) => n +
+      (/prize|grand|won|winner/i.test(a.result || '') ? 3 + Math.min(3, a.tierRank || 1) :
+        /mention|runner/i.test(a.result || '') ? 2 : /selection/i.test(a.result || '') ? 0.6 : 0), 0);
+    const recognition = Math.min(100, (awards + festivals) * 8);
+    const eraYears = Math.max(0, (f.year || TUNING.startYear) - TUNING.startYear);
+    const eraScaleValue = Math.pow(1 + TUNING.market.audienceGrowth, eraYears);
+    const reach = Math.min(100, 35 * Math.log10(1 + (f.gross || 0) / (Math.max(25000, f.budget || 25000) * 0.4)));
+    if (criterion === 'gross') return Math.round((f.gross || 0) / eraScaleValue);
+    if (criterion === 'critics') return f.critic == null ? -1 : f.critic;
+    if (criterion === 'awards') return Math.round((awards + festivals) * 100) / 100;
+    return Math.round((0.4 * (f.critic == null ? f.quality || 0 : f.critic) +
+      0.25 * (f.quality || 0) + 0.2 * reach + 0.15 * recognition) * 10) / 10;
+  }
+  function filmRankings(opts) {
+    opts = opts || {};
+    const criterion = opts.criterion || 'overall';
+    const filter = f => f.stage === 'done' &&
+      (opts.format ? f.format === opts.format : f.format === 'feature') &&
+      (!opts.genre || f.genre === opts.genre) && (!opts.topic || f.topic === opts.topic) &&
+      (!opts.decade || Math.floor(f.year / 10) * 10 === Number(opts.decade)) &&
+      (!opts.region || (f.regions || []).includes(opts.region)) &&
+      (!opts.awarded || (f.awards || []).some(a => a.won) || (f.festResults || []).some(a => /prize|grand|won|winner/i.test(a.result)));
+    const all = filmHistory().filter(filter).map(f => Object.assign({}, f, { score: filmScore(f, criterion) }));
+    all.sort((a, b) => b.score - a.score || (b.critic || 0) - (a.critic || 0) || a.releaseWeek - b.releaseWeek || String(a.id).localeCompare(String(b.id)));
+    return all.map((f, i) => Object.assign({}, f, { worldRank: i + 1 })).filter(f => !opts.mine || f.projectId != null)
+      .map((f, i) => Object.assign({}, f, { studioRank: opts.mine ? i + 1 : null }));
   }
 
 // ===== SECTION: FINANCE =====
@@ -1412,7 +1548,7 @@ var Engine = (function () {
     const bg = state.market.slate[offset] || 0;
     const rv = rivalPressure(state.week + offset, p.genre);
     const own = ownOverlap(p, offset);
-    const pressure = bg + rv.weight + own;
+    const pressure = bg + rv.weight / (1 + Math.max(0, activeRivals().length - 6) * 0.035) + own;
     const gp = genrePop(p.genre), tz = eraTaste(p.genre), se = seasonMult(state.week + offset), cy = cycleMult();
     const topic = topicMarket(p.topic).demand;
     return { genre: gp, taste: tz, topic: topic, season: se, cycle: cy, competitors: bg + rv.count + own, pressure: Math.round(pressure * 100) / 100, rivals: rv.titles,
@@ -1508,7 +1644,7 @@ var Engine = (function () {
     const free = CONTENT.RIVAL_NAMES.filter(n => !used.has(n));
     const id = state.rivals.nextId++;
     const r = { id: id, name: free.length ? pick(free) : 'Studio ' + id, strategy: strategy, baseStrategy: strategy, focus: null, tier: tier, cash: 0,
-      fame: clamp(R.tierFame[tier] + rint(-5, 5) - (seed ? 0 : 10), 0, 100), status: 'active', foundedWeek: state.week, closedWeek: null,
+      region: pick(CONTENT.REGIONS).id, fame: clamp(R.tierFame[tier] + rint(-5, 5) - (seed ? 0 : 10), 0, 100), status: 'active', foundedWeek: state.week, closedWeek: null,
       films: [], qResult: 0, results: [], tierWeek: state.week, lossStreak: 0, winStreak: 0, negQuarters: 0, releases: 0, nextFilmId: 1 };
     r.cash = Math.round(rivalBudget(r) * R.startCashBudgets);
     state.rivals.list.push(r);
@@ -1528,7 +1664,16 @@ var Engine = (function () {
     budget = Math.round(Math.min(budget, audienceCap() * R.maxBudgetCap) / 1000) * 1000;
     const tq = Math.min(R.talentQualityMax, rivalTalent(r).length * R.talentQuality);
     const genre = rivalGenre(r);
-    const f = { id: r.nextFilmId++, title: randomTitle(), genre: genre, budget: budget,
+      const topics = CONTENT.TOPICS.filter(t => t.good.includes(genre));
+      const subject = topics.length ? pick(topics) : pick(CONTENT.TOPICS);
+      const owned = rivalTalent(r);
+      const credits = {};
+      [['director', 'director'], ['writer', 'writer'], ['lead', 'actor'], ['crew', 'crew']].forEach(pair => {
+        const people = owned.filter(t => t.role === pair[1]);
+        credits[pair[0]] = people.length ? pick(people).name : pick(CONTENT.FIRST_NAMES) + ' ' + pick(CONTENT.LAST_NAMES);
+      });
+    const f = { id: r.nextFilmId++, title: randomTitle(), genre: genre, topic: subject.id,
+      startWeek: state.week, credits: credits, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
       quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
       hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
@@ -1575,7 +1720,7 @@ var Engine = (function () {
     const R = TUNING.rivals, M = TUNING.market, S = stratDef(r.strategy);
     const off = w - state.week;
     const bg = off < M.slateWeeks ? (state.market.slate[off] || 0) : R.avgBackground;
-    const pressure = bg + rivalPressure(w, f.genre, f).weight + playerPressure(w, f.genre);
+    const pressure = bg + rivalPressure(w, f.genre, f).weight / (1 + Math.max(0, activeRivals().length - 6) * 0.035) + playerPressure(w, f.genre);
     return seasonMult(w) * ((S.seasons || []).includes(seasonOf(w).id) ? R.seasonPref : 1) / (1 + M.competitionPenalty * pressure);
   }
   function bestWeek(r, f, from, to) {
@@ -1588,7 +1733,7 @@ var Engine = (function () {
   function rivalOpen(r, f) {
     const R = TUNING.rivals, M = TUNING.market;
     const g = byId(CONTENT.GENRES, f.genre) || { audience: 1 };
-    const pressure = (state.market.slate[0] || 0) + rivalPressure(state.week, f.genre, f).weight + playerPressure(state.week, f.genre);
+    const pressure = (state.market.slate[0] || 0) + rivalPressure(state.week, f.genre, f).weight / (1 + Math.max(0, activeRivals().length - 6) * 0.035) + playerPressure(state.week, f.genre);
     const mult = genreDemand(f.genre) * seasonMult(state.week) * cycleMult() / (1 + M.competitionPenalty * pressure);
     const ref = TUNING.boxOfficeRefBudget;
     const raw = ref * Math.pow(f.budget / ref, TUNING.boxOfficeBudgetExp) * TUNING.boxOfficeBase * R.boxMult * qualityFactor(f.quality) *
@@ -1596,7 +1741,10 @@ var Engine = (function () {
     const cap = audienceCap();
     f.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
     f.stage = 'release';
+    f.critic = clamp(Math.round(f.quality + rnd(-12, 12)), 1, 100);
     f.weeksIn = 0;
+    archiveRivalFilm(r, f);
+    f.studioReleasesAtRelease = r.releases;
     r.releases++;
     if (playerPressure(state.week, f.genre, true) > 0 || f.budget >= R.bigBudget * eraScale())
       addLog(rtx('opens', { rival: r.name, title: f.title, genre: genreName(f.genre), budget: fmtMoney(f.budget) }), 'rival');
@@ -1610,6 +1758,11 @@ var Engine = (function () {
     gross = Math.round(gross);
     const rev = Math.round(gross * R.share);
     f.gross += gross;
+    const sectors = f.regions || [r.region || 'northamerica'];
+    const weights = sectors.map(id => id === r.region ? 1 : 0.24 * ((byId(CONTENT.REGIONS,id)||{audience:1}).audience));
+    const tw = weights.reduce((a,b)=>a+b,0);
+    let allocated = 0;
+    sectors.forEach((id,i)=>{const n=i===sectors.length-1?gross-allocated:Math.round(gross*weights[i]/tw);allocated+=n;f.regionalGross[id]=(f.regionalGross[id]||0)+n;});
     f.revenue += rev;
     r.cash += rev;
     tallyGross(r.id, gross);
@@ -1622,6 +1775,7 @@ var Engine = (function () {
     f.result = profit < 0 ? 'Flop' : (profit >= f.budget ? 'Hit' : 'Profit');
     r.qResult += profit;
     r.fame = clamp(r.fame + (f.result === 'Hit' ? 4 : f.result === 'Profit' ? 1 : -2), 0, 100);
+    archiveRivalFilm(r, f);
     if (f.result === 'Hit' && f.gross >= R.newsGross * eraScale()) addLog(rtx('hit', { rival: r.name, title: f.title, gross: fmtMoney(f.gross) }), 'rival');
     const done = r.films.filter(x => x.stage === 'done');
     if (done.length > R.keepFilms) r.films.splice(r.films.indexOf(done[0]), 1);
@@ -1726,7 +1880,7 @@ var Engine = (function () {
     r.films = r.films.filter(f => f.stage === 'done');
     state.talent.forEach(t => { if (isRivalTalent(t) && t.contract.rivalId === r.id) t.contract = null; });
     addLog(rtx('bankrupt', { rival: r.name }), 'rival');
-    state.stopFlag = true;
+    if (r.fame >= 75) state.stopFlag = true; // minor rival closures are routine news, not blocking popups.
     emit('rival', r);
     if (state.rivals.upstartWeek == null) state.rivals.upstartWeek = state.week + rint(R.upstartDelay[0], R.upstartDelay[1]);
     const closed = state.rivals.list.filter(x => x.status === 'bankrupt');
@@ -1746,7 +1900,7 @@ var Engine = (function () {
     bo.year = dateOf().year;
     bo.you = 0;
     bo.rivals = {};
-    if (activeRivals().length < R.maxCount && state.rivals.upstartWeek == null && Math.random() < R.upstartYearChance)
+    if (activeRivals().length < R.maxCount && state.rivals.upstartWeek == null && Math.random() < R.upstartYearChance + Math.min(.18, (dateOf().year - 1970) * 0.003))
       state.rivals.upstartWeek = state.week + rint(R.upstartDelay[0], R.upstartDelay[1]);
   }
   function tallyGross(key, gross) {
@@ -2098,16 +2252,35 @@ var Engine = (function () {
   // All formats use the same six-tier festival circuit. Merit drives tier selection;
   // reputation gives only a small edge, and studio size never bars entry.
   function festivalMerit(p) {
-    return p.quality * 0.52 + p.critic * 0.48 + Math.min(3, (state.studio.prestige || 0) * 0.04);
+    return (p.quality || 0) * 0.52 + (p.critic == null ? p.quality || 0 : p.critic) * 0.48 +
+      Math.min(3, (state.studio.prestige || 0) * 0.04);
   }
+  function festivalFocus(f, p) {
+    if (!f.focus) return 0;
+    if (f.focus === 'short') return p.format === 'short' ? 5 : -100;
+    if (f.focus === 'indie') return p.budget <= 350000 ? 5 : -100;
+    if (f.focus === 'debut') return (p.studioReleasesAtRelease || 0) < 10 ? 5 : -100;
+    if (f.focus === 'documentary') return p.genre === 'documentary' ? 6 : -100;
+    if (f.focus === 'horror') return ['horror','thriller'].includes(p.genre) ? 6 : -100;
+    if (f.focus === 'scifi') return p.genre === 'scifi' ? 6 : -100;
+    if (f.focus === 'romance') return p.genre === 'romance' ? 6 : -100;
+    if (f.focus === 'thriller') return p.genre === 'thriller' ? 6 : -100;
+    if (f.focus === 'audience') return (p.hype || 0) * 0.05;
+    if (f.focus === 'international') return Math.min(3, ((p.regions || []).length - 1) * 1.1);
+    return 0;
+  }
+  function currentFestivals(year) { return CONTENT.AWARDS.circuit.filter(f => (f.startYear || 1970) <= (year || dateOf().year)); }
   function festivalPlan(p) {
-    const max = p.format === 'short' ? TUNING.awards.festivalMaxShortEntries : TUNING.awards.festivalMaxEntries;
+    const world = currentFestivals();
+    const max = p.format === 'short' ? Math.min(TUNING.awards.festivalMaxShortEntries, dateOf().year < 1990 ? 1 : dateOf().year < 2010 ? 2 : 3) :
+      Math.min(TUNING.awards.festivalMaxEntries, dateOf().year < 2000 ? 3 : 4);
     const merit = festivalMerit(p);
-    const eligible = CONTENT.AWARDS.circuit.filter(f => merit + 9 >= f.entryScore);
-    // A merit-based shortlist. Excellent films can reach World from a Solo studio.
-    const ranked = eligible.map(f => ({ f: f, score: Math.random() * 18 - Math.abs(merit - (f.entryScore + 8)) * 0.45 + f.tier * 1.5 }));
-    ranked.sort((a, b) => b.score - a.score);
-    return ranked.slice(0, max).map(x => x.f.id);
+    const eligible = world.filter(f => (f.formats || ['short','feature']).includes(p.format) && festivalFocus(f,p) > -50 && merit + 5 >= f.entryScore);
+    // Entries are not selections or prizes; screeners evaluate those later.
+    const ranked = eligible.map(f => ({ f: f, score: Math.random() * 15 - Math.abs(merit - (f.entryScore + 8)) * 0.5 +
+      f.tier * 1.1 + Math.max(0,festivalFocus(f,p))*1.8 }));
+    ranked.sort((a,b) => b.score-a.score);
+    return (ranked.length ? ranked : [{ f: world[0] }]).slice(0, max).map(x => x.f.id);
   }
   function festivalDefinition(id) { return CONTENT.AWARDS.circuit.find(f => f.id === id); }
   function atx(key, map) { return String(CONTENT.AWARD_TEXT[key]).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m)); }
@@ -2151,122 +2324,170 @@ var Engine = (function () {
     else { t.awards.noms++; t.fame = clamp(t.fame + A.talentNomFame, 0, 100); }
   }
   function festivalTick() {
-    const A = TUNING.awards, wk = dateOf().week;
-    CONTENT.AWARDS.circuit.filter(f => f.week === wk).forEach(f => state.projects.forEach(p => {
-      if (p.format !== 'feature' || p.releaseWeek == null || p.critic == null || p.releaseWeek > state.week) return;
-      if (state.week - p.releaseWeek > A.festWindow) return;
-      p.festivals = p.festivals || [];
-      // v8 saves have no plan: assign it lazily for post-migration films.
-      p.festivalPlan = p.festivalPlan || festivalPlan(p);
-      if (!p.festivalPlan.includes(f.id) || p.festivals.includes(f.id)) return;
-      p.festivals.push(f.id);
-      p.festResults = p.festResults || [];
-      const score = festivalMerit(p) + (p.buzz || 0) * 0.25 + rnd(-11, 11);
-      const map = { title: p.title, festival: f.name, prize: f.prize };
-      if (score >= f.winner) {
-        p.buzz = Math.min(A.buzzMax, (p.buzz || 0) + A.prizeBuzz);
-        gainStudioFame(A.prizeFame + Math.floor(f.tier / 3));
-        state.studio.prestige = clamp((state.studio.prestige || 0) + Math.ceil(f.tier / 2), 0, 100);
-        castTalent(p).forEach(t => { t.fame = clamp(t.fame + A.prizeTalentFame, 0, 100); });
-        p.festResults.push({ festival: f.name, tier: f.level, result: f.prize });
-        addLog(atx('festPrize', map) + ' (' + f.level + ' tier)', 'award');
-      } else if (score >= f.selection) {
-        p.buzz = Math.min(A.buzzMax, (p.buzz || 0) + A.selectBuzz);
-        gainStudioFame(A.selectFame);
-        p.festResults.push({ festival: f.name, tier: f.level, result: 'Official selection' });
-        addLog(atx('festSelected', map) + ' (' + f.level + ' tier)', 'award');
-      } else {
-        addLog('"' + p.title + '" was not selected at the ' + f.level + '-tier ' + f.name + '.', 'award');
-      }
-    }));
-  }
-  function snapshotPool() {
-    const y = dateOf().year - 1, lo = (y - TUNING.startYear) * TUNING.weeksPerYear, hi = lo + TUNING.weeksPerYear;
-    state.awards.pool = [];
-    rivalList().forEach(r => r.films.forEach(f => {
-      if (f.stage === 'planned' || f.week < lo || f.week >= hi) return;
-      state.awards.pool.push({ title: f.title, studio: r.name, rivalId: r.id, genre: f.genre, quality: f.quality, critic: clamp(f.quality + rint(-10, 10), 1, 100), tier: r.tier, strategy: r.strategy });
-    }));
-  }
-  function runCeremony() {
-    const A = TUNING.awards, def = CONTENT.AWARDS, year = dateOf().year, covered = year - 1;
-    if (covered < TUNING.startYear) return;
-    const lo = (covered - TUNING.startYear) * TUNING.weeksPerYear, hi = lo + TUNING.weeksPerYear;
-    const mine = state.projects.filter(p => p.format === 'feature' && p.releaseWeek != null && !p.awardsJudged && p.releaseWeek >= lo && p.releaseWeek < hi);
-    mine.forEach(p => { p.awardsJudged = true; p.awards = p.awards || []; });
-    state.studio.prestige = Math.round((state.studio.prestige || 0) * A.prestigeDecay * 10) / 10;
-    const entries = state.awards.pool.map(x => ({ title: x.title, studio: x.studio, rivalId: x.rivalId, projectId: null, p: null, tier: x.tier, base: x.quality * 0.9 + 4 + (x.tier - 1) + A.rivalBoost + (x.strategy === 'prestige' ? A.prestigeRivalBoost : 0) }))
-      .concat(mine.map(p => ({ title: p.title, studio: state.studio.name, rivalId: null, projectId: p.id, p: p, tier: 0, base: awardScore(p) })));
-    state.awards.pool = [];
-    if (entries.length < 3) return;
-    const rec = { year: year, covered: covered, name: def.ceremony, cats: [] };
-    const nomCount = {}, fameGain = {};
-    const map0 = { ceremony: def.ceremony, year: year };
-    def.categories.forEach(cat => {
-      const scored = entries.map(e => {
-        let s = e.base;
-        if (cat.slot) s += e.p ? (slotSkill(e.p, cat.slot) - 50) * A.slotWeight : (e.tier - 2) * 2;
-        return { e: e, s: s + rnd(-A.noise, A.noise) };
-      }).filter(x => !x.e.p || x.s >= A.minScore).sort((a, b) => b.s - a.s);
-      const per = {}, noms = [];
-      scored.forEach(x => { if (noms.length < A.nominees && (per[x.e.studio] || 0) < A.maxPerStudio) { per[x.e.studio] = (per[x.e.studio] || 0) + 1; noms.push(x); } });
-      if (noms.length < 2) return;
-      const order = noms.map(x => ({ x: x, s: x.s + rnd(-A.winNoise, A.winNoise) })).sort((a, b) => b.s - a.s);
-      const winner = order[0].x;
-      rec.cats.push({ id: cat.id, name: cat.name, nominees: order.map(o => ({ title: o.x.e.title, studio: o.x.e.studio, rivalId: o.x.e.rivalId, projectId: o.x.e.projectId, winner: o.x === winner })) });
-      order.forEach(o => {
-        const e = o.x.e, won = o.x === winner;
-        if (e.p) {
-          const p = e.p;
-          p.awards.push({ year: year, cat: cat.id, won: won });
-          const talent = cat.slot ? [typeof p.cast[cat.slot] === 'number' ? getTalent(p.cast[cat.slot]) : null].filter(Boolean) : castTalent(p);
-          talent.forEach(t => giveTalentAward(t, won));
-          state.studio.prestige = Math.min(A.prestigeMax, state.studio.prestige + (won ? (cat.id === 'picture' ? A.prestigePicture : A.prestigeWin) : A.prestigeNom));
-          nomCount[p.id] = (nomCount[p.id] || []).concat([cat.name]);
-          let g = nomCount[p.id].length === 1 ? A.nomFame : 0;
-          if (won) g += cat.id === 'picture' ? A.pictureFame : A.winFame;
-          fameGain[p.id] = Math.min(A.filmFameMax, (fameGain[p.id] || 0) + g);
-          if (won) {
-            state.studio.criticsRep = clamp(state.studio.criticsRep + A.winCritics, 0, 100);
-            addLog(atx('won', Object.assign({ title: p.title, cat: cat.name }, map0)), 'award');
+    const A = TUNING.awards, wk = dateOf().week, year = dateOf().year;
+    currentFestivals().filter(f => f.week === wk).forEach(f => {
+      const entries = [];
+      state.projects.forEach(p => {
+        if (!['short','feature'].includes(p.format) || p.releaseWeek == null || p.critic == null || p.releaseWeek > state.week || state.week-p.releaseWeek > A.festWindow) return;
+        p.festivals = p.festivals || [];
+        p.festivalPlan = p.festivalPlan || festivalPlan(p);
+        if (!p.festivalPlan.includes(f.id) || p.festivals.includes(f.id)) return;
+        p.festivals.push(f.id);
+        entries.push({ player:p, score:festivalMerit(p)+(p.buzz || 0)*.25+festivalFocus(f,p)+rnd(-11,11) });
+      });
+      // Rival films compete as real juried entrants, rather than merely simulated odds.
+      const rivals = (state.filmArchive ? state.filmArchive.rivals : []).filter(x => x.stage==='done' && x.critic!=null &&
+        x.releaseWeek <= state.week && state.week-x.releaseWeek <= A.festWindow && (f.formats || ['short','feature']).includes(x.format) &&
+        festivalFocus(f,x)>-50 && (x.quality*.52+x.critic*.48)+5 >= f.entryScore &&
+        !(x.festResults || []).some(z => z.id === f.id && z.year === year));
+      // One submission per rival, modest circuit participation to protect indie opportunities.
+      const seen = new Set();
+      rivals.sort((a,b) => b.quality-a.quality).forEach(x => {
+        if (seen.has(x.rivalId) || Math.random() > 0.35 || entries.length > 26) return;
+        seen.add(x.rivalId);
+        entries.push({ rival:x, score:x.quality*.52 + x.critic*.48 + festivalFocus(f,x) + rnd(-11,11) });
+      });
+      if (!entries.length) return;
+      entries.sort((a,b) => b.score-a.score);
+      const winner = entries[0].score >= f.winner ? entries[0] : null;
+      const shortPrize = entries.find(x => (x.player || x.rival).format === 'short' && x.score >= f.selection);
+      entries.forEach((e,i) => {
+        const film = e.player || e.rival, score=e.score;
+        let result = 'Not selected', kind = 'rejected';
+        if (e === winner) { result = f.prize; kind = 'winner'; }
+        else if (winner && e === shortPrize && winner !== shortPrize && e.score >= f.selection + 6) {
+          result = 'Best Short Film'; kind = 'winner';
+        } else if (i === (winner ? 1 : 0) && score >= f.selection + 6) {
+          result = 'Jury Special Mention (Runner-Up)'; kind = 'mention';
+        } else if (score >= f.selection) { result = 'Official selection'; kind = 'selection'; }
+        const rec = { id:f.id, year:year, festival:f.name, tier:f.level, tierRank:f.tier, result:result, kind:kind };
+        if (e.player) {
+          const p = e.player;
+          p.festResults = p.festResults || [];
+          p.festResults.push(rec);
+          const map = { title:p.title, festival:f.name, prize:result };
+          if (kind==='winner') {
+            p.buzz=Math.min(A.buzzMax,(p.buzz||0)+A.prizeBuzz);
+            gainStudioFame(A.prizeFame+Math.floor(f.tier/3));
+            state.studio.prestige=clamp((state.studio.prestige||0)+Math.ceil(f.tier/2),0,100);
+            castTalent(p).forEach(t=>{t.fame=clamp(t.fame+A.prizeTalentFame,0,100)});
+            if (p.format==='short') p.result='Won';
+            addLog(atx('festPrize',map)+' ('+f.level+' tier)', 'award');
+            state.stopFlag=true;
+          } else if (kind==='mention') {
+            p.buzz=Math.min(A.buzzMax,(p.buzz||0)+2);
+            gainStudioFame(1);state.studio.prestige=clamp((state.studio.prestige||0)+1,0,100);
+            addLog('"'+p.title+'" earns a Jury Special Mention at '+f.name+'.','award');
+          } else if (kind==='selection') {
+            p.buzz=Math.min(A.buzzMax,(p.buzz||0)+A.selectBuzz);
+            gainStudioFame(A.selectFame);
+            addLog(atx('festSelected',map)+' ('+f.level+' tier)','award');
           }
-        } else if (won) {
-          const r = rivalList().find(x => x.id === e.rivalId);
-          if (r) r.fame = clamp(r.fame + (cat.id === 'picture' ? 2 : 1), 0, 100);
-          if (cat.id === 'picture') addLog(atx('rivalWon', Object.assign({ studio: e.studio, title: e.title, cat: cat.name }, map0)), 'award', 'rivals');
+        } else {
+          e.rival.festResults = e.rival.festResults || [];
+          e.rival.festResults.push(rec);
+          if (kind==='winner') addLog(e.rival.studio+' wins '+result+' for "'+e.rival.title+'" at '+f.name+'.','award','rivals');
         }
       });
     });
-    const ids = Object.keys(nomCount);
-    ids.forEach(id => {
-      const p = getProject(id), n = nomCount[id].length;
-      gainStudioFame(fameGain[id] || 0);
-      addLog(atx('nominated', Object.assign({ title: p.title, count: n, s: n === 1 ? '' : 's', cats: nomCount[id].join(', ') }, map0)), 'award');
+  }
+  function ceremonyScore(f, ceremony) {
+    const quality=f.quality||0, critic=f.critic==null?quality:f.critic, hype=f.hype||0;
+    const eraNorm = Math.max(1, Math.pow(1+TUNING.market.audienceGrowth,Math.max(0,(f.year||1970)-1970)));
+    const reach = clamp(16*Math.log10(1+(f.gross||0)/Math.max(20000,(f.budget||30000)*eraNorm*.2)),0,35);
+    if (ceremony.style==='critics') return quality*.40+critic*.60;
+    if (ceremony.style==='indie') return quality*.46+critic*.42+(f.budget<=350000?7:0)+(f.format==='short'?3:0);
+    if (ceremony.style==='audience') return quality*.30+critic*.18+hype*.26+reach*.8;
+    return quality*.55+critic*.35+hype*.10;
+  }
+  function ceremonyEligibleFilm(f, c) {
+    if (!c.formats.includes(f.format) || !['done','release'].includes(f.stage)) return false;
+    if (c.id==='independent' && f.format==='feature' && f.budget>350000) return false;
+    return true;
+  }
+  function runCeremony(c) {
+    const A=TUNING.awards, year=dateOf().year, covered=year-1;
+    if (year < c.startYear || covered < TUNING.startYear) return;
+    state.awards.judged=state.awards.judged||{};
+    const key=year+':'+c.id;
+    if (state.awards.judged[key]) return;
+    state.awards.judged[key]=true; // persisted, so revisiting a save never rerolls history
+    const lo=(covered-TUNING.startYear)*TUNING.weeksPerYear, hi=lo+TUNING.weeksPerYear;
+    const mine=state.projects.filter(p=>p.releaseWeek!=null && p.releaseWeek>=lo && p.releaseWeek<hi && c.formats.includes(p.format) &&
+      (c.id!=='independent' || p.format==='short' || p.budget<=350000));
+    const ai=(state.filmArchive?state.filmArchive.rivals:[]).filter(f=>f.releaseWeek!=null && f.releaseWeek>=lo && f.releaseWeek<hi && ceremonyEligibleFilm(f,c));
+    if (c.id==='golden') {
+      mine.forEach(p=>{p.awardsJudged=true; p.awards=p.awards||[];});
+      state.studio.prestige=Math.round((state.studio.prestige||0)*A.prestigeDecay*10)/10;
+    }
+    const entries=ai.map(f=>({ f:f, p:null, title:f.title, studio:f.studio, rivalId:f.rivalId, projectId:null, filmId:f.id,
+      base:ceremonyScore(f,c)+(f.format==='feature'?Math.min(5,2+(f.quality||0)*.015):0) }))
+      .concat(mine.map(p=>{const film=playerFilm(p);return { f:film, p:p, title:p.title, studio:state.studio.name,
+        rivalId:null, projectId:p.id, filmId:'player:'+p.id,
+        base:ceremonyScore(film,c)+(c.id==='golden'?campaignPoints(p):0)+(p.buzz||0)*.3 };}));
+    const rec={ id:c.id, year:year, covered:covered, name:c.name, cats:[] };
+    const nomineesByProject={}, fameGain={};
+    for (const cat of c.categories) {
+      const choices=entries.filter(e=> (!cat.format || cat.format===e.f.format) && (!cat.debut || (e.f.studioReleasesAtRelease!=null && e.f.studioReleasesAtRelease<10)))
+        .map(e=>({e:e,score:e.base+(cat.slot && e.p ? (slotSkill(e.p,cat.slot)-50)*A.slotWeight : 0)+rnd(-A.noise,A.noise)}))
+        .filter(x=>x.score>=A.minScore || !x.e.p)
+        .sort((a,b)=>b.score-a.score);
+      const counts={}, nominated=[];
+      for(const x of choices){if(nominated.length>=A.nominees)break;if((counts[x.e.studio]||0)>=A.maxPerStudio)continue;
+        counts[x.e.studio]=(counts[x.e.studio]||0)+1;nominated.push(x);}
+      if(nominated.length<2)continue;
+      const ordered=nominated.map(x=>({x:x,score:x.score+rnd(-A.winNoise,A.winNoise)})).sort((a,b)=>b.score-a.score);
+      const victor=ordered[0].x;
+      rec.cats.push({id:cat.id,name:cat.name,nominees:ordered.map(o=>({title:o.x.e.title,studio:o.x.e.studio,
+        rivalId:o.x.e.rivalId,projectId:o.x.e.projectId,filmId:o.x.e.filmId,winner:o.x===victor}))});
+      for(const o of ordered){const e=o.x.e,won=o.x===victor;
+        const award={year:year,cat:cat.id,category:cat.name,ceremony:c.name,ceremonyId:c.id,won:won};
+        if(e.p){const p=e.p;p.awards=p.awards||[];p.awards.push(award);
+          const talent=cat.slot ? [typeof p.cast[cat.slot]==='number'?getTalent(p.cast[cat.slot]):null].filter(Boolean) : castTalent(p);
+          talent.forEach(t=>giveTalentAward(t,won));
+          state.studio.prestige=Math.min(A.prestigeMax,state.studio.prestige+(won?(cat.id==='picture'?A.prestigePicture:A.prestigeWin):A.prestigeNom));
+          nomineesByProject[p.id]=(nomineesByProject[p.id]||[]).concat(cat.name);
+          const points=(nomineesByProject[p.id].length===1?A.nomFame:0)+(won?(cat.id==='picture'?A.pictureFame:A.winFame):0);
+          fameGain[p.id]=Math.min(A.filmFameMax,(fameGain[p.id]||0)+points);
+          if(won){state.studio.criticsRep=clamp(state.studio.criticsRep+A.winCritics,0,100);
+            addLog('"'+p.title+'" wins '+cat.name+' at '+c.name+' '+year+'!','award');}
+        }else{
+          e.f.awards=e.f.awards||[];e.f.awards.push(award);
+          if(won){const r=getRival(e.rivalId);if(r)r.fame=clamp(r.fame+2,0,100);
+            if(cat.id==='picture'||cat.id==='indiefeature'||cat.id==='audiencefilm') addLog(e.studio+' wins '+cat.name+' for "'+e.title+'" at '+c.name+' '+year+'.','award','rivals');}
+        }
+      }
+    }
+    Object.keys(nomineesByProject).forEach(id=>{
+      const p=getProject(id);if(!p)return;
+      gainStudioFame(fameGain[id]||0);
+      addLog('"'+p.title+'" earns '+nomineesByProject[id].length+' nomination(s) at '+c.name+' '+year+': '+nomineesByProject[id].join(', ')+'.','award');
     });
-    if (mine.length && !ids.length) addLog(atx('noNoms', map0), 'award');
-    if (ids.length) state.stopFlag = true;
-    state.awards.history.push(rec);
-    if (state.awards.history.length > A.keepHistory) state.awards.history.shift();
-    emit('awards', rec);
+    if(rec.cats.length){state.awards.history.push(rec);if(state.awards.history.length>A.keepHistory)state.awards.history.shift();}
+    if(Object.keys(nomineesByProject).length)state.stopFlag=true;
+    emit('awards',rec);
   }
   function awardsTick() {
-    const d = dateOf();
-    if (d.week === 1 && state.week > 0) snapshotPool();
-    festivalTick();
-    if (d.week === TUNING.awards.ceremonyWeek) runCeremony();
+    const d=dateOf();festivalTick();
+    CONTENT.AWARDS.ceremonies.filter(c=>c.startYear<=d.year&&c.week===d.week).forEach(runCeremony);
   }
   function awardsInfo() {
-    const d = dateOf(), A = TUNING.awards, def = CONTENT.AWARDS;
-    const nextYear = d.week >= A.ceremonyWeek ? d.year + 1 : d.year;
-    const eligible = state.projects.filter(awardEligible).map(p => ({
-      id: p.id, title: p.title, year: awardYearOf(p), score: Math.round(awardScore(p)), buzz: p.buzz || 0, campaign: p.campaign || { level: 0, spent: 0 },
-      quotes: def.campaigns.map((c, i) => Object.assign({ id: c.id, name: c.name }, campaignQuote(p.id, i)))
+    const d=dateOf(),A=TUNING.awards,def=CONTENT.AWARDS;
+    const ceremonies=def.ceremonies.filter(c=>c.startYear<=d.year);
+    const upcoming=ceremonies.map(c=>({name:c.name,year:d.week>=c.week?d.year+1:d.year,week:c.week})).sort((a,b)=>a.year-b.year||a.week-b.week)[0] || {name:def.ceremony,year:d.year+1,week:A.ceremonyWeek};
+    const eligible=state.projects.filter(awardEligible).map(p=>({
+      id:p.id,title:p.title,year:awardYearOf(p),score:Math.round(awardScore(p)),buzz:p.buzz||0,
+      campaign:p.campaign||{level:0,spent:0},
+      quotes:def.campaigns.map((c,i)=>Object.assign({id:c.id,name:c.name},campaignQuote(p.id,i)))
     }));
-    const trophies = [];
-    state.projects.forEach(p => (p.awards || []).forEach(a => { if (a.won) trophies.push({ projectId: p.id, title: p.title, year: a.year, cat: (def.categories.find(c => c.id === a.cat) || { name: a.cat }).name }); }));
-    return { name: def.ceremony, next: { year: nextYear, week: ceremonyWeekOf(nextYear), covers: nextYear - 1 }, eligible: eligible, history: state.awards.history.slice().reverse(),
-      trophies: trophies, prestige: Math.round(state.studio.prestige || 0), circuit: def.circuit.map(f => ({ id: f.id, name: f.name, week: f.week, prize: f.prize, level: f.level })),
-      campaigns: def.campaigns, categories: def.categories };
+    const trophy=[];
+    state.projects.forEach(p=>(p.awards||[]).forEach(a=>{if(a.won)trophy.push({projectId:p.id,title:p.title,year:a.year,
+      cat:a.category||(def.categories.find(c=>c.id===a.cat)||{name:a.cat}).name,ceremony:a.ceremony||def.ceremony});}));
+    return {name:def.ceremony,next:{year:upcoming.year,week:(upcoming.year-TUNING.startYear)*TUNING.weeksPerYear+upcoming.week-1,
+        covers:upcoming.year-1,name:upcoming.name},eligible:eligible,history:state.awards.history.slice().reverse(),trophies:trophy,
+      prestige:Math.round(state.studio.prestige||0),circuit:currentFestivals().map(f=>({id:f.id,name:f.name,week:f.week,prize:f.prize,level:f.level,focus:f.focus,startYear:f.startYear})),
+      ceremonies:ceremonies.map(c=>({id:c.id,name:c.name,week:c.week,startYear:c.startYear,categories:c.categories.map(x=>x.name)})),
+      campaigns:def.campaigns,categories:def.categories};
   }
 
 // ===== SECTION: NEWS =====
@@ -2297,10 +2518,10 @@ var Engine = (function () {
   function scoreCounts() {
     const c = { wins: 0, noms: 0, picture: 0, festPrizes: 0, festSelections: 0, hits: 0, shows: 0 };
     state.projects.forEach(p => {
-      if (p.format !== 'feature') return;
-      if (p.result === 'Hit') c.hits++;
+      if (p.format === 'pilot') return;
+      if (p.format === 'feature' && p.result === 'Hit') c.hits++;
       (p.awards || []).forEach(a => { if (a.won) { c.wins++; if (a.cat === 'picture') c.picture++; } else c.noms++; });
-      (p.festResults || []).forEach(f => { if (f.result === 'Official selection') c.festSelections++; else c.festPrizes++; });
+      (p.festResults || []).forEach(f => { if (f.kind === 'selection' || f.result === 'Official selection') c.festSelections++; else if (f.kind === 'winner' || /grand|prize|winner|won/i.test(f.result || '')) c.festPrizes++; else if (f.kind === 'mention') c.festSelections++; });
     });
     state.series.forEach(s => { if (s.seasonAvgs.length >= TUNING.score.hitSeasons) c.shows++; });
     return c;
@@ -2480,10 +2701,33 @@ var Engine = (function () {
       obj.events = obj.events || { cooldownUntil: 0, nextWeek: 30, seen: {} };
       obj.recruitment = obj.recruitment || { declined: {} };
       obj.events.recentProduction = obj.events.recentProduction || [];
+      obj.version = 9;
+    }
+    if (obj.version === 9) {
+      obj.filmArchive = obj.filmArchive || { rivals: [], incompleteBefore: obj.week };
+      obj.awards = obj.awards || { history: [], pool: [] };
+      obj.awards.judged = obj.awards.judged || {};
+      (obj.awards.history || []).forEach(rec => { obj.awards.judged[rec.year + ':' + (rec.id || 'golden')] = true; });
+      obj.studio.homeRegion = obj.studio.homeRegion || 'northamerica';
+      // Only recent AI productions were retained in v9; missing history is never invented.
+      (obj.rivals && obj.rivals.list || []).forEach(r => (r.films || []).filter(f => f.stage !== 'planned').forEach(f => {
+        const id = 'rival:' + r.id + ':' + f.id;
+        if (obj.filmArchive.rivals.some(x => x.id === id)) return;
+        obj.filmArchive.rivals.push({ id: id, rivalId: r.id, studio: r.name, title: f.title,
+          format: 'feature', genre: f.genre, topic: f.topic || null, releaseWeek: f.week,
+          year: TUNING.startYear + Math.floor(f.week / TUNING.weeksPerYear), budget: f.budget,
+          quality: f.quality, critic: f.critic == null ? null : f.critic, gross: f.gross || 0,
+          revenue: f.revenue || 0, profit: f.stage === 'done' ? f.revenue - f.budget : null,
+          result: f.result, stage: f.stage, credits: f.credits || {},
+          awards: [], festResults: [], regions: [], regionalGross: {}, legacy: true });
+      }));
       obj.version = SAVE_VERSION;
     }
     if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'Save is from version ' + obj.version + '; this build uses version ' + SAVE_VERSION + '. Start a new game.' };
     state = obj;
+    state.filmArchive = state.filmArchive || { rivals: [], incompleteBefore: state.week };
+    state.awards.judged = state.awards.judged || {};
+    state.studio.homeRegion = state.studio.homeRegion || 'northamerica';
     state.recruitment = state.recruitment || { declined: {} };
     state.events.recentProduction = state.events.recentProduction || [];
     save();
@@ -2507,6 +2751,8 @@ var Engine = (function () {
     series: () => state.series, activeSeries: activeSeries, getSeries: getSeries, tvSlotsUsed: tvSlotsUsed, windowName: windowName,
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
+    regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
+    filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
     talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, traitsOf: traitsOf, effReliability: effReliability,
