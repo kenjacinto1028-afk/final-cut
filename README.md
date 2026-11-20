@@ -5,6 +5,9 @@ A browser-based movie studio management simulation starting in 1970. Make shorts
 ## Play
 Open **`index.html`** in a modern browser, or publish the repository root using GitHub Pages. No build step required.
 
+## v13.3 — Interactive tutorial (current release)
+Start a new studio to see an **interactive 13-step guided tour**. The compact nonmodal guide lets you **click the actual Dashboard, New Project, Projects, Filmography, Finance, Rivals and Awards buttons**, and advances automatically as you navigate. It highlights relevant controls and explains cash, film budgets, talent, casting, production, regional distribution, reviews, history and competition. Minimize/resume, Next/Back, Skip, and replay via **? Tutorial** are supported. The guide works on mobile and does not spend cash or advance time. See `docs/CHANGELOG_V13_3.md` and `docs/TEST_REPORT_V13_3.md`.
+
 ## v13.2 — Short tutorial
 Start a new studio to see a **five-step, skippable walkthrough** about your first film, talent, cash, production decisions and release. Use **How to play** on the start screen or **? Tutorial** in the sidebar to replay it any time. The tutorial does not advance game time or change the save. Full details: `docs/CHANGELOG_V13_2.md` and `docs/TEST_REPORT_V13_2.md`.
 

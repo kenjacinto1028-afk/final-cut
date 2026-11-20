@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13)
+# Final Cut — Current Handoff (v13.3)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -36,3 +36,6 @@ See `docs/CHANGELOG_V13_1.md` and `docs/TEST_REPORT_V13_1.md`. Corrected randomi
 - `index.html`: adds `<div id="tutorial" hidden></div>`. `style.css`: responsive dialog styles and keyboard focus handling.
 - New test: `tests/tutorial_browser.py`. Existing browser UI tests dismiss tutorial before unrelated navigation and permit newer save versions.
 - No engine, save version, balance, media, or poster-storage rules changed; no migration needed. See `docs/CHANGELOG_V13_2.md`, `docs/TEST_REPORT_V13_2.md`.
+
+## v13.3 — interactive tutorial addendum
+The fullscreen v13.2 tutorial dialog was replaced by a **nonmodal 13-step guide**. `ui.js` renders the guide on the sidebar/screens while normal navigation remains operable; specific `UI.go()` visits auto-advance matching guided steps, and a small `Open section` CTA provides a mobile-friendly alternative. Highlighted elements have a visible outline in `style.css`; minimize/resume, skip and Escape are non-disruptive. There is no persisted tutorial state and no engine changes. To test: `python tests/tutorial_browser.py` and the current suites in `docs/TEST_REPORT_V13_3.md`. Live GitHub Pages/IndexedDB verification is still a separate manual task.

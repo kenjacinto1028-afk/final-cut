@@ -193,6 +193,11 @@ var UI = (function () {
   function go(v) {
     closeMobileNav();
     if (v !== view) { hist = hist.slice(0, hpos + 1); hist.push(v); hpos = hist.length - 1; view = v; }
+    // Allow actual sidebar navigation to complete an instruction; no business state changes.
+    if (tutorialStep >= 0 && TUTORIAL_STEPS[tutorialStep].visit === v) {
+      tutorialStep = Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + 1);
+      tutorialMinimized = false;
+    }
     setFlash('');
     render();
   }
@@ -213,7 +218,7 @@ var UI = (function () {
       GROUPS.map(g => '<div class="nav-group"><div class="nav-label">' + g[0] + '</div>' +
         g[1].map(v => v[2]
           ? '<button class="navbtn" disabled>' + esc(v[1]) + '<span class="soon">Soon</span></button>'
-          : '<button class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
+          : '<button data-view="' + v[0] + '" class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
             (v[0] === 'roster' && expiring ? '<span class="badge">' + expiring + '</span>' : '') + '</button>'
         ).join('') + '</div>').join('') +
       '<div class="nav-foot">' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
@@ -252,7 +257,7 @@ var UI = (function () {
       '<span class="tb-score"><a href="#" onclick="UI.go(\'score\');return false">Score ' + sc.value + '</a>' + (sc.locked ? ' <span class="muted">final</span>' : '') + '</span>' +
       '<span class="spacer"></span>' +
       '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
-      '<button class="primary" ' + (blocked ? 'disabled' : '') + ' onclick="UI.advance()">Advance to next decision</button>';
+      '<button data-guide="advance" class="primary" ' + (blocked ? 'disabled' : '') + ' onclick="UI.advance()">Advance to next decision</button>';
   }
 
 // ===== SECTION: VIEW_START =====
@@ -1250,74 +1255,123 @@ var UI = (function () {
     }
   }
 
-// ===== SECTION: TUTORIAL =====
-  // UI-only five-step introduction. It never advances time, alters saves, or
-  // prevents a returning player from loading an existing game.
+// ===== SECTION: INTERACTIVE TUTORIAL =====
+  // An expandable, nonmodal guide: page controls remain clickable and clickable
+  // navigation steps advance automatically. There is no saved progress or game logic.
   const TUTORIAL_STEPS = [
-    { title: 'Welcome to your studio', location: 'Studio → Dashboard', text: 'You start small in 1970. Watch your cash and weekly costs on the Dashboard. Your goal is to make films and build a lasting studio.' },
-    { title: 'Plan a first film', location: 'Studio → New project', text: 'Choose New project to make a short, feature or TV pilot. A short film is a manageable way to learn production.' },
-    { title: 'Pick the people', location: 'New project → Cast and crew', text: 'Skill improves film quality, while fame creates publicity. Hiring bigger names or extra crew costs more; an unknown artist can still make a great film.' },
-    { title: 'Make decisions as weeks pass', location: 'Top bar → Advance to next decision', text: 'Use Advance to next decision to move production forward. Read the tradeoffs and keep enough cash to cover your weekly operating costs.' },
-    { title: 'Release, review and grow', location: 'Projects · My Filmography · Founder', text: 'Choose distribution before release, then check reviews, revenue and awards. Learn from each film and upgrade your studio when you are ready.' }
+    { title: 'Welcome to Final Cut', view: 'dashboard', visit: 'dashboard', target: '#nav [data-view="dashboard"]', location: 'Dashboard', text: 'Your studio begins in 1970. You can click anything while this guide is open. First, click Dashboard in the sidebar (or use Open Dashboard below).' },
+    { title: 'Read your dashboard', view: 'dashboard', target: '#main .strip', location: 'Studio → Dashboard · Cash & Weekly burn', text: 'Watch Cash, Weekly burn and profit. Fame is long-term recognition, Current Buzz is recent attention, and Current Prestige reflects recent achievements. Try keeping enough money for payroll.' },
+    { title: 'Open New Project', view: 'newproject', visit: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project', text: 'Click New project in the sidebar to design your first film. Shorts are the most affordable way to learn, but you can try other unlocked formats.' },
+    { title: 'Plan your film', view: 'newproject', target: '#main .form', location: 'New project → Title / Format / Genre / Topic / Budget', text: 'Choose a title, format, genre, topic and budget. These affect audience demand, production costs, and potential results. Try a different format or budget to preview the costs.' },
+    { title: 'Choose talent and crew', view: 'newproject', target: '#main .form.cast', location: 'New project → Cast and crew', text: 'Skill helps film quality; fame boosts opening hype. A little-known actor can be excellent. Directors, writers, lead actors and optional supporting cast add different costs and benefits.' },
+    { title: 'View your projects', view: 'projects', visit: 'projects', target: '#nav [data-view="projects"]', location: 'Studio → Projects', text: 'Click Projects to see films in production and films awaiting release. Projects appear here after you start them. You do not need to spend money or start a movie to finish this guide.' },
+    { title: 'Move production forward', view: 'projects', target: '#topbar [data-guide="advance"]', location: 'Top bar → Advance to next decision', text: 'Next week and Advance to next decision move time forward. Production events offer tradeoffs. Before a release, you can set distribution regions; shorts have affordable regional options. Advancing time is optional during this tutorial.' },
+    { title: 'Open My Filmography', view: 'filmography', visit: 'filmography', target: '#nav [data-view="filmography"]', location: 'Studio → My Filmography', text: 'Click My Filmography. Every completed film is kept here, along with its poster, credits, finances and critical reception.' },
+    { title: 'Learn from your film history', view: 'filmography', target: '#main', location: 'My Filmography → All Films / My Rankings', text: 'Compare your best films by overall score, genre, topic, box office, critics and awards. Click a finished film for its details. This list will be empty until you release one.' },
+    { title: 'Check studio finances', view: 'finance', visit: 'finance', target: '#nav [data-view="finance"]', location: 'Business → Finance', text: 'Click Finance to review income, spending, cash and debt. Big films bring bigger opportunities and higher risks; avoid overspending on star salaries and extra crew.' },
+    { title: 'Study rival studios', view: 'rivals', visit: 'rivals', target: '#nav [data-view="rivals"]', location: 'Business → Rivals', text: 'Click Rivals to see competing studios. Their favorite genres, successes and franchises shape world competition. You can check Market too for shifts in audience demand.' },
+    { title: 'Watch festivals and awards', view: 'awards', visit: 'awards', target: '#nav [data-view="awards"]', location: 'World → Awards', text: 'Click Awards to review nominations and winners. Prestigious recognition is rare; quality and critical praise matter. Smaller studios can still earn major honors with an exceptional movie.' },
+    { title: 'Your next move', view: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project / Founder / World', text: 'You are ready to run your studio. Use Founder to grow your business, World Film Archive to study historic films, and New project to make your first release. Reopen this guide anytime with ? Tutorial.' }
   ];
   let tutorialStep = -1;
+  let tutorialMinimized = false;
   let tutorialReturnFocus = null;
-  function renderTutorial() {
+  function tutorialClearHighlights() {
+    document.querySelectorAll('.tutorial-target').forEach(el => el.classList.remove('tutorial-target'));
+  }
+  function tutorialHighlight(item, scroll) {
+    tutorialClearHighlights();
+    if (tutorialMinimized || !Engine.state || !item) return;
+    let target = document.querySelector(item.target || '');
+    // On compact layouts the sidebar is normally hidden behind the Menu button.
+    if (target && !target.getClientRects().length && target.closest('#nav')) target = $('mobile-nav-toggle');
+    if (!target || !target.getClientRects().length) return;
+    target.classList.add('tutorial-target');
+    if (scroll && item.view === view && target.closest('#main')) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+  function renderTutorial(scroll) {
     const el = $('tutorial');
     if (!el) return;
-    if (tutorialStep < 0) { el.hidden = true; el.innerHTML = ''; document.body.classList.remove('tutorial-open'); return; }
-    const n = TUTORIAL_STEPS.length, i = Math.max(0, Math.min(n - 1, tutorialStep)), item = TUTORIAL_STEPS[i];
-    const last = i === n - 1;
-    el.innerHTML = '<section class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">' +
-      '<div class="tutorial-head"><span class="tutorial-kicker">HOW TO PLAY · ' + (i + 1) + ' / ' + n + '</span>' +
-      '<button class="tutorial-close" type="button" aria-label="Close tutorial" onclick="UI.closeTutorial()">✕</button></div>' +
-      '<div class="tutorial-progress" aria-hidden="true"><div style="width:' + Math.round((i + 1) / n * 100) + '%"></div></div>' +
-      '<h2 id="tutorial-title" tabindex="-1">' + esc(item.title) + '</h2>' +
-      '<p id="tutorial-description">' + esc(item.text) + '</p>' +
-      '<p class="tutorial-location"><strong>Find it:</strong> ' + esc(item.location) + '</p>' +
-      '<div class="tutorial-actions">' +
-      '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">' + (last ? 'Done' : 'Skip tutorial') + '</button>' +
-      (i > 0 ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
-      (last ? (Engine.state ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Plan my first film</button>' : '') : '<button type="button" class="primary" onclick="UI.tutorialMove(1)">Next</button>') +
-      '</div></section>';
+    if (tutorialStep < 0) {
+      el.hidden = true; el.innerHTML = '';
+      document.body.classList.remove('tutorial-open');
+      tutorialClearHighlights();
+      return;
+    }
+    const n = TUTORIAL_STEPS.length, i = Math.max(0, Math.min(n - 1, tutorialStep));
+    const item = TUTORIAL_STEPS[i], last = i === n - 1;
     el.hidden = false;
     document.body.classList.add('tutorial-open');
-    const title = $('tutorial-title');
-    if (title) title.focus();
+    if (tutorialMinimized) {
+      el.innerHTML = '<button type="button" class="tutorial-minibar" onclick="UI.tutorialMinimize()" aria-label="Resume tutorial">' +
+        '▶ Resume tutorial · Step ' + (i + 1) + ' / ' + n + '</button>';
+      tutorialClearHighlights();
+      return;
+    }
+    const where = item.view && Engine.state && view !== item.view;
+    const label = GROUPS.flatMap(g => g[1]).find(x => x[0] === item.view);
+    el.innerHTML = '<section class="tutorial-card" role="complementary" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">' +
+      '<div class="tutorial-head"><span class="tutorial-kicker">GUIDED TOUR · ' + (i + 1) + ' / ' + n + '</span>' +
+      '<div class="tutorial-head-actions"><button type="button" class="tutorial-close" onclick="UI.tutorialMinimize()" aria-label="Minimize tutorial" title="Minimize">−</button>' +
+      '<button type="button" class="tutorial-close" aria-label="Close tutorial" onclick="UI.closeTutorial()" title="Close">✕</button></div></div>' +
+      '<div class="tutorial-progress" aria-hidden="true"><div style="width:' + Math.round((i + 1) / n * 100) + '%"></div></div>' +
+      '<h2 id="tutorial-title">' + esc(item.title) + '</h2>' +
+      '<p id="tutorial-description">' + esc(item.text) + '</p>' +
+      '<p class="tutorial-location"><strong>Find it:</strong> ' + esc(item.location) + '</p>' +
+      (!Engine.state ? '<p class="tutorial-note">Preview only — start a new game to explore these sections.</p>' :
+        item.visit && !where ? '<p class="tutorial-note">You are already on this page. Click its sidebar link or select Next.</p>' :
+        item.visit ? '<p class="tutorial-note">Click the highlighted link to advance automatically, or use Open section.</p>' : '') +
+      '<div class="tutorial-actions">' +
+      '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">Skip tutorial</button>' +
+      (i ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
+      (where ? '<button type="button" onclick="UI.tutorialOpenSection()">Open ' + esc(label ? label[1] : 'section') + '</button>' : '') +
+      (last ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Finish · Plan a film</button>' :
+        '<button type="button" class="primary" onclick="UI.tutorialMove(1)">Next</button>') +
+      '</div></section>';
+    tutorialHighlight(item, scroll);
   }
   function openTutorial() {
     tutorialReturnFocus = document.activeElement;
     tutorialStep = 0;
+    tutorialMinimized = false;
     closeMobileNav();
     if (drawer) closeDrawer();
-    renderTutorial();
+    renderTutorial(false);
+    const heading = $('tutorial-title');
+    if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus(); }
   }
   function tutorialMove(delta) {
     if (tutorialStep < 0) return;
     tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
-    renderTutorial();
+    tutorialMinimized = false;
+    renderTutorial(true);
+  }
+  function tutorialOpenSection() {
+    if (tutorialStep < 0 || !Engine.state) return;
+    const item = TUTORIAL_STEPS[tutorialStep];
+    if (item.view) go(item.view);
+  }
+  function tutorialMinimize() {
+    if (tutorialStep < 0) return;
+    tutorialMinimized = !tutorialMinimized;
+    renderTutorial(false);
   }
   function closeTutorial(planFilm) {
     if (tutorialStep < 0) return;
     tutorialStep = -1;
-    renderTutorial();
-    if (planFilm && Engine.state) { go('newproject'); return; }
+    tutorialMinimized = false;
+    renderTutorial(false);
+    if (planFilm && Engine.state) { tutorialReturnFocus = null; go('newproject'); return; }
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
     tutorialReturnFocus = null;
   }
   function tutorialKeydown(e) {
     if (tutorialStep < 0) return false;
     if (e.key === 'Escape') { e.preventDefault(); closeTutorial(); return true; }
-    if (e.key === 'Tab') {
-      const controls = Array.from($('tutorial').querySelectorAll('button:not([disabled])'));
-      if (controls.length) {
-        const first = controls[0], last = controls[controls.length - 1];
-        if (e.shiftKey && (document.activeElement === first || document.activeElement === $('tutorial-title'))) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-        else if (!e.shiftKey && document.activeElement === $('tutorial-title')) { e.preventDefault(); first.focus(); }
-      }
-    }
-    return true;
+    // Crucially, normal keyboard navigation is NOT trapped by the guide.
+    return false;
   }
 
 // ===== SECTION: RENDER =====
@@ -1506,7 +1560,7 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+  return { openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
