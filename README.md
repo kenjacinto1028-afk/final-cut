@@ -5,10 +5,10 @@ A browser-based movie studio management simulation starting in 1970. Make shorts
 ## Play
 Open **`index.html`** in a modern browser, or publish the repository root using GitHub Pages. No build step required.
 
-## v12 — Current release
-The complete v12 update (A–F) includes independent fame/skill, recognition tiers, growing talent careers, richer productions and rivals, improved TV and financial forecasts, sequel cast continuity, optional expanded ensembles, and **full career filmographies for directors and writers only**. Personal honors belong to credited actors, directors and writers; movie trophies remain attached to films. Large save archives are compacted without losing data.
+## v13 — Current release
+Final Cut v13 focuses on rewarding late-game play without new micromanagement. **Lifetime fame**, **Current Buzz**, **rolling Current Prestige** and **Lifetime Legacy** now mean different things. Elite awards are harder to win, active rivals develop recognizable leadership cycles, and studios compete in rolling three-/five-year standings and decade championships. Optional passion/franchise/global/talent initiatives, capped classic-film reissues, industry shifts, and a final historic legacy recap give major studios new reasons to play.
 
-This is the released game build, not the earlier A–E preview. **No special build step required.** See `docs/CHANGELOG_V12.md`, `docs/IMPACT_REPORT_V12.md`, and `docs/TEST_REPORT_V12.md`.
+All v12 talent, casting, production, director/writer career, personal award, film ranking, mobile and custom-poster systems remain. Existing saves migrate to **save version 13**. See `docs/CHANGELOG_V13.md`, `docs/IMPACT_REPORT_V13.md` and `docs/TEST_REPORT_V13.md`.
 
 ## New in v11
 - Regional distribution choices for short films.
@@ -31,4 +31,4 @@ Your ordinary save uses local browser storage. **Custom images stay in your brow
 - `docs/` — architecture, changelogs and tests
 
 ## Tests
-`node tests/v12_smoke.js`, `node tests/v12_batch_f_regression.js`, `node tests/v12_compat_regression.js`, `node tests/v12_compat_v10_regression.js`, `node tests/v12_compat_v11_regression.js`, and `python tests/v12_browser.py`. Long-term playtest: `node sim.js careful 1 123`. Full results and limitations: `docs/TEST_REPORT_V12.md`.
+`node tests/v13_smoke.js`, `node tests/v13_compat_regression.js`, `node tests/v13_compat_v10_regression.js`, `node tests/v13_compat_v11_regression.js`, `node tests/v13_reputation.js`, `node tests/v13_world.js`, `node tests/v13_legacy.js`, and `python tests/v13_browser.py`. Twenty long seeded scenarios: `python tests/v13_multiseed.py`. Full results: `docs/TEST_REPORT_V13.md`.

@@ -1019,7 +1019,7 @@ CONTENT.SCORE = {
     { id: 'profit', name: 'Profit', desc: 'Cash minus debt, minus your starting money. Counted on a log scale: every ×10 adds the same number of points.' },
     { id: 'awards', name: 'Awards', desc: 'Ceremony wins and nominations (Best Picture counts extra) and festival prizes and selections for your features. More awards help less and less.' },
     { id: 'fame', name: 'Fame', desc: 'Studio fame, 0–100.' },
-    { id: 'reputation', name: 'Reputation', desc: 'Critics reputation and studio prestige.' },
+    { id: 'reputation', name: 'Reputation', desc: 'Critics reputation, rolling five-year current prestige, and a modest permanent legacy contribution.' },
     { id: 'hits', name: 'Hits', desc: 'Features that finish as a Hit and TV shows that last several seasons. More hits help less and less.' }
   ],
   text: {

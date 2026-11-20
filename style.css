@@ -395,3 +395,18 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
   .craft-breakdown{padding:8px}
   .film-review{line-height:1.5}
 }
+
+/* ===== SECTION: V13_LATE_GAME_CLARITY ===== */
+.reputation-strip{margin:12px 0 8px;background:#f5f0e6;border:1px solid #b9ac98;border-radius:9px;padding:12px;color:#1c2836}
+.reputation-strip .big{font-variant-numeric:tabular-nums}
+.market-shift{margin:12px 0;background:#e4eef7;border-left:4px solid #235a94;border-radius:6px;color:#223449;padding:10px 14px}
+.market-shift p{margin:4px 0 0;font-size:13px}
+.legacy-actions{border:1px solid #b4a080;border-radius:9px;background:#fbf4e8;padding:12px 15px;margin:18px 0;color:#292d31}
+.legacy-actions summary{cursor:pointer;font-weight:700}
+.legacy-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
+.legacy-option-grid>div{border:1px solid #b8a78f;border-radius:7px;background:#fffaf2;padding:10px}
+.legacy-option-grid p{font-size:12px;line-height:1.4}
+.legacy-option-grid button{width:100%;margin-top:6px}
+.legacy-reissue-list p{border-bottom:1px solid #cbbda8;padding-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.elite-label{display:inline-block;border:1px solid #8c661b;background:#f9e6b5;color:#66450e;padding:1px 5px;border-radius:5px;font-size:10px;font-weight:800}
+@media(max-width:650px){.legacy-actions{padding:9px}.legacy-option-grid{grid-template-columns:1fr}.reputation-strip{gap:8px}}

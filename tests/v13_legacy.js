@@ -1,0 +1,17 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
+const dir=path.resolve(__dirname,'..'),ctx={console,Math,Date,JSON};vm.createContext(ctx);
+for(const f of ['content.js','engine.js'])vm.runInContext(fs.readFileSync(path.join(dir,f),'utf8'),ctx,{filename:f});
+const E=ctx.Engine;E.newGame({studioName:'Heritage Films'});const s=E.state;
+s.cash=100000000;s.studio.tier=3;s.studio.fame=95;s.week=(2000-1970)*52-1;
+const values=E.marketInfo().genres.find(x=>x.id==='scifi').demand;
+E.nextTurn();while(s.pending)E.choose(0);
+const info=E.legacyInfo();assert(info.industryShift&&info.industryShift.name.includes('Digital'));
+assert(E.marketInfo().genres.find(x=>x.id==='scifi').demand>values);
+const quote=E.initiativeQuote('prestige');assert(quote.ok,quote.reason);
+const before=s.cash;assert(E.startInitiative('prestige').ok);assert.equal(s.cash,before-quote.cost);
+assert(!E.initiativeQuote('global').ok);
+s.projects.push({id:999,title:'A Vintage Classic',format:'feature',stage:'done',releaseWeek:52*5,quality:82,critic:84,budget:350000,gross:1200000,awards:[],festResults:[]});
+const rq=E.reissueQuote(999);assert(rq.ok,rq.reason);const first=s.projects[s.projects.length-1].gross;
+const out=E.reissueFilm(999);assert(out.ok);assert(out.revenue>=0);assert.equal(s.projects[s.projects.length-1].gross,first);
+assert(!E.reissueQuote(999).ok);assert(E.legacyInfo().reissues.length===1);
+console.log('PASS v13 optional one-time initiatives, bounded reissues and decade-driven market shifts');

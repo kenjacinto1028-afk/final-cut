@@ -135,9 +135,16 @@ function run(stratId, seed, ovr) {
     reloadedOkay = savedOkay && E.load().ok && E.state.filmArchive.rivals.length === st.filmArchive.rivals.length;
   }
   const feats = st.projects.filter(p => p.format === 'feature');
+  const rep = E.reputationInfo(), legacy = E.legacyInfo();
+  const rivalFeatures=(st.filmArchive.rivals||[]).filter(f=>f.format==='feature'&&f.stage==='done');
+  const avg=(arr,key)=>arr.length?Math.round(arr.reduce((a,v)=>a+(v[key]||0),0)/arr.length*10)/10:0;
+  const ceremonyWinners = {}; const ceremonyUnawarded = {};
+  (st.awards.history||[]).forEach(a=>{(a.cats||[]).forEach(c=>{if(c.unawarded)ceremonyUnawarded[a.id]=(ceremonyUnawarded[a.id]||0)+1;(c.nominees||[]).forEach(n=>{if(n.winner&&n.projectId!=null)ceremonyWinners[a.id]=(ceremonyWinners[a.id]||0)+1;});});});
+  const festivalTierWins={};st.projects.forEach(p=>(p.festResults||[]).forEach(f=>{if(f.kind==='winner')festivalTierWins[f.tierRank]=(festivalTierWins[f.tierRank]||0)+1;}));
+  const weightedPrestigeRaw=(st.reputation.prestigeEvents||[]).reduce((a,e)=>a+e.points*Math.pow(.5,(st.week-e.week)/T.reputation.prestigeHalfLifeWeeks),0);
   return { region: process.env.SIM_REGION || 'northamerica', strat: stratId, seed: seed, reason: sc.reason, year: sc.year, value: sc.value, parts: sc.parts, counts: sc.counts, profit: sc.profit,
     saveBytes: Buffer.byteLength(JSON.stringify(st)), packedSaveChars: storedChars, savedOkay, reloadedOkay, archiveBytes: Buffer.byteLength(JSON.stringify(st.filmArchive)), projectsBytes: Buffer.byteLength(JSON.stringify(st.projects)), rivalsBytes: Buffer.byteLength(JSON.stringify(st.rivals)), awardsBytes: Buffer.byteLength(JSON.stringify(st.awards)), archiveCount: (st.filmArchive && st.filmArchive.rivals || []).length, activeRivals: E.activeRivals().length,
-    cash: Math.round(st.cash - st.debt), fame: Math.round(st.studio.fame), crit: Math.round(st.studio.criticsRep), prestige: Math.round(st.studio.prestige || 0), tier: st.studio.tier,
+    cash: Math.round(st.cash - st.debt), currentBuzz: rep.buzz, currentPrestige: rep.currentPrestige, lifetimeLegacy: rep.lifetimeLegacy, leaderCount: E.activeRivals().filter(r=>r.industryLeader).length, decadeCount: E.worldYearbook().decadeChampions.length, initiativeCount: legacy.milestones.length, reissueCount: legacy.reissues.length, prestigeRaw:Math.round(weightedPrestigeRaw), prestigeEventCount:st.reputation.prestigeEvents.length, rivalQualityAvg:avg(rivalFeatures,'quality'), playerQualityAvg:avg(feats,'quality'), rivalAwardWins:rivalFeatures.reduce((a,f)=>a+(f.awards||[]).filter(w=>w.won).length,0), ceremonyWinners, ceremonyUnawarded, festivalTierWins, fame: Math.round(st.studio.fame), crit: Math.round(st.studio.criticsRep), prestige: Math.round(st.studio.prestige || 0), tier: st.studio.tier,
     features: feats.length, shorts: st.projects.length - feats.length, flops: feats.filter(p => p.result === 'Flop').length,
     detail: process.env.DETAIL ? feats.map(p => ({ y: E.dateOf(p.releaseWeek == null ? st.week : p.releaseWeek).year, b: p.budget, q: p.quality, h: p.hype, g: p.gross, rev: p.revenue, sp: p.spent, mk: p.marketingSpend, f: p.fees, r: p.result, m: p.market ? p.market.mult : null, o: p.opening, th: p.revenue - (p.windows||[]).reduce((a,w)=>a+w.paid,0) })) : undefined };
 }

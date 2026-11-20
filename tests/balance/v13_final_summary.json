@@ -1,0 +1,72 @@
+{
+  "total": 20,
+  "reached2031": 19,
+  "bankruptcies": [
+    {
+      "region": "asiapacific",
+      "strategy": "blockbuster",
+      "year": 2019
+    }
+  ],
+  "regions": [
+    "asiapacific",
+    "europe",
+    "latinamerica",
+    "mena",
+    "northamerica"
+  ],
+  "strategies": [
+    "blockbuster",
+    "careful",
+    "cheap",
+    "prestige"
+  ],
+  "save_reload_pass": 20,
+  "max_compressed_chars": 4077129,
+  "max_raw_save_bytes": 5727293,
+  "current_prestige": {
+    "min": 24,
+    "max": 65,
+    "mean": 52.1
+  },
+  "current_buzz": {
+    "min": 82,
+    "max": 98,
+    "mean": 93.2
+  },
+  "award_win_count": {
+    "min": 98,
+    "max": 377,
+    "mean": 265.9
+  },
+  "active_rivals": {
+    "min": 8,
+    "max": 15
+  },
+  "archived_rival_films": {
+    "min": 2176,
+    "max": 2788
+  },
+  "score_by_strategy": {
+    "blockbuster": {
+      "min": 415,
+      "max": 888,
+      "completed": 4
+    },
+    "careful": {
+      "min": 944,
+      "max": 972,
+      "completed": 5
+    },
+    "cheap": {
+      "min": 712,
+      "max": 754,
+      "completed": 5
+    },
+    "prestige": {
+      "min": 851,
+      "max": 933,
+      "completed": 5
+    }
+  }
+}

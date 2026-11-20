@@ -285,8 +285,13 @@ var UI = (function () {
         ' <button onclick="UI.go(\'roster\')">Roster</button></div>';
     }
     const profit = Engine.weeklyProfit();
+    const rep=Engine.reputationInfo(),legacy=Engine.legacyInfo();
     h += '<div class="strip">' + stat('Cash', money(s.cash)) + stat('Weekly burn', money(Engine.weeklyBurn())) +
       stat('Weekly profit', '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>') + stat('Debt', money(s.debt)) + '</div>';
+    h += '<div class="strip reputation-strip">'+stat('Lifetime fame',rep.fame+'/100')+stat('Current buzz',rep.buzz+'/100')+
+      stat('Current prestige',rep.currentPrestige+'/100')+stat('Lifetime legacy',rep.lifetimeLegacy+' pts')+'</div>';
+    h += '<p class="muted">Fame is your long-term public recognition; buzz reflects recent attention. Prestige follows the last five years. Lifetime legacy never decays.</p>';
+    if(legacy.industryShift) h += '<div class="market-shift"><strong>Industry shift: '+esc(legacy.industryShift.name)+'</strong><p>Temporary audience interest in '+legacy.industryShift.genres.map(id=>esc(nameOf(CONTENT.GENRES,id))).join(' and ')+'. Ends '+dateLabel(legacy.industryShift.endWeek)+'.</p></div>';
     if (!s.studio.releases && s.week < 53) h += '<div class="onboarding"><strong>Getting started</strong><p>Start with a small project. Craft improves the finished film; fame attracts attention. Keep enough cash for production weeks, then choose how widely to screen your film.</p><div class="actions"><button class="primary" onclick="UI.go(&quot;newproject&quot;)">Plan your first film</button><button onclick="UI.go(&quot;market&quot;)">View market demand</button></div></div>';
     else if (s.studio.releases && s.studio.tier === 0 && s.studio.fame < 15) h += '<div class="onboarding"><strong>Grow your studio</strong><p>Film releases and festival recognition build fame. Keep an eye on profits and the Founder page for your next studio upgrade.</p></div>';
     if (s.lastWeek && s.week > 0) h += '<details class="cash-details"><summary><strong>Last week: where your cash went</strong> <span class="muted">· Net ' + money(s.lastWeek.margin == null ? s.lastWeek.income - s.lastWeek.costs : s.lastWeek.margin) + '</span></summary>' +
@@ -312,8 +317,20 @@ var UI = (function () {
         (r.topGrossId ? '<p>Highest gross: <a href="#" onclick="UI.openProject('+r.topGrossId+');return false">'+esc((Engine.getProject(r.topGrossId)||{}).title)+'</a></p>' : '') +
         '<button onclick="UI.go(\'filmography\')">Browse film history</button></div>';
     }
+    h += viewLegacyActions(legacy);
     h += '</section><aside class="studio-wire"><h2>The Studio Wire</h2><p><a href="#" onclick="UI.go(\'news\');return false">All news</a></p>' + newsList(Engine.news(null, Engine.TUNING.news.headlines)) + '</aside></div>';
     return h;
+  }
+  function viewLegacyActions(l) {
+    if(Engine.dateOf().year<1990||Engine.state.studio.tier<2)return '';
+    let h='<details class="legacy-actions"><summary><strong>Studio legacy opportunities</strong> <span class="muted">· optional, occasional investments</span></summary>';
+    if(l.initiative&&l.initiative.remaining>0&&l.initiative.expiresWeek>=Engine.state.week)
+      h+='<p>Active initiative: '+esc(l.initiative.id)+' · '+l.initiative.remaining+' qualifying projects remaining · expires '+dateLabel(l.initiative.expiresWeek)+'.</p>';
+    h+='<h3>High-stakes studio initiative</h3><div class="legacy-option-grid">'+l.initiatives.map(q=>
+      '<div><strong>'+esc(q.name)+'</strong><p class="muted">'+esc(q.description)+'</p><button '+(q.ok?'':'disabled title="'+esc(q.reason)+'"')+' onclick="UI.launchInitiative(&quot;'+q.id+'&quot;)">Invest '+money(q.cost)+'</button></div>').join('')+'</div>';
+    h+='<h3>Classic film revival</h3><p class="muted">Reissue a respected feature at least five years old. One revival every three years; original box office records stay unchanged.</p>';
+    h+=l.reissueCandidates.length?'<div class="legacy-reissue-list">'+l.reissueCandidates.slice(0,4).map(q=>'<p><strong>'+esc(q.title)+'</strong> · '+q.ageYears+' years old · cost '+money(q.cost)+' · estimated receipts '+money(q.expected)+' <button onclick="UI.reissueClassic('+q.projectId+')">Reissue</button></p>').join('')+'</div>':'<p class="muted">No eligible classic reissues right now.</p>';
+    return h+'</details>';
   }
   function newsList(items) {
     if (!items.length) return '<p class="muted">Nothing yet.</p>';
@@ -859,8 +876,8 @@ var UI = (function () {
         ['closed', 'Closed', r => r.status !== 'active']
       ],
       columns: [
-        { key: 'name', label: 'Studio', value: r => r.name, render: r => esc(r.name) + (r.status === 'bankrupt' ? ' <span class="neg">closed</span>' : '') },
-        { key: 'strategy', label: 'Strategy', value: r => r.strategyName, render: stratLabel },
+        { key: 'name', label: 'Studio', value: r => r.name, render: r => esc(r.name) + (r.leader ? ' <span class="elite-label">Industry Leader</span>' : '') + (r.status === 'bankrupt' ? ' <span class="neg">closed</span>' : '') },
+        { key: 'strategy', label: 'Identity', value: r => r.identity, render: r => esc(r.identity) + ' <span class="muted">· '+esc(r.strategyName)+'</span>' },
         { key: 'tier', label: 'Size', value: r => r.tier, render: r => esc(r.tierName) },
         { key: 'cash', label: 'Cash', num: true, value: r => r.cash, render: r => signed(r.cash) },
         { key: 'fame', label: 'Fame', num: true, value: r => Math.round(r.fame) },
@@ -872,6 +889,16 @@ var UI = (function () {
     if (sel) h += rivalDetail(sel);
     const news = Engine.state.log.filter(l => l.type === 'rival').slice(-6).reverse();
     if (news.length) h += '<h2>Rival news</h2>' + logList(news);
+    const standings=(years)=>{
+      const rows=Engine.worldStandings(years,'score').slice(0,10),me=Engine.worldStandings(years,'score').find(x=>x.id==='you');
+      return (me?'<p><strong>Your studio:</strong> #'+me.rank+' · '+me.score+' points · '+me.films+' films</p>':'<p class="muted">Your studio has no films in this window.</p>')+
+        '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Studio</th><th class="num">Score</th><th class="num">Films</th><th class="num">Critics</th><th class="num">Trophy weight</th></tr></thead><tbody>'+rows.map(x=>'<tr'+(x.id==='you'?' class="warn"':'')+'><td>'+x.rank+'</td><td>'+esc(x.name)+'</td><td class="num">'+x.score+'</td><td class="num">'+x.films+'</td><td class="num">'+x.critics+'</td><td class="num">'+x.awards+'</td></tr>').join('')+'</tbody></table></div>';
+    };
+    h+='<h2>Rivalry leaderboards</h2><p class="muted">Based on actual films, critic scores, era-normalized reach and earned awards. Completed years only; no artificial studio-wide bonus for rivals.</p>';
+    h+='<details open><summary>Last 3 completed years</summary>'+standings(3)+'</details>';
+    h+='<details><summary>Last 5 completed years</summary>'+standings(5)+'</details>';
+    const world=Engine.worldYearbook();
+    if(world.decadeChampions.length)h+='<h2>Decade champions</h2><div class="tbl-wrap"><table><thead><tr><th>Decade</th><th>Box office</th><th>Critics</th><th>Awards</th><th>International</th></tr></thead><tbody>'+world.decadeChampions.slice().reverse().map(y=>'<tr><td>'+y.decade+'s</td><td>'+esc(y.boxOffice||'–')+'</td><td>'+esc(y.critics||'–')+'</td><td>'+esc(y.awards||'–')+'</td><td>'+esc(y.international||'–')+'</td></tr>').join('')+'</tbody></table></div>';
     return h;
   }
 
@@ -880,9 +907,9 @@ var UI = (function () {
   function viewAwards() {
     const a = Engine.awardsInfo();
     let h = '<h1>Awards</h1><div class="strip">' + stat('Next ceremony', esc(a.next.name) + ' · ' + dateLabel(a.next.week) + '<div class="muted">covers ' + a.next.covers + ' releases</div>') +
-      stat('Studio prestige', a.prestige) + stat('Trophies', a.trophies.length) + '</div>';
+      stat('Current prestige', Engine.reputationInfo().currentPrestige) + stat('Trophies', a.trophies.length) + '</div>';
     h += '<p class="muted">' + esc(a.name) + ' judges features released the year before: ' + a.categories.map(c => esc(c.name)).join(', ') +
-      '. Nominations and wins raise studio fame, prestige (a little extra hype, fading each year) and the fame of the talent involved. Campaigns add to a film\'s score before the ceremony.</p>';
+      '. Nominations and major wins support current prestige; lifetime trophies remain permanent. Campaigns add a small edge but cannot guarantee a win.</p>';
     h += '<h2>Annual awards ceremonies</h2><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
       a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul>';
     h += '<h2>Festival circuit</h2><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
@@ -900,7 +927,7 @@ var UI = (function () {
       : '<p class="muted">None yet.</p>');
     h += '<h2>Past ceremonies</h2>' + (a.history.length ? a.history.map((rec, i) =>
       '<details' + (i === 0 ? ' open' : '') + '><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
-      rec.cats.map(c => '<p><strong>' + esc(c.name) + '</strong></p><ul class="plain">' + c.nominees.map(n =>
+      rec.cats.map(c => '<p><strong>' + esc(c.name) + '</strong>'+(c.unawarded?' · No qualifying winner':'')+'</p><ul class="plain">' + c.nominees.map(n =>
         '<li>' + (n.winner ? '🏆 <strong>' : '') + (n.filmId ? '<a href="#" onclick="UI.openFilm(\'' + esc(n.filmId) + '\');return false">' + esc(n.title) + '</a>' : esc(n.title)) + (n.winner ? '</strong>' : '') + ' <span class="muted">· ' + (n.projectId != null ? '<strong>' + esc(n.studio) + '</strong>' : esc(n.studio)) + '</span></li>').join('') + '</ul>').join('') +
       '</details>').join('') : '<p class="muted">The first ceremony is in ' + a.next.year + '.</p>');
     return h;
@@ -926,6 +953,17 @@ var UI = (function () {
       CONTENT.SCORE.parts.map(p => '<tr><td><strong>' + esc(p.name) + '</strong></td><td class="num">' + Math.round(sc.parts[p.id]) + '</td><td>' + esc(p.desc) +
         (scoreDetail(p.id, sc.counts) ? ' <span class="muted">· ' + esc(scoreDetail(p.id, sc.counts)) + '</span>' : '') + '</td></tr>').join('') +
       '</tbody></table></div>';
+    const rep=Engine.reputationInfo(),lp=Engine.legacyInfo();
+    h+='<h2>Studio legacy</h2><div class="strip">'+stat('Lifetime fame',rep.fame) + stat('Current buzz',rep.buzz)+stat('Current prestige',rep.currentPrestige)+stat('Legacy points',rep.lifetimeLegacy)+'</div>';
+    h+='<p class="muted">Lifetime achievements remain permanent even as current public attention and prestige change. Awards and older films still count toward your historical legacy.</p>';
+    h+=lp.milestones.length?'<ul class="plain">'+lp.milestones.map(m=>'<li><strong>'+esc(m.description)+'</strong> · '+dateLabel(m.week)+'</li>').join('')+'</ul>':'<p class="muted">No special studio milestones yet.</p>';
+    if(sc.locked){
+      const recap=sc.legacyRecap||Engine.legacyRecap();
+      h+='<h2>Final studio legacy recap</h2><p class="muted">The productions, creative partners and rivalries that defined your studio.</p>';
+      h+=recap.films.length?'<h3>Defining films</h3><ul class="plain">'+recap.films.map(f=>'<li><a href="#" onclick="UI.openFilm(\''+esc(f.id)+'\');return false">'+esc(f.title)+'</a> · '+f.year+' · '+f.wins+' major wins</li>').join('')+'</ul>':'';
+      h+=recap.partners.length?'<h3>Creative partners</h3><ul class="plain">'+recap.partners.map(p=>'<li>'+esc(p.name)+' · '+esc(p.role)+' · '+p.films+' films together</li>').join('')+'</ul>':'';
+      h+='<p><strong>Recent leading rival:</strong> '+esc(recap.topRival||'None recorded')+' · <strong>Decades with a championship:</strong> '+recap.decadeTitles+'</p>';
+    }
     h += '<h2>Leaderboard <span class="muted">· this device, top ' + T.score.leaderboardSize + '</span></h2>' + tblHtml('leaderboard', {
       rows: () => Engine.leaderboard().map((e, i) => Object.assign({ id: i, rank: i + 1 }, e)),
       rowId: e => e.id,
@@ -995,6 +1033,7 @@ var UI = (function () {
     if ((f.staff || []).length) h += '<p class="muted">Studio departments at release: ' + f.staff.map(x => esc(x.department) + ' (' + x.heads + ' staff, skill ' + x.skill + ')').join('; ') + '</p>';
     h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') + dl('Audience', f.audience == null ? 'Not recorded' : f.audience+'/100') +
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
+      (f.reissueRevenue?dl('Classic reissues',money(f.reissueRevenue)+' (separate from original theatrical gross)'):'') +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
     h += qualityDetails(f.qualityBreakdown, f.hypeBreakdown);
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
@@ -1273,6 +1312,8 @@ var UI = (function () {
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
   function upgrade() { const r = Engine.upgradeTier(); setFlash(r.ok ? '' : r.reason); render(); }
+  function launchInitiative(id){const r=Engine.startInitiative(id);setFlash(r.ok?'Initiative funded.':r.reason);render();}
+  function reissueClassic(id){const r=Engine.reissueFilm(id);setFlash(r.ok?'Classic film reissued.':r.reason);render();}
   function staff(id, action) { const r = Engine.staffAction(id, action); setFlash(r.ok ? '' : r.reason); render(); }
   function contractResult(r, okMsg) { drawerMsg = r.ok ? okMsg : r.reason; render(); }
   function sign(id, years) { contractResult(Engine.signExclusive(id, years), 'Signed.'); }
@@ -1355,7 +1396,7 @@ var UI = (function () {
     try{
       const ids=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
       const images=await PosterStore.bundle(ids);
-      const data=JSON.stringify({format:'finalcut-v12-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
+      const data=JSON.stringify({format:'finalcut-v13-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
       const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='FinalCut-backup-'+Engine.dateOf().year+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
     }catch(e){alert('Backup export failed: '+e.message);}
@@ -1365,7 +1406,7 @@ var UI = (function () {
     if(f.size>25000000){alert('The backup exceeds 25 MB.');return;}
     try{
       const b=JSON.parse(await f.text());
-      if(!['finalcut-v11-backup','finalcut-v12-backup'].includes(b.format)||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>12)throw new Error('Not a supported Final Cut backup.');
+      if(!['finalcut-v11-backup','finalcut-v12-backup','finalcut-v13-backup'].includes(b.format)||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>13)throw new Error('Not a supported Final Cut backup.');
       if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
       const old=localStorage.getItem('backlot_save');
       try {
@@ -1395,6 +1436,6 @@ var UI = (function () {
   return { go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
-    sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
+    sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();

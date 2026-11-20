@@ -1,0 +1,41 @@
+[
+  {
+    "targetYear": "1990",
+    "region": "europe",
+    "strategy": "prestige",
+    "seed": 1421,
+    "reachedYear": 1990,
+    "reason": null,
+    "buzz": 88,
+    "prestige": 49,
+    "legacy": 847,
+    "awards": 58,
+    "saveChars": 1055640
+  },
+  {
+    "targetYear": "2010",
+    "region": "northamerica",
+    "strategy": "careful",
+    "seed": 1430,
+    "reachedYear": 2010,
+    "reason": null,
+    "buzz": 90,
+    "prestige": 62,
+    "legacy": 2190,
+    "awards": 171,
+    "saveChars": 2499986
+  },
+  {
+    "targetYear": "2025",
+    "region": "asiapacific",
+    "strategy": "cheap",
+    "seed": 1452,
+    "reachedYear": 2025,
+    "reason": null,
+    "buzz": 93,
+    "prestige": 22,
+    "legacy": 976,
+    "awards": 63,
+    "saveChars": 3144992
+  }
+]
