@@ -985,10 +985,6 @@ var UI = (function () {
       '. Nominations and major wins support current prestige; lifetime trophies remain permanent. Campaigns add a small edge but cannot guarantee a win.</p>';
     const lastYear = (Engine.state.annualReviews || []).slice(-1)[0];
     if (lastYear) h += '<button type="button" onclick="UI.replayYearEnd(' + lastYear.year + ')">Replay ' + lastYear.year + ' Year-End Honors</button>';
-    h += '<h2>Annual awards ceremonies</h2><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
-      a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul>';
-    h += '<h2>Festival circuit</h2><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
-      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + (f.focus ? ' · focus: ' + esc(f.focus) : '') + '</span></li>').join('') + '</ul>';
     h += '<h2>Films in the running</h2>';
     h += a.eligible.length
       ? '<div class="tbl-wrap"><table><thead><tr><th>Film</th><th>Ceremony</th><th class="num">Score</th><th class="num">Buzz</th><th>Campaign</th><th></th></tr></thead><tbody>' +
@@ -1000,8 +996,14 @@ var UI = (function () {
     h += '<h2>Trophy case</h2>' + (a.trophies.length
       ? '<ul class="trophy-list">' + a.trophies.slice().reverse().map(t => '<li>' + trophyIcon(true, isPicture(t.cat)) + '<span><a href="#" onclick="UI.openProject(' + t.projectId + ');return false">' + esc(t.title) + '</a> <span class="muted">· ' + esc(t.cat) + ' · ' + t.year + '</span></span></li>').join('') + '</ul>'
       : '<p class="muted">None yet.</p>');
+    h += '<div class="fc-awards-reference"><h2>Schedule & eligibility</h2><p class="muted">Reference information is available below when you need it.</p>';
+    h += '<details class="fc-reference"><summary>Annual ceremonies · schedule and categories</summary><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
+      a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul></details>';
+    h += '<details class="fc-reference"><summary>Festival circuit · schedule and rules</summary><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
+      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + (f.focus ? ' · focus: ' + esc(f.focus) : '') + '</span></li>').join('') + '</ul></details>';
+    h += '</div>';
     h += '<h2>Past ceremonies</h2>' + (a.history.length ? a.history.map((rec, i) =>
-      '<details' + (i === 0 ? ' open' : '') + '><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
+      '<details><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
       rec.cats.map(c => '<p><strong>' + esc(c.name) + '</strong>'+(c.unawarded?' · No qualifying winner':'')+'</p><ul class="plain">' + c.nominees.map(n =>
         '<li>' + (n.winner ? '🏆 <strong>' : '') + (n.filmId ? '<a href="#" onclick="UI.openFilm(\'' + esc(n.filmId) + '\');return false">' + esc(n.title) + '</a>' : esc(n.title)) + (n.winner ? '</strong>' : '') + ' <span class="muted">· ' + (n.projectId != null ? '<strong>' + esc(n.studio) + '</strong>' : esc(n.studio)) + '</span></li>').join('') + '</ul>').join('') +
       '</details>').join('') : '<p class="muted">The first ceremony is in ' + a.next.year + '.</p>');
