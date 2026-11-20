@@ -13,4 +13,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Updated `engine.js` player/AI theatrical legs, max 20-week window, 2.5% closing rule, recorded weekly gross; save v13 unchanged.
 - [x] Implemented `ui.js` native Production Center with poster/slate/milestones/uncertain quality estimate, existing decisions and archive.
 - [x] Added scoped A+B dark charcoal/teal/gold responsive styles in `style.css`; untouched existing tutorial/awards/audio.
-- [ ] New `tests/v13_5_production_center.js` plus existing v13, v13.4 and balance suites all passed on GitHub Actions 44839564122; awaiting PR merge and Pages deployment.
+- [x] New `tests/v13_5_production_center.js`, v13/v13.4/save/balance suites passed (GitHub Actions #44839681803); PR #1 merged into `main` commit `aa5ab328`; GitHub Pages run #44839728794 build/deploy succeeded. FinalCut remains save v13.
