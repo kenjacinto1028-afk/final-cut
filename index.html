@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Final Cut</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <nav id="nav"></nav>
+  <div id="content">
+    <button id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="nav" onclick="UI.toggleMobileNav()">☰ Menu</button>
+    <header id="topbar"></header>
+    <main id="main"></main>
+  </div>
+</div>
+<div id="scrim" hidden></div>
+<aside id="drawer" aria-hidden="true"></aside>
+<div id="modal" hidden></div>
+<!-- Fixed load order: content → engine → media → ui -->
+<script src="content.js"></script>
+<script src="engine.js"></script>
+<script src="media.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
