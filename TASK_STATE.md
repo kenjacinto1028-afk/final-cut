@@ -1,14 +1,11 @@
-# Final Cut v13 — Execution Checkpoint
-Approved scope: v13 late-game plan at /mnt/data/finalcut_v13_planning/docs/V13_LATE_GAME_VARIETY_AND_BALANCE_PLAN.md.
-Source: v12 released local repository; GitHub main last verified commit 0a4364df.
+# Final Cut v13.1 — Balance, Awards, Buzz, Poster Persistence, Rankings
+Source: released v13; GitHub main baseline d07c66e17cda16457b4b1314cae076b6e9efda5e.
 
-- [x] A1: Equalized nomination merit for player/AI and added distinct ceremony victory floors; v12 JS checks passed (`FinalCut/engine.js`).
-- [x] A2: Added international/world win floors and competitive-entry requirement; local small-film access preserved (`FinalCut/engine.js`).
-- [x] B1: Current Buzz, 260-week rolling Current Prestige, immutable Lifetime Legacy; awards/releases trigger events, v12 migration and targeted regression (`engine.js`, `tests/v13_reputation.js`).
-- [x] C1: Dynamic 3–4 rival industry leaders, performance-driven specialty, 3-/5-year standings and annual/decadal records (`engine.js`, `tests/v13_world.js`).
-- [x] D1: Auto-legacy achievements, four elective studio initiatives, bounded classic reissues and decade market shifts (`engine.js`, `tests/v13_legacy.js`).
-- [x] E1: UI, score/history, backup migration, rivals/dashboard, legacy actions and mobile wired (`FinalCut/ui.js`, `content.js`, `style.css`, `tests/v13_browser.py`, `tests/v13_lategame_browser.py`); both browser suites and JS checks pass.
-- [x] F1: Tuned current buzz/prestige/award floors/rival talent; 20 full seeded simulations (19/20 reached 2031, 20/20 saves reload), three era snapshots, 53 previous checks + v13 suites and both Chromium tests; report `FinalCut/docs/V13_BALANCE_F1.md` and JSON results.
-- [x] F2a: Prepared `FinalCut/docs/CHANGELOG_V13.md`, `IMPACT_REPORT_V13.md`, `TEST_REPORT_V13.md`, updated README/HANDOFF and packaged full release ZIP including all test records.
-- [x] F2b: Uploaded separated v13 source/docs/test files to Library; published GitHub main commit ebbb226e39f9f8d601d3e30faae153b11d25da55.
-- [x] F2c: Verified main head, 86 repository files, source script load order and v13 docs/tests. ZIP at /mnt/data/FinalCut_v13_2026-11-20.zip and Library /FinalCut/v13/.
+- [x] Inspected release engine, award and buzz event cadence, economics, save/PosterStore paths, and 20-run v13 baseline (`FinalCut/engine.js`, `poster-store.js`, `tests/`).
+- [x] Removed incorrect assumption that player must win randomized critics year; checked sorted standings and yearbook against actual winner (`FinalCut/tests/v13_world.js`); passed 40/40 repeated runs.
+- [x] Tuned budget reach/indie legs, reduced excessive studio overhead and tax stacking, bot regional releases; added high-quality indie hit legacy score (`FinalCut/engine.js`, `sim.js`). 20/20 pre-score campaigns reached 2031.
+- [x] Tightened festival/ceremony merit floors and capped ceremony studio trophies + annual festival wins; player and rival rules are equal. Pre-score 20-run avg 85 ceremony wins vs 266 v13.
+- [x] Increased buzz decay, reduced saturation gain and increased flop backlash. Pre-score 20-run final Buzz 38–71 (v13: 82–98).
+- [x] Mocked-storage poster UI tests passed; real IndexedDB test written (`FinalCut/tests/v13_1_poster_real_storage.py`), blocked by `net::ERR_BLOCKED_BY_ADMINISTRATOR` on local HTTP; live site cannot be verified in this environment.
+- [x] 53 baseline checks, four focused suites, 50 repeated rival rankings tests, Chromium UI/mobile mocks, 20/20 seeded multi-region sims and 20/20 save reloads passed. Reports and JSON results in `FinalCut/docs/`, `FinalCut/tests/`.
+- [x] Release: all fixes, tests, reports and 20 seeded results are packaged; GitHub main published and verified at e95a110827dad5e94052b89f264445cbca6802f1 (`FinalCut/docs/`, `FinalCut/tests/`, `/mnt/data/FinalCut_v13_1_2026-11-20.zip`).
