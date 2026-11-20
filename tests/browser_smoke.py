@@ -19,6 +19,7 @@ with sync_playwright() as pl:
  page.evaluate("document.dispatchEvent(new Event('DOMContentLoaded'))")
  print('loaded',page.locator('h1').all_inner_texts())
  page.get_by_role('button',name='Start new game').click()
+ page.locator('#tutorial').get_by_role('button', name='Skip tutorial').click()
  page.screenshot(path=str(p/'tests/browser_dashboard.png'),full_page=True)
  views=['New project','Projects','Talent','Staff & HR','Market','Awards','Finance','News','Score','Dashboard']
  metrics={}

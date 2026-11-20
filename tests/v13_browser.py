@@ -37,6 +37,7 @@ with sync_playwright() as p:
  assert page.locator('#f_region option').count()==5
  page.locator('#f_region').select_option('europe')
  page.get_by_role('button',name='Start new game').click()
+ page.locator('#tutorial').get_by_role('button', name='Skip tutorial').click()
  assert page.evaluate('Engine.state.version')==13
  assert page.evaluate('Engine.homeRegion()')=='europe'
  # Budget-scaled optional ensemble hiring UI and director/writer-only full careers.

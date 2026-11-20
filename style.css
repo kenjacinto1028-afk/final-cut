@@ -410,3 +410,31 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
 .legacy-reissue-list p{border-bottom:1px solid #cbbda8;padding-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .elite-label{display:inline-block;border:1px solid #8c661b;background:#f9e6b5;color:#66450e;padding:1px 5px;border-radius:5px;font-size:10px;font-weight:800}
 @media(max-width:650px){.legacy-actions{padding:9px}.legacy-option-grid{grid-template-columns:1fr}.reputation-strip{gap:8px}}
+
+/* ===== SECTION: SHORT_GUIDED_TUTORIAL ===== */
+#tutorial[hidden] { display: none; }
+#tutorial { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  padding: 18px; background: rgba(14, 22, 33, .76); }
+.tutorial-open { overflow: hidden; }
+.tutorial-card { width: min(100%, 515px); max-height: calc(100vh - 36px); overflow-y: auto;
+  background: #fff8eb; color: #251f19; border: 2px solid #b99b66; border-radius: 13px;
+  box-shadow: 0 20px 75px rgba(0, 0, 0, .4); padding: 25px 28px; }
+.tutorial-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.tutorial-kicker { color: #754512; font-size: 12px; font-weight: 800; letter-spacing: .10em; }
+.tutorial-close { padding: 4px 10px; min-width: 36px; min-height: 36px; }
+.tutorial-progress { height: 6px; background: #e8dac1; border-radius: 50px; margin: 14px 0 22px; overflow: hidden; }
+.tutorial-progress div { height: 100%; background: #2355a7; border-radius: 50px; }
+.tutorial-card h2 { font: 800 25px/1.2 'Archivo', 'Inter', sans-serif; border: 0; margin: 0 0 13px; padding: 0; }
+.tutorial-card h2:focus { outline: none; }
+.tutorial-card > p { line-height: 1.6; font-size: 15px; }
+.tutorial-location { margin: 19px 0; padding: 10px 12px; border-left: 4px solid #24519e;
+  background: #ecf1f9; font-size: 13px !important; }
+.tutorial-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 23px; }
+.tutorial-skip { margin-right: auto; }
+@media (max-width: 500px) {
+  #tutorial { padding: 10px; }
+  .tutorial-card { max-height: calc(100dvh - 20px); padding: 17px; }
+  .tutorial-card h2 { font-size: 22px; }
+  .tutorial-actions button { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { #tutorial *, #tutorial *::before, #tutorial *::after { animation: none !important; transition: none !important; } }

@@ -18,6 +18,7 @@ with sync_playwright() as pl:
     assert page.locator('#f_region option').count()==5
     page.locator('#f_region').select_option('asiapacific')
     page.get_by_role('button',name='Start new game').click()
+    page.locator('#tutorial').get_by_role('button', name='Skip tutorial').click()
     assert page.evaluate('Engine.homeRegion()')=='asiapacific'
     assert page.evaluate('Engine.activeRivals().length')==6
     screens={'My Filmography':'My Filmography','World Film Archive':'World Film Archive','Film Rankings':'Film Rankings','Rivals':'Rivals','Awards':'Awards','New project':'New project'}

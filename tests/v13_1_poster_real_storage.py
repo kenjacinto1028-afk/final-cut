@@ -22,6 +22,7 @@ try:
   page.goto(url,wait_until='domcontentloaded')
   page.locator('#f_region').select_option('europe')
   page.get_by_role('button',name='Start new game').click()
+  page.locator('#tutorial').get_by_role('button', name='Skip tutorial').click()
   pid=page.evaluate("""() => {
    const topic=CONTENT.TOPICS.find(t=>t.good.includes('drama')).id;
    const r=Engine.startProject({format:'short',tier:0,title:'Origin Persistence Test',genre:'drama',topic,cast:{director:'founder',writer:'founder'}});

@@ -5,6 +5,9 @@ A browser-based movie studio management simulation starting in 1970. Make shorts
 ## Play
 Open **`index.html`** in a modern browser, or publish the repository root using GitHub Pages. No build step required.
 
+## v13.2 — Short tutorial
+Start a new studio to see a **five-step, skippable walkthrough** about your first film, talent, cash, production decisions and release. Use **How to play** on the start screen or **? Tutorial** in the sidebar to replay it any time. The tutorial does not advance game time or change the save. Full details: `docs/CHANGELOG_V13_2.md` and `docs/TEST_REPORT_V13_2.md`.
+
 ## v13 — Current release
 Final Cut v13 focuses on rewarding late-game play without new micromanagement. **Lifetime fame**, **Current Buzz**, **rolling Current Prestige** and **Lifetime Legacy** now mean different things. Elite awards are harder to win, active rivals develop recognizable leadership cycles, and studios compete in rolling three-/five-year standings and decade championships. Optional passion/franchise/global/talent initiatives, capped classic-film reissues, industry shifts, and a final historic legacy recap give major studios new reasons to play.
 

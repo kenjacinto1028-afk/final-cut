@@ -37,7 +37,8 @@ with sync_playwright() as p:
  assert page.locator('#f_region option').count()==5
  page.locator('#f_region').select_option('europe')
  page.get_by_role('button',name='Start new game').click()
- assert page.evaluate('Engine.state.version')==11
+ page.locator('#tutorial').get_by_role('button', name='Skip tutorial').click()
+ assert page.evaluate('Engine.state.version')>=11
  assert page.evaluate('Engine.homeRegion()')=='europe'
  for page_name in ['My Filmography','World Film Archive','Film Rankings','Rivals','Awards','New project']:
   page.locator('#nav').get_by_role('button',name=page_name,exact=True).click()

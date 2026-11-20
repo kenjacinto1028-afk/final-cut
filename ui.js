@@ -218,6 +218,7 @@ var UI = (function () {
         ).join('') + '</div>').join('') +
       '<div class="nav-foot">' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
       '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
+      '<button class="navbtn" onclick="UI.openTutorial()">? Tutorial</button>' +
       '<button class="navbtn danger-nav" onclick="UI.quit()">New game</button></div>';
   }
   // 8.1 music toggle and volume, 8.4 sound effects toggle, 8.5 reduce-motion toggle (Media keeps the settings; display only here).
@@ -262,6 +263,7 @@ var UI = (function () {
       '<label>Founder name <input id="f_founder" placeholder="Random if empty"></label>' +
       '<label>Home region <select id="f_region">' + CONTENT.REGIONS.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('') + '</select></label>' +
       '<button class="primary" onclick="UI.startGame()">Start new game</button>' +
+      ' <button onclick="UI.openTutorial()">How to play</button>' +
       (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue saved game</button>' : '') +
       ' <label class="poster-upload">Import save + posters <input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '</div><div class="start-sound">' + soundControls() + '</div>';
@@ -1248,6 +1250,76 @@ var UI = (function () {
     }
   }
 
+// ===== SECTION: TUTORIAL =====
+  // UI-only five-step introduction. It never advances time, alters saves, or
+  // prevents a returning player from loading an existing game.
+  const TUTORIAL_STEPS = [
+    { title: 'Welcome to your studio', location: 'Studio → Dashboard', text: 'You start small in 1970. Watch your cash and weekly costs on the Dashboard. Your goal is to make films and build a lasting studio.' },
+    { title: 'Plan a first film', location: 'Studio → New project', text: 'Choose New project to make a short, feature or TV pilot. A short film is a manageable way to learn production.' },
+    { title: 'Pick the people', location: 'New project → Cast and crew', text: 'Skill improves film quality, while fame creates publicity. Hiring bigger names or extra crew costs more; an unknown artist can still make a great film.' },
+    { title: 'Make decisions as weeks pass', location: 'Top bar → Advance to next decision', text: 'Use Advance to next decision to move production forward. Read the tradeoffs and keep enough cash to cover your weekly operating costs.' },
+    { title: 'Release, review and grow', location: 'Projects · My Filmography · Founder', text: 'Choose distribution before release, then check reviews, revenue and awards. Learn from each film and upgrade your studio when you are ready.' }
+  ];
+  let tutorialStep = -1;
+  let tutorialReturnFocus = null;
+  function renderTutorial() {
+    const el = $('tutorial');
+    if (!el) return;
+    if (tutorialStep < 0) { el.hidden = true; el.innerHTML = ''; document.body.classList.remove('tutorial-open'); return; }
+    const n = TUTORIAL_STEPS.length, i = Math.max(0, Math.min(n - 1, tutorialStep)), item = TUTORIAL_STEPS[i];
+    const last = i === n - 1;
+    el.innerHTML = '<section class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">' +
+      '<div class="tutorial-head"><span class="tutorial-kicker">HOW TO PLAY · ' + (i + 1) + ' / ' + n + '</span>' +
+      '<button class="tutorial-close" type="button" aria-label="Close tutorial" onclick="UI.closeTutorial()">✕</button></div>' +
+      '<div class="tutorial-progress" aria-hidden="true"><div style="width:' + Math.round((i + 1) / n * 100) + '%"></div></div>' +
+      '<h2 id="tutorial-title" tabindex="-1">' + esc(item.title) + '</h2>' +
+      '<p id="tutorial-description">' + esc(item.text) + '</p>' +
+      '<p class="tutorial-location"><strong>Find it:</strong> ' + esc(item.location) + '</p>' +
+      '<div class="tutorial-actions">' +
+      '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">' + (last ? 'Done' : 'Skip tutorial') + '</button>' +
+      (i > 0 ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
+      (last ? (Engine.state ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Plan my first film</button>' : '') : '<button type="button" class="primary" onclick="UI.tutorialMove(1)">Next</button>') +
+      '</div></section>';
+    el.hidden = false;
+    document.body.classList.add('tutorial-open');
+    const title = $('tutorial-title');
+    if (title) title.focus();
+  }
+  function openTutorial() {
+    tutorialReturnFocus = document.activeElement;
+    tutorialStep = 0;
+    closeMobileNav();
+    if (drawer) closeDrawer();
+    renderTutorial();
+  }
+  function tutorialMove(delta) {
+    if (tutorialStep < 0) return;
+    tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
+    renderTutorial();
+  }
+  function closeTutorial(planFilm) {
+    if (tutorialStep < 0) return;
+    tutorialStep = -1;
+    renderTutorial();
+    if (planFilm && Engine.state) { go('newproject'); return; }
+    if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
+    tutorialReturnFocus = null;
+  }
+  function tutorialKeydown(e) {
+    if (tutorialStep < 0) return false;
+    if (e.key === 'Escape') { e.preventDefault(); closeTutorial(); return true; }
+    if (e.key === 'Tab') {
+      const controls = Array.from($('tutorial').querySelectorAll('button:not([disabled])'));
+      if (controls.length) {
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === $('tutorial-title'))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        else if (!e.shiftKey && document.activeElement === $('tutorial-title')) { e.preventDefault(); first.focus(); }
+      }
+    }
+    return true;
+  }
+
 // ===== SECTION: RENDER =====
   function render() {
     renderTop();
@@ -1278,10 +1350,11 @@ var UI = (function () {
     $('main').innerHTML = h;
     renderModal();
     renderDrawer();
+    renderTutorial();
   }
 
 // ===== SECTION: ACTIONS =====
-  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value, homeRegion: $('f_region').value }); go('dashboard'); }
+  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value, homeRegion: $('f_region').value }); go('dashboard'); openTutorial(); }
   function loadGame() { const r = Engine.load(); setFlash(r.ok ? '' : r.reason); resetHistory(); render(); }
   function quit() {
     if (Engine.state && !Engine.state.gameOver && !confirm('Start a new game? Your current save will be replaced when you start.')) return;
@@ -1427,13 +1500,13 @@ var UI = (function () {
 // ===== SECTION: INIT =====
   function init() {
     render();
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+    document.addEventListener('keydown', e => { if (tutorialKeydown(e)) return; if (e.key === 'Escape') closeDrawer(); });
     $('scrim').addEventListener('click', closeDrawer);
     document.addEventListener('finalcut-poster-change', () => { if(drawer)renderDrawer(); });
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+  return { openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,

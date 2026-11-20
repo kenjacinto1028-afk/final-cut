@@ -30,3 +30,9 @@ Run the v13 tests listed in `docs/TEST_REPORT_V13.md`. Previous v12 regression s
 ## v13.1 corrective update
 
 See `docs/CHANGELOG_V13_1.md` and `docs/TEST_REPORT_V13_1.md`. Corrected randomized studio rankings regression, reduced high-end overhead/taxes, tuned indie recognition/box-office, capped major awards and increased Current Buzz decay. Real-origin poster persistence test requires an unrestricted browser and remains unverified on GitHub Pages.
+
+## v13.2 tutorial addendum
+- `ui.js`: five-step UI-only skippable walkthrough opens after `UI.startGame`, with replay `UI.openTutorial()` in sidebar / start screen. `UI.closeTutorial()` returns focus; last step can navigate to New Project.
+- `index.html`: adds `<div id="tutorial" hidden></div>`. `style.css`: responsive dialog styles and keyboard focus handling.
+- New test: `tests/tutorial_browser.py`. Existing browser UI tests dismiss tutorial before unrelated navigation and permit newer save versions.
+- No engine, save version, balance, media, or poster-storage rules changed; no migration needed. See `docs/CHANGELOG_V13_2.md`, `docs/TEST_REPORT_V13_2.md`.
