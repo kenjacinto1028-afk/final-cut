@@ -34,9 +34,9 @@ var Engine = (function () {
     bigFilmAudienceCapPerDoubling: 0.055, smallFilmAudienceLegsBonus: 0.035,
     boxOfficeQualityExp: 1.3,
     boxOfficeLuck: [0.7, 1.3],
-    legs: { base: 0.6, perQuality: 0.0025, max: 0.81 },
+    legs: { base: 0.6, perQuality: 0.0028, max: 0.85 }, // v13.5 stronger, bounded word of mouth
     softCap: { quality: 70, hype: 65, room: 30 },
-    maxReleaseWeeks: 16,
+    maxReleaseWeeks: 20, // v13.5: longer theatrical tail for successful films
     formats: {
       short: {
         name: 'Short film', unlockFame: 0, minTier: 0,
@@ -1661,10 +1661,11 @@ var Engine = (function () {
       income += localIncome;
     });
     p.gross += gross;
+    p.lastWeekGross = gross; // recorded box office for Production Center, old saves may omit it
     p.revenue += income;
     tallyGross('you', gross);
     if (p.weeksInRelease === 1) addLog('"' + p.title + '" opening week: ' + fmtMoney(gross) + ' gross.', 'release');
-    if (gross < p.opening * 0.05 || p.weeksInRelease >= TUNING.maxReleaseWeeks) finishFeature(p);
+    if (gross < p.opening * 0.025 || p.weeksInRelease >= TUNING.maxReleaseWeeks) finishFeature(p);
     return income;
   }
   function festivalResult(p) {
@@ -2266,6 +2267,7 @@ var Engine = (function () {
     gross = Math.round(gross);
     const rev = Math.round(gross * R.share);
     f.gross += gross;
+    f.lastWeekGross = gross;
     const sectors = f.regions || [r.region || 'northamerica'];
     const weights = sectors.map(id => id === r.region ? 1 : 0.24 * ((byId(CONTENT.REGIONS,id)||{audience:1}).audience));
     const tw = weights.reduce((a,b)=>a+b,0);
@@ -2274,7 +2276,7 @@ var Engine = (function () {
     f.revenue += rev;
     r.cash += rev;
     tallyGross(r.id, gross);
-    if (gross < f.opening * 0.05 || f.weeksIn >= TUNING.maxReleaseWeeks) rivalFinish(r, f);
+    if (gross < f.opening * 0.025 || f.weeksIn >= TUNING.maxReleaseWeeks) rivalFinish(r, f);
   }
   function rivalFinish(r, f) {
     const R = TUNING.rivals;
