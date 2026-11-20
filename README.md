@@ -43,3 +43,10 @@ Your ordinary save uses local browser storage. **Custom images stay in your brow
 ## v13.1 balance & QA patch
 
 See `docs/CHANGELOG_V13_1.md`, `docs/TEST_REPORT_V13_1.md` and `docs/IMPACT_REPORT_V13_1.md`. Engine save version remains 13 for backwards compatibility.
+
+## v13.4 — Year-End Honors and sounds
+At Week 52 the game pauses for a two-stage **Year-End Honors** recap of the award ceremonies, nominations, festival prizes, and your studio's films. Click **Reveal the winners**, then **Close** or **View Awards**. Your recap can be replayed from the Awards page. This is a presentation of existing results, not a second awards draw.
+
+Pages, decision cards and award reveals now have brief cinematic transitions. Enable **Sound effects** in the sidebar or the year-end popup to hear generated navigation, awards and production cues; sound is off by default and the volume slider controls all audio. **Reduce motion** suppresses animations. Existing v13 saves load normally; game balance is unchanged.
+
+Technical notes: `docs/CHANGELOG_V13_4.md`, `docs/TEST_REPORT_V13_4.md`.

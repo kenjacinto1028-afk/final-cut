@@ -194,6 +194,7 @@ var Media = (function () {
     settings.volume = Math.max(0, Math.min(1, Number(v)));
     saveSettings();
     applyVolume(true);
+    if (sfx.ctx && sfx.out) sfx.out.gain.setTargetAtTime(0.55 * settings.volume, sfx.ctx.currentTime, 0.03);
   }
   function musicState() {
     return { on: settings.music, volume: settings.volume, mood: audio.pendingMood || audio.mood, era: audio.era, style: (STYLES[audio.era] || {}).label, supported: supported() };
@@ -530,7 +531,8 @@ var Media = (function () {
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 5;
     sfx.out = ctx.createGain();
-    sfx.out.gain.value = 0.6;
+    // Share the visible volume slider with music and effects (SFX remain opt-in).
+    sfx.out.gain.value = 0.55 * settings.volume;
     sfx.out.connect(comp); comp.connect(ctx.destination);
     sfx.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = sfx.noise.getChannelData(0), r = rng(31);
@@ -558,7 +560,11 @@ var Media = (function () {
     clap: t => { sNoise(t, 0.05, 0.5, 'bandpass', 1900, 1.2); sNoise(t + 0.11, 0.09, 0.6, 'bandpass', 1300, 0.9); sTone(t + 0.11, 160, 0.12, 'sine', 0.2, 70); },
     applause: t => { for (let i = 0; i < 110; i++) { const k = Math.pow(Math.random(), 1.2), at = t + k * 1.9; sNoise(at, 0.03 + Math.random() * 0.04, 0.12 * (0.25 + Math.sin(k * Math.PI)), 'bandpass', 1200 + Math.random() * 3000, 0.8); } },
     alert: t => { sTone(t, 880, 0.22, 'sine', 0.16); sTone(t + 0.14, 1318, 0.34, 'sine', 0.15); },
-    alarm: t => { for (let i = 0; i < 3; i++) sTone(t + i * 0.18, 392, 0.12, 'square', 0.07, 330); }
+    alarm: t => { for (let i = 0; i < 3; i++) sTone(t + i * 0.18, 392, 0.12, 'square', 0.07, 330); },
+    // Original, brief interface cues synthesized locally, not streamed audio assets.
+    navigate: t => { sTone(t, 520, 0.075, 'triangle', 0.09, 660); },
+    reveal: t => { sTone(t, 392, 0.24, 'sine', 0.11); sTone(t + 0.12, 523, 0.32, 'triangle', 0.12); sTone(t + 0.26, 784, 0.52, 'sine', 0.14); },
+    flourish: t => { [523,659,784,1046].forEach((n,i) => sTone(t+i*0.08,n,0.45,'triangle',0.09)); }
   };
   let sfxQueue = [], sfxTimer = null;
   function queueSfx(name) {
@@ -588,6 +594,14 @@ var Media = (function () {
     return settings.sfx;
   }
   function toggleSfx() { return setSfx(!settings.sfx); }
+  let lastUiSound = 0;
+  function uiSound(kind) {
+    if (!settings.sfx || !SFX[kind] || (typeof document !== 'undefined' && document.hidden)) return;
+    const now = Date.now();
+    if (kind === 'navigate' && now - lastUiSound < 160) return;
+    lastUiSound = now;
+    queueSfx(kind);
+  }
   // Engine event → sound name (or null).
   function sfxFor(type, data) {
     if (type === 'turn') return 'tick';
@@ -698,7 +712,9 @@ var Media = (function () {
     else if (type === 'awards' && wonAtCeremony(data)) triumph(12);
     else if (type === 'tier' || type === 'score') triumph(10);
     else if (type === 'newgame' || type === 'load') { triumphBars = 0; resetCounts(); }
+    if (type === 'stage' && data && data.stage === 'shoot') visualCue('shoot','CAMERAS ROLLING',data.title || 'Filming begins');
     if (type === 'release' && data && data.format !== 'pilot') visualCue('premiere','NOW SHOWING',data.title+' · '+(data.critic||0)+'/100 critics');
+    if (type === 'finished' && data && data.result === 'Hit') visualCue('premiere','BOX OFFICE HIT',data.title || 'A winning release');
     if (type === 'festival' && data && /won|prize/i.test(data.result||'')) visualCue('laurel','FESTIVAL HONORS',data.festival||'Jury recognition');
     if (type === 'awards' && wonAtCeremony(data)) visualCue('award','AWARDS NIGHT','A film from your studio has won');
     if (type === 'era' && data) visualCue('era','NEW ERA',data.name||'The industry is changing');
@@ -731,6 +747,6 @@ var Media = (function () {
 
   return { settings: settings, setMusic: setMusic, toggleMusic: toggleMusic, setVolume: setVolume, musicState: musicState, posterSVG: posterSVG,
     portraitSVG: portraitSVG, filmStillSVG: filmStillSVG, backdropSVG: backdropSVG, trophySVG: trophySVG, badgeSVG: badgeSVG,
-    setSfx: setSfx, toggleSfx: toggleSfx, setReduceMotion: setReduceMotion, toggleReduceMotion: toggleReduceMotion,
+    setSfx: setSfx, toggleSfx: toggleSfx, uiSound: uiSound, setReduceMotion: setReduceMotion, toggleReduceMotion: toggleReduceMotion,
     countUp: countUp, confetti: confetti, shake: shake, motionOK: motionOK };
 })();

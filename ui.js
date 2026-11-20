@@ -190,9 +190,14 @@ var UI = (function () {
     const opened = app.classList.toggle('menu-open');
     toggle.setAttribute('aria-expanded', String(opened));
   }
+  let viewTransitionPending = false;
   function go(v) {
     closeMobileNav();
-    if (v !== view) { hist = hist.slice(0, hpos + 1); hist.push(v); hpos = hist.length - 1; view = v; }
+    if (v !== view) {
+      viewTransitionPending = true;
+      if (hasMedia()) Media.uiSound('navigate');
+      hist = hist.slice(0, hpos + 1); hist.push(v); hpos = hist.length - 1; view = v;
+    }
     // Allow actual sidebar navigation to complete an instruction; no business state changes.
     if (tutorialStep >= 0 && TUTORIAL_STEPS[tutorialStep].visit === v) {
       tutorialStep = Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + 1);
@@ -201,8 +206,8 @@ var UI = (function () {
     setFlash('');
     render();
   }
-  function back() { if (hpos > 0) { hpos--; view = hist[hpos]; setFlash(''); render(); } }
-  function forward() { if (hpos < hist.length - 1) { hpos++; view = hist[hpos]; setFlash(''); render(); } }
+  function back() { if (hpos > 0) { hpos--; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
+  function forward() { if (hpos < hist.length - 1) { hpos++; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
   function resetHistory() { hist = ['dashboard']; hpos = 0; view = 'dashboard'; }
   function crumb() {
     for (const g of GROUPS) {
@@ -234,8 +239,8 @@ var UI = (function () {
     if (m.supported) {
       h += '<button class="navbtn" onclick="UI.toggleMusic()" aria-pressed="' + m.on + '">Music: ' + (m.on ? 'On' : 'Off') +
         (m.on && m.style ? '<span class="soon">' + esc(m.style) + '</span>' : '') + '</button>' +
-        '<label class="vol"><span>Volume</span><input type="range" min="0" max="100" value="' + Math.round(m.volume * 100) + '" oninput="UI.setVolume(this.value)" aria-label="Music volume"></label>' +
-        '<button class="navbtn" onclick="UI.toggleSfx()" aria-pressed="' + S.sfx + '">Sound effects: ' + (S.sfx ? 'On' : 'Off') + '</button>';
+        '<label class="vol"><span>Volume</span><input type="range" min="0" max="100" value="' + Math.round(m.volume * 100) + '" oninput="UI.setVolume(this.value)" aria-label="Music and effects volume"></label>' +
+        '<button class="navbtn" onclick="UI.toggleSfx()" aria-pressed="' + S.sfx + '">Sound effects: ' + (S.sfx ? 'On' : 'Off') + '</button><small class="sound-note">Optional: page turns, premieres and award reveals</small>';
     }
     return h + '<button class="navbtn" onclick="UI.toggleMotion()" aria-pressed="' + S.reduceMotion + '">Reduce motion: ' + (S.reduceMotion ? 'On' : 'Off') + '</button></div>';
   }
@@ -917,6 +922,8 @@ var UI = (function () {
       stat('Current prestige', Engine.reputationInfo().currentPrestige) + stat('Trophies', a.trophies.length) + '</div>';
     h += '<p class="muted">' + esc(a.name) + ' judges features released the year before: ' + a.categories.map(c => esc(c.name)).join(', ') +
       '. Nominations and major wins support current prestige; lifetime trophies remain permanent. Campaigns add a small edge but cannot guarantee a win.</p>';
+    const lastYear = (Engine.state.annualReviews || []).slice(-1)[0];
+    if (lastYear) h += '<button type="button" onclick="UI.replayYearEnd(' + lastYear.year + ')">Replay ' + lastYear.year + ' Year-End Honors</button>';
     h += '<h2>Annual awards ceremonies</h2><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
       a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul>';
     h += '<h2>Festival circuit</h2><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
@@ -1255,6 +1262,119 @@ var UI = (function () {
     }
   }
 
+// ===== SECTION: YEAR_END_HONORS =====
+  // Annual ceremonies run at their normal dates. This is a presentation-only
+  // recap of recorded nominees/winners and festival awards, never a second draw.
+  let yearEndStage = 0;
+  let yearEndReplayYear = null;
+  let yearEndRendered = '';
+  let yearEndReturnFocus = null;
+  function currentYearEndReport() {
+    const state = Engine.state;
+    if (!state || state.gameOver || state.pending || tutorialStep >= 0) return null;
+    const reports = state.annualReviews || [];
+    if (yearEndReplayYear != null) return reports.find(r => r.year === yearEndReplayYear) || null;
+    const d = Engine.dateOf();
+    if (d.week !== Engine.TUNING.weeksPerYear) return null;
+    const r = reports.find(x => x.year === d.year);
+    return r && !(state.yearEndPresented || []).includes(d.year) ? r : null;
+  }
+  function yearEndFacts(report) {
+    const s = Engine.state;
+    const ceremonies = (s.awards.history || []).filter(x => x.year === report.year);
+    const nominations = ceremonies.flatMap(c => c.cats.flatMap(cat => (cat.nominees || []).filter(n => n.projectId != null).map(n => ({ceremony:c.name, category:cat.name, nominee:n}))));
+    const wins = nominations.filter(n => n.nominee.winner);
+    const festivals = s.projects.flatMap(p => (p.festResults || []).filter(f => f.year === report.year && f.kind === 'winner')
+      .map(f => ({title:p.title, festival:f.festival, prize:f.result})));
+    const film = id => s.projects.find(p => p.id === id);
+    const topGross = film(report.topGrossId), topCritic = film(report.topCriticId);
+    return {ceremonies, nominations, wins, festivals, topGross, topCritic};
+  }
+  function yearEndCeremonies(facts) {
+    if (!facts.ceremonies.length) return '<p class="muted">No qualifying annual ceremony results were recorded this year. Ceremonies judge films released the previous year, starting in 1971.</p>';
+    return facts.ceremonies.map(rec => '<section class="year-end-ceremony"><h3>' + esc(rec.name) + '</h3>' +
+      rec.cats.map(cat => {
+        const winner = (cat.nominees || []).find(n => n.winner);
+        const involved = (cat.nominees || []).filter(n => n.projectId != null);
+        return '<div class="year-end-category' + (winner && winner.projectId != null ? ' own-win' : '') + '"><div class="year-end-category-name">' + esc(cat.name) + '</div>' +
+          '<div>' + (winner ? '<strong>' + esc(winner.title) + '</strong> <span class="muted">· ' + esc(winner.studio) + '</span>' +
+            (winner.personName ? ' <small>· ' + esc(winner.personName) + '</small>' : '') : '<span class="muted">No qualifying winner</span>') + '</div>' +
+          (involved.length ? '<small class="year-end-our-noms">Your nominations: ' + involved.map(n => esc(n.title) + (n.winner ? ' ★ WIN' : '')).join(' · ') + '</small>' : '') + '</div>';
+      }).join('') + '</section>').join('');
+  }
+  function renderYearEndHonors() {
+    const root = $('year-end-awards');
+    if (!root) return;
+    const report = currentYearEndReport();
+    if (!report) { root.hidden = true; root.innerHTML = ''; yearEndRendered = ''; return; }
+    const key = report.year + ':' + yearEndStage;
+    if (yearEndRendered === key && !root.hidden) return;
+    if (root.hidden) yearEndReturnFocus = document.activeElement;
+    yearEndRendered = key;
+    const facts = yearEndFacts(report);
+    const opener = '<div class="year-end-intro"><div class="year-end-laurel" aria-hidden="true">✦ &nbsp; ★ &nbsp; ✦</div><div class="year-end-year">' + report.year + '</div><h2 id="year-end-title">Year-End Honors</h2>' +
+      '<p id="year-end-description">The industry celebrates the year. See the actual award winners, your studio’s nominations, and your most acclaimed films.</p>' +
+      '<div class="year-end-stats"><div><strong>' + facts.wins.length + '</strong><span>ceremony wins</span></div><div><strong>' + facts.nominations.length + '</strong><span>nominations</span></div><div><strong>' + facts.festivals.length + '</strong><span>festival prizes</span></div></div></div>';
+    const outcome = '<div class="year-end-results"><div class="year-end-summary">' +
+      '<div><small>Your highest grossing release</small><strong>' + esc(facts.topGross ? facts.topGross.title : 'No releases this year') + '</strong>' +
+      (facts.topGross ? '<span>' + money(facts.topGross.gross || 0) + '</span>' : '') + '</div>' +
+      '<div><small>Critics’ favorite release</small><strong>' + esc(facts.topCritic ? facts.topCritic.title : 'No releases this year') + '</strong>' +
+      (facts.topCritic ? '<span>' + Math.round(facts.topCritic.critic || 0) + '/100 critics</span>' : '') + '</div></div>' +
+      (facts.wins.length ? '<h3>🏆 Your major wins</h3><ul class="year-end-honors-list">' + facts.wins.map(x =>
+        '<li><strong>' + esc(x.category) + '</strong> · ' + esc(x.nominee.title) + ' <small>(' + esc(x.ceremony) + ')</small></li>').join('') + '</ul>' :
+        '<p class="year-end-encourage">No major ceremony victories this year. A nomination is still an achievement—and next year is a fresh competition.</p>') +
+      (facts.festivals.length ? '<h3>Festival victories</h3><ul class="year-end-honors-list">' + facts.festivals.map(f =>
+        '<li><strong>' + esc(f.title) + '</strong> · ' + esc(f.festival) + ' · ' + esc(f.prize) + '</li>').join('') + '</ul>' : '') +
+      '<h3>The award ceremonies</h3>' + yearEndCeremonies(facts) + '</div>';
+    root.innerHTML = '<div class="year-end-shade"><div class="year-end-card" role="dialog" aria-modal="true" aria-labelledby="year-end-title" aria-describedby="year-end-description">' +
+      '<div class="year-end-mast"><span>FINAL CUT · THE YEAR IN FILM</span><div class="year-end-mast-actions">' +
+      (hasMedia() && Media.musicState().supported ? '<button id="year-sound-btn" type="button" aria-pressed="' + Media.settings.sfx + '" onclick="UI.yearEndSound()">♫ Sound ' + (Media.settings.sfx ? 'On' : 'Off') + '</button>' : '') +
+      '<button type="button" aria-label="Dismiss year-end honors" onclick="UI.closeYearEndHonors()">✕</button></div></div>' +
+      opener + (yearEndStage === 0 ? '' : outcome) +
+      '<div class="year-end-actions"><button type="button" onclick="UI.closeYearEndHonors()">Close</button>' +
+      (yearEndStage === 0 ? '<button id="year-end-action" type="button" class="primary" onclick="UI.revealYearEndHonors()">Reveal the winners</button>' :
+        '<button id="year-end-action" type="button" class="primary" onclick="UI.closeYearEndHonors(true)">View Awards</button>') + '</div></div></div>';
+    root.hidden = false;
+    const next = $('year-end-action'); if (next) next.focus();
+  }
+  function yearEndSound() {
+    if (!hasMedia()) return;
+    Media.toggleSfx();
+    const btn = $('year-sound-btn');
+    if (btn) { btn.textContent = '♫ Sound ' + (Media.settings.sfx ? 'On' : 'Off'); btn.setAttribute('aria-pressed', String(Media.settings.sfx)); }
+  }
+  function revealYearEndHonors() {
+    const report = currentYearEndReport();
+    if (!report) return;
+    yearEndStage = 1;
+    yearEndRendered = '';
+    renderYearEndHonors();
+    if (hasMedia()) {
+      Media.uiSound('reveal');
+      if (yearEndFacts(report).wins.length) Media.confetti({count:90});
+    }
+  }
+  function closeYearEndHonors(openAwards) {
+    const report = currentYearEndReport();
+    if (report && Engine.state) {
+      Engine.state.yearEndPresented = Engine.state.yearEndPresented || [];
+      if (!Engine.state.yearEndPresented.includes(report.year)) Engine.state.yearEndPresented.push(report.year);
+      Engine.save();
+    }
+    const focus = yearEndReturnFocus;
+    yearEndStage = 0; yearEndReplayYear = null; yearEndRendered = ''; yearEndReturnFocus = null;
+    const el = $('year-end-awards'); if (el) { el.hidden = true; el.innerHTML = ''; }
+    if (openAwards) { go('awards'); return; }
+    if (focus && focus.isConnected) focus.focus();
+    render();
+  }
+  function replayYearEnd(year) {
+    if (!Engine.state || Engine.state.pending || Engine.state.gameOver) return;
+    if (!(Engine.state.annualReviews || []).some(r => r.year === year)) return;
+    yearEndReplayYear = year; yearEndStage = 0; yearEndRendered = '';
+    renderYearEndHonors();
+  }
+
 // ===== SECTION: INTERACTIVE TUTORIAL =====
   // An expandable, nonmodal guide: page controls remain clickable and clickable
   // navigation steps advance automatically. There is no saved progress or game logic.
@@ -1366,6 +1486,7 @@ var UI = (function () {
     if (planFilm && Engine.state) { tutorialReturnFocus = null; go('newproject'); return; }
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
     tutorialReturnFocus = null;
+    renderYearEndHonors();
   }
   function tutorialKeydown(e) {
     if (tutorialStep < 0) return false;
@@ -1402,9 +1523,16 @@ var UI = (function () {
     else h = viewDashboard();
     if (flash) h = '<div class="alert">' + esc(flash) + '</div>' + h;
     $('main').innerHTML = h;
+    if (viewTransitionPending && hasMedia() && Media.motionOK()) {
+      $('main').classList.remove('fc-view-enter');
+      void $('main').offsetWidth;
+      $('main').classList.add('fc-view-enter');
+    } else $('main').classList.remove('fc-view-enter');
+    viewTransitionPending = false;
     renderModal();
     renderDrawer();
     renderTutorial();
+    renderYearEndHonors();
   }
 
 // ===== SECTION: ACTIONS =====
@@ -1415,8 +1543,8 @@ var UI = (function () {
     Engine.clearSave();
     location.reload();
   }
-  function nextWeek() { Engine.nextTurn(); render(); }
-  function advance() { Engine.advance(); render(); }
+  function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
+  function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }
   function choose(i) { Engine.choose(i); render(); }
   function beginSequel(id) {
     const q=Engine.sequelEligibility(id);
@@ -1554,13 +1682,27 @@ var UI = (function () {
 // ===== SECTION: INIT =====
   function init() {
     render();
-    document.addEventListener('keydown', e => { if (tutorialKeydown(e)) return; if (e.key === 'Escape') closeDrawer(); });
+    document.addEventListener('keydown', e => {
+      if (currentYearEndReport()) {
+        if (e.key === 'Escape') { e.preventDefault(); closeYearEndHonors(); return; }
+        if (e.key === 'Tab') {
+          const buttons = Array.from($('year-end-awards').querySelectorAll('button:not(:disabled)'));
+          if (!buttons.length) return;
+          const idx = buttons.indexOf(document.activeElement);
+          if (e.shiftKey && idx <= 0) { e.preventDefault(); buttons[buttons.length - 1].focus(); }
+          else if (!e.shiftKey && idx === buttons.length - 1) { e.preventDefault(); buttons[0].focus(); }
+        }
+        return;
+      }
+      if (tutorialKeydown(e)) return;
+      if (e.key === 'Escape') closeDrawer();
+    });
     $('scrim').addEventListener('click', closeDrawer);
     document.addEventListener('finalcut-poster-change', () => { if(drawer)renderDrawer(); });
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,

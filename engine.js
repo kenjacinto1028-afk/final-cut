@@ -344,6 +344,7 @@ var Engine = (function () {
       awards: { history: [], pool: [], judged: {} },
       filmArchive: { rivals: [], incompleteBefore: null },
       annualReviews: [],
+      yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
       reputation: { buzz: 5, currentPrestige: 0, lifetimeLegacy: 0, prestigeEvents: [] },
       world: { yearbook: [], decadeChampions: [], leadershipEvents: [] },
       legacyPlay: { milestones: [], initiative: null, nextInitiativeWeek: 0, reissues: [], lastReissueWeek: -999, industryShift: null, shiftHistory: [] },
@@ -1540,6 +1541,9 @@ var Engine = (function () {
     const report = { year, films:films.length, topGrossId:ranked[0]?ranked[0].id:null,
       topCriticId:critic[0]?critic[0].id:null, awards:wins, cash:state.cash, releases:state.studio.releases };
     (state.annualReviews = state.annualReviews || []).push(report);
+    // Stop multi-week Advance at the recap so the player can actually see it.
+    // This changes no awards, revenues, or ceremony results.
+    state.stopFlag = true;
     addLog('Year '+year+' studio review: '+films.length+' releases, '+wins+' wins, closing cash '+fmtMoney(state.cash)+'.','studio');
     emit('year_review', report);
   }
@@ -3530,6 +3534,9 @@ var Engine = (function () {
     if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'Save is from version ' + obj.version + '; this build uses version ' + SAVE_VERSION + '. Start a new game.' };
     state = obj;
     state.annualReviews = state.annualReviews || [];
+    // Existing saves already have historic annual reviews; don't replay those old
+    // popups on migration. New games persist dismissed years as they are viewed.
+    state.yearEndPresented = Array.isArray(state.yearEndPresented) ? state.yearEndPresented : state.annualReviews.map(r => r.year);
     state.reputation = state.reputation || migrateReputation(state);
     state.world = state.world || {yearbook:[],decadeChampions:[],leadershipEvents:[]};
     state.legacyPlay = state.legacyPlay || {milestones:[],initiative:null,nextInitiativeWeek:0,reissues:[],lastReissueWeek:-999,industryShift:null,shiftHistory:[]};

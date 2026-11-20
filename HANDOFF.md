@@ -39,3 +39,10 @@ See `docs/CHANGELOG_V13_1.md` and `docs/TEST_REPORT_V13_1.md`. Corrected randomi
 
 ## v13.3 — interactive tutorial addendum
 The fullscreen v13.2 tutorial dialog was replaced by a **nonmodal 13-step guide**. `ui.js` renders the guide on the sidebar/screens while normal navigation remains operable; specific `UI.go()` visits auto-advance matching guided steps, and a small `Open section` CTA provides a mobile-friendly alternative. Highlighted elements have a visible outline in `style.css`; minimize/resume, skip and Escape are non-disruptive. There is no persisted tutorial state and no engine changes. To test: `python tests/tutorial_browser.py` and the current suites in `docs/TEST_REPORT_V13_3.md`. Live GitHub Pages/IndexedDB verification is still a separate manual task.
+
+## v13.4 — Year-End Honors
+- Engine `annualReview()` now sets `state.stopFlag=true` on Wk 52 and saves `yearEndPresented` UI dismissals. Legacy v13 saves initialize viewed years from their historical annual reviews; no version bump.
+- UI displays `#year-end-awards` separately from `#modal`, only when there is no gameplay decision/gameover/tutorial. Recap uses `state.awards.history` for the ceremony's current calendar-year actual nominees/winners and project `festResults`, with no rewards applied. It supports replay via Awards, close and Escape, and responsive styling.
+- `Media.uiSound` reuses opt-in synthesized sound effects (default off); the audio volume slider applies to music and sound. New screen transition and cue CSS respects reduced motion.
+- New browser test `tests/year_end_browser.py`, screenshots and reports `docs/CHANGELOG_V13_4.md`, `docs/TEST_REPORT_V13_4.md`.
+- GitHub Pages live-origin storage validation is still outstanding; no economic formulas changed.

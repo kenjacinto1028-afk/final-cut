@@ -455,3 +455,59 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
 @media (prefers-reduced-motion: reduce) {
   #tutorial *, #tutorial *::before, #tutorial *::after { animation: none !important; transition: none !important; }
 }
+
+/* ===== SECTION: V13_4_CINEMATIC_PRESENTATION ===== */
+.sound-note { display:block; color:#b3bcc6; font-size:11px; padding:0 9px 7px; line-height:1.4; }
+@keyframes fc-view-slide { from { opacity:.35; transform:translateY(9px); } to {opacity:1;transform:none;} }
+@keyframes fc-awards-rise { from { opacity:0; transform:translateY(20px) scale(.97); } to {opacity:1;transform:none;} }
+@keyframes fc-reveal-item { from { opacity:0; transform:translateX(-10px); } to {opacity:1;transform:none;} }
+@keyframes fc-laurel { 0% {opacity:.3; transform:scale(.88);} 65% {opacity:1;transform:scale(1.06);} 100% {transform:scale(1);} }
+#main.fc-view-enter { animation:fc-view-slide .28s ease-out both; }
+#modal:not([hidden]) .card:not(.era-card) { animation:fc-awards-rise .22s ease-out both; }
+#year-end-awards[hidden] { display:none; }
+#year-end-awards { position:fixed; inset:0; z-index:25; }
+.year-end-shade { position:absolute; inset:0; background:rgba(11,15,21,.79); display:grid; place-items:center; padding:18px; }
+.year-end-card { width:min(740px,100%); max-height:min(92dvh,820px); background:var(--panel,#fffaf0); color:var(--ink,#231f19);
+  border:2px solid #c89a49; border-radius:12px; overflow:auto; box-shadow:0 25px 90px #000b; animation:fc-awards-rise .38s cubic-bezier(.2,.8,.2,1) both; }
+.year-end-mast { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#151b27; color:#f8e6c1;
+  font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; padding:12px 20px; }
+.year-end-mast-actions { display:flex; align-items:center; gap:7px; }
+.year-end-mast button { color:#fff; background:transparent; border-color:#c89a49; padding:3px 11px; font-size:12px; }
+.year-end-intro { text-align:center; padding:23px 28px 14px; background:linear-gradient(155deg,#fff8e8,#f2e1c3); }
+.year-end-laurel { font:30px Georgia,serif; color:#a56d1f; animation:fc-laurel .65s ease both; }
+.year-end-year { font:800 13px/1.2 'Archivo',Arial,sans-serif; color:#715528; letter-spacing:.24em; margin-top:6px; }
+.year-end-intro h2 { margin:6px auto 10px; border:0; padding:0; font:700 clamp(30px,5vw,43px)/1.1 Georgia,serif; }
+.year-end-intro p { max-width:520px; margin:0 auto 14px; color:#554a3d; }
+.year-end-stats { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; }
+.year-end-stats > div { min-width:130px; display:grid; gap:3px; padding:10px 18px; background:#fff9ef; border:1px solid #d7bf98; border-radius:8px; }
+.year-end-stats strong { font:800 27px 'Archivo',Arial,sans-serif; }
+.year-end-stats span { text-transform:uppercase; font-size:10px; letter-spacing:.07em; }
+.year-end-results { padding:13px 24px 0; }
+.year-end-results h3 { font-size:17px; padding-top:13px; margin:14px 0 8px; border-top:1px solid #d6c6aa; }
+.year-end-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.year-end-summary > div { border:1px solid #d6c6aa; padding:12px; display:grid; gap:3px; border-radius:6px; }
+.year-end-summary small { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.year-end-honors-list { padding-left:19px; margin:8px 0; }
+.year-end-honors-list li { margin:5px 0; animation:fc-reveal-item .38s ease both; }
+.year-end-honors-list li:nth-child(2) {animation-delay:.08s} .year-end-honors-list li:nth-child(3) {animation-delay:.16s}
+.year-end-encourage { padding:10px 14px; border-left:3px solid #ba8428; background:#f6edda; }
+.year-end-ceremony h3 { margin:14px 0 6px; }
+.year-end-category { display:grid; grid-template-columns:minmax(145px,1fr) minmax(0,2fr); gap:5px 12px; align-items:center; padding:10px 9px; border-bottom:1px solid #dacbb5; }
+.year-end-category.own-win { background:#fff0bd; border-left:3px solid #ae7723; }
+.year-end-category-name { font-weight:700; }
+.year-end-category small { color:var(--muted); }
+.year-end-our-noms { grid-column:1 / -1; font-size:12px; }
+.year-end-actions { background:var(--panel,#fffaf0); position:sticky; bottom:0; display:flex; justify-content:flex-end; gap:10px;
+  padding:15px 24px; border-top:1px solid #d6c6aa; }
+@media (max-width:580px) {
+  .year-end-shade {padding:7px;} .year-end-card {max-height:95dvh;}
+  .year-end-intro {padding:19px 14px 12px;} .year-end-results {padding:12px 13px 0;}
+  .year-end-summary {grid-template-columns:1fr;} .year-end-category {grid-template-columns:1fr;}
+  .year-end-mast {padding:10px 12px;} .year-end-actions {padding:12px;}
+  .year-end-stats > div {min-width:94px;padding:8px;}
+}
+.reduce-motion #main.fc-view-enter, .reduce-motion .year-end-card, .reduce-motion .year-end-laurel,
+.reduce-motion .year-end-honors-list li { animation:none !important; }
+@media (prefers-reduced-motion: reduce) {
+  #main.fc-view-enter,.year-end-card,.year-end-laurel,.year-end-honors-list li,#modal:not([hidden]) .card:not(.era-card) {animation:none !important;}
+}
