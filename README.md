@@ -1,5 +1,9 @@
 # Final Cut — Studio Tycoon
 
+## v13.5 — Production Center (correct FinalCut project)
+The Projects page now opens a cinematic Production Center with an automatically updating film slate, stages, budget/spend, tentative quality range and theater receipts. The existing detailed project table remains in an expandable archive. Features now have longer, bounded theatrical runs, applied equally to the player and rival studios. v13.4 interactive tutorial, year-end awards and sound remain intact. Saved-game format remains v13. See `docs/CHANGELOG_V13_5.md`.
+
+
 A browser-based movie studio management simulation starting in 1970. Make shorts, features and TV, hire talent and staff, build reputation, distribute films, compete with rival studios and win awards through 2030.
 
 ## Play
