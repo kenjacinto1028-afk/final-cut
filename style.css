@@ -362,3 +362,36 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
 @media(max-width:500px){.fc-cinematic-cue{top:12px;right:12px;width:min(300px,calc(100vw - 24px))}}
 
 .franchise-card{padding:10px 12px;margin:10px 0;border:1px solid #a98243;border-left:4px solid #a98243;background:#fff3db;border-radius:5px}
+
+/* ===== SECTION: V12_CLARITY_AND_MOBILE ===== */
+.onboarding { background:#eaf1fa;color:#14253b;border:1px solid #769abf;border-left:5px solid #194b91;border-radius:9px;padding:12px 16px;margin:16px 0; }
+.onboarding p{margin:6px 0 10px}
+.onboarding .actions{margin-bottom:2px}
+.cash-details{border:1px solid #a8a7a0;padding:9px 13px;border-radius:8px;background:#fbf9f3;margin:16px 0;color:#242528}
+.cash-details summary{font:600 14px 'Inter',sans-serif;cursor:pointer}
+.craft-breakdown{margin:15px 0;padding:10px 12px;border:1px solid #a5b8cb;border-radius:8px;background:#f3f7fa;color:#172b3c}
+.craft-breakdown summary{font-size:14px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:700}
+.craft-breakdown .dl{font-size:13px;gap:14px}
+.craft-breakdown .dl dd{min-width:40px;font-variant-numeric:tabular-nums}
+.tbl-wrap{max-width:100%;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.tbl-wrap th,.tbl-wrap td{vertical-align:middle}
+.form.cast label{max-width:100%;overflow:hidden}
+.form.cast select{width:100%;min-width:0;white-space:normal}
+@media(max-width:650px){
+  h1{font-size:27px}
+  #main{padding:14px 12px 28px;overflow-x:hidden}
+  .strip{gap:10px}
+  .strip>div{flex:1 1 135px}
+  .big{font-size:22px}
+  #drawer{width:100%;padding:16px 14px}
+  #drawer .dl{gap:8px;align-items:start}
+  #drawer .dl dt{flex:1 1 40%}
+  #drawer .dl dd{max-width:60%;overflow-wrap:anywhere}
+  .tbl-tools{gap:8px}
+  .tbl-search{width:100%;min-width:0}
+  .card{padding:16px}
+  button{min-height:40px}
+  .archive-filters{padding:10px}
+  .craft-breakdown{padding:8px}
+  .film-review{line-height:1.5}
+}

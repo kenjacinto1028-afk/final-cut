@@ -287,6 +287,10 @@ var UI = (function () {
     const profit = Engine.weeklyProfit();
     h += '<div class="strip">' + stat('Cash', money(s.cash)) + stat('Weekly burn', money(Engine.weeklyBurn())) +
       stat('Weekly profit', '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>') + stat('Debt', money(s.debt)) + '</div>';
+    if (!s.studio.releases && s.week < 53) h += '<div class="onboarding"><strong>Getting started</strong><p>Start with a small project. Craft improves the finished film; fame attracts attention. Keep enough cash for production weeks, then choose how widely to screen your film.</p><div class="actions"><button class="primary" onclick="UI.go(&quot;newproject&quot;)">Plan your first film</button><button onclick="UI.go(&quot;market&quot;)">View market demand</button></div></div>';
+    else if (s.studio.releases && s.studio.tier === 0 && s.studio.fame < 15) h += '<div class="onboarding"><strong>Grow your studio</strong><p>Film releases and festival recognition build fame. Keep an eye on profits and the Founder page for your next studio upgrade.</p></div>';
+    if (s.lastWeek && s.week > 0) h += '<details class="cash-details"><summary><strong>Last week: where your cash went</strong> <span class="muted">· Net ' + money(s.lastWeek.margin == null ? s.lastWeek.income - s.lastWeek.costs : s.lastWeek.margin) + '</span></summary>' +
+      '<p>Receipts ' + money(s.lastWeek.income||0) + ', production ' + money(s.lastWeek.production||0) + ', salaries ' + money(s.lastWeek.salaries||0) + ', staff ' + money(s.lastWeek.payroll||0) + ', overhead ' + money(s.lastWeek.overhead||0) + ', interest ' + money(s.lastWeek.interest||0) + ', living ' + money(s.lastWeek.living||Engine.TUNING.livingCost) + '.</p></details>';
     const act = Engine.activeProjects().length, cap = Engine.capacity();
     h += '<h2>In production <span class="muted">' + act + ' of ' + cap + '</span></h2>';
     const live = s.projects.filter(p => p.stage !== 'done').reverse();
@@ -321,14 +325,34 @@ var UI = (function () {
   }
 
 // ===== SECTION: VIEW_NEW_PROJECT =====
-  const draft = { title: '', format: 'short', genre: 'drama', topic: 'smalltown', tier: 0, cast: { director: 'founder', writer: 'founder', lead: '', crew: '' } };
+  const draft = { title: '', format: 'short', genre: 'drama', topic: 'smalltown', tier: 0,
+    cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0 };
   function setDraft(key, val) {
     if (key === 'tier') val = Number(val);
     draft[key] = val;
-    if (key === 'format') { draft.tier = 0; if(val!=='feature') delete draft.sequelOf; }
+    if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
+    if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
     if (key !== 'title') render();
   }
   function setCast(slot, val) { draft.cast[slot] = val; render(); }
+  function setExtra(kind,index,value){
+    if(!['supporting','specialists'].includes(kind))return;
+    const caps=Engine.ensembleCaps(draft.format,draft.tier);
+    if(index<0||index>=caps[kind])return;
+    draft[kind][index]=value===''?null:Number(value);render();
+  }
+  function setBackgroundCrew(value){draft.backgroundCrew=Math.max(0,Math.min(Engine.ensembleCaps(draft.format,draft.tier).backgroundCrew,Number(value)||0));render();}
+  function extraPicker(kind,i){
+    const slot=kind==='supporting'?'lead':'crew', ti=Engine.formats().find(f=>f.id===draft.format).tiers[draft.tier];
+    const opts=Engine.slotOptions(slot,draft.format,draft.genre,draft.topic,ti.budget);
+    const selected=String(draft[kind][i]||'');
+    const used=[...Object.values(draft.cast),...draft.supporting.filter((_,j)=>kind!=='supporting'||j!==i),...draft.specialists.filter((_,j)=>kind!=='specialists'||j!==i)].map(String);
+    return '<label>'+(kind==='supporting'?'Supporting actor':'Specialist crew')+' '+(i+1)+' <select onchange="UI.setExtra(\''+kind+'\','+i+',this.value)">' +
+      '<option value="">No additional hire</option>' + opts.filter(x=>typeof x.id==='number').map(x=>{
+      const val=String(x.id), disabled=(x.busy||used.includes(val))&&val!==selected;
+      return '<option value="'+val+'"'+(selected===val?' selected':'')+(disabled?' disabled':'')+'>'+esc(x.name)+' · skill '+x.skill+' · fame '+x.fame+' · '+(x.roster?'roster':money(x.fee))+'</option>';
+      }).join('')+'</select></label>';
+  }
   function randomizeTitle() { draft.title = Engine.randomTitle(); render(); }
   function castPicker(slot) {
     const ti = Engine.formats().find(f => f.id === draft.format).tiers[draft.tier];
@@ -340,7 +364,8 @@ var UI = (function () {
       const fit = x.affinity && x.affinity.includes(draft.genre) ? ' ★' : '';
       const cost = x.id === 'founder' ? 'free' : (x.roster ? 'roster' : money(x.fee));
       const interest = x.elite && !x.roster ? ' · offer interest ' + Math.round(x.interest * 100) + '%' : '';
-      const label = x.name + fit + ' · skill ' + x.skill + (x.fame != null ? ' · fame ' + x.fame : '') + ' · ' + cost + interest + (x.busy ? ' — busy: ' + x.busy : '');
+      const impact = x.contribution ? ' · Quality ' + (x.contribution.quality>=0?'+':'') + x.contribution.quality + ' / Hype +' + x.contribution.hype : '';
+      const label = x.name + fit + ' · skill ' + x.skill + (x.fame != null ? ' · fame ' + x.fame : '') + (x.recognition ? ' · ' + x.recognition : '') + impact + ' · ' + cost + interest + (x.busy ? ' — busy: ' + x.busy : '');
       o.push('<option value="' + esc(val) + '"' + (val === cur ? ' selected' : '') + (x.busy && val !== cur ? ' disabled' : '') + '>' + esc(label) + '</option>');
     });
     return '<label>' + esc(CONTENT.SLOT_LABELS[slot]) + ' <select onchange="UI.setCast(\'' + slot + '\', this.value)">' + o.join('') + '</select></label>';
@@ -362,8 +387,18 @@ var UI = (function () {
       CONTENT.TOPICS.map(t => opt(t.id, t.name, t.id === draft.topic)).join('') + '</select></label>';
     h += '<label>Budget <select onchange="UI.setDraft(\'tier\', this.value)">' +
       fmt.tiers.map((t, i) => opt(i, t.name + ' (' + money(t.budget) + ')' + (t.locked ? ' – needs ' + tierName(t.minTier) : ''), i === draft.tier, t.locked)).join('') + '</select></label>';
-    h += '</div><h2>Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Elite artists may decline offers; studio fame, critics, prestige, creative fit and budget improve interest. A declined offer costs nothing.</p><div class="form cast">' +
+    if (pv.continuity && pv.continuity.notes.length) h += '<section class="franchise-card"><strong>Original cast continuity</strong><p>Estimated hype ' + (pv.continuity.hype >= 0 ? '+' : '') + pv.continuity.hype + ' from returning or recast creative leads. Replacement skills still determine quality.</p>' +
+      pv.continuity.notes.map(n => '<p>' + esc(CONTENT.SLOT_LABELS[n.slot]) + ': ' + esc(n.originalName) + ' — ' + esc(n.status) + ' (' + (n.delta >= 0 ? '+' : '') + n.delta + ' hype)</p>').join('') + '</section>';
+    h += '</div><h2>Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
       Engine.SLOTS.map(castPicker).join('') + '</div>';
+    const caps=Engine.ensembleCaps(draft.format,draft.tier);
+    if(caps.supporting||caps.specialists){
+      h+='<h3>Optional ensemble and specialist crew</h3><p class="muted">Every named hire costs a fee, contributes with diminishing returns, and receives a film credit. You can leave slots empty. Extra crew packages are anonymous, not individual employees.</p><div class="form cast">';
+      for(let i=0;i<caps.supporting;i++)h+=extraPicker('supporting',i);
+      for(let i=0;i<caps.specialists;i++)h+=extraPicker('specialists',i);
+      if(caps.backgroundCrew)h+='<label>Background production crew <select onchange="UI.setBackgroundCrew(this.value)">'+Array.from({length:caps.backgroundCrew+1},(_,i)=>'<option value="'+i+'"'+(draft.backgroundCrew===i?' selected':'')+'>'+['Standard','Expanded','Large'][i]+'</option>').join('')+'</select></label>';
+      h+='</div>';
+    }
     if (pv.budget) {
       h += '<p>Budget ' + money(pv.budget) + ': fees ' + money(pv.fees) + ' up front, ' + money(Math.max(pv.prodBudget, 0)) + ' production over about ' + pv.weeks +
         ' weeks (' + money(pv.weekly) + '/week). Cash if fully spent: <span class="' + (pv.cashAfter < 0 ? 'neg' : '') + '">' + money(pv.cashAfter) + '</span>. Marketing (features) is extra.</p>';
@@ -460,7 +495,7 @@ var UI = (function () {
   }
   function filmTable(rows, ranked, mine) {
     const q = filmBrowse.query.toLowerCase().trim();
-    if (q) rows = rows.filter(f => [f.title,f.studio,nameOf(CONTENT.GENRES,f.genre),nameOf(CONTENT.TOPICS,f.topic)].join(' ').toLowerCase().includes(q));
+    if (q) rows = rows.filter(f => [f.title,f.studio,nameOf(CONTENT.GENRES,f.genre),nameOf(CONTENT.TOPICS,f.topic),Object.values(f.credits||{}).join(' '),f.review&&f.review.headline].join(' ').toLowerCase().includes(q));
     const size = 60, maxPage = Math.max(0,Math.ceil(rows.length/size)-1);
     filmBrowse.page = Math.min(filmBrowse.page,maxPage);
     const start = filmBrowse.page*size, page = rows.slice(start,start+size);
@@ -526,7 +561,7 @@ var UI = (function () {
       onRow: openTalent,
       sort: 'skill', dir: -1,
       rowClass: t => Engine.isExpiring(t) ? 'warn' : '',
-      search: t => [t.name, roleName(t), traitNames(t), t.affinity.map(g => nameOf(CONTENT.GENRES, g)).join(' ')].join(' '),
+      search: t => [t.name, roleName(t), traitNames(t), Engine.recognition(t).name, nameOf(CONTENT.REGIONS, t.homeRegion || 'northamerica'), (t.career && t.career.trend) || '', t.affinity.map(g => nameOf(CONTENT.GENRES, g)).join(' ')].join(' '),
       filters: [
         ['all', 'All', null],
         ['actor', 'Actors', t => t.role === 'actor'],
@@ -540,6 +575,9 @@ var UI = (function () {
         { key: 'role', label: 'Role', value: roleName },
         { key: 'skill', label: 'Skill', num: true, value: t => t.skill },
         { key: 'fame', label: 'Fame', num: true, value: t => t.fame },
+        { key: 'tier', label: 'Recognition', value: t => Engine.recognition(t).name },
+        { key: 'home', label: 'Home region', value: t => nameOf(CONTENT.REGIONS, t.homeRegion || 'northamerica') },
+        { key: 'trend', label: 'Career', value: t => t.career && t.career.trend || 'Established' },
         { key: 'rel', label: 'Reliability', num: true, value: t => Engine.effReliability(t) },
         { key: 'traits', label: 'Traits', value: traitNames },
         { key: 'fee', label: 'Fee (feature)', num: true, value: t => Engine.talentFee(t, 'feature'), render: t => money(Engine.talentFee(t, 'feature')) },
@@ -627,7 +665,7 @@ var UI = (function () {
     h += '<details open><summary><strong>Quarterly summary</strong></summary>' + quarterTable(s.finance.history.slice(-4), qtd) +
       '<p class="muted">Tax on each quarter\'s profit: ' + taxText(E.taxBrackets) + '. Charged at quarter end after earlier losses are used up' +
       (s.finance.lossCarry ? ' (' + money(s.finance.lossCarry) + ' of losses left to use)' : '') + '.</p></details>';
-    h += '<details><summary><strong>Last week</strong></summary><p>Income ' + money(lw.income) + ', costs ' + money(lw.costs) + ' (talent salaries ' + money(lw.salaries || 0) +
+    h += '<details><summary><strong>Last week</strong></summary><p>Income ' + money(lw.income) + ', costs ' + money(lw.costs) + ' (production ' + money(lw.production || 0) + ', talent salaries ' + money(lw.salaries || 0) +
       ', staff ' + money(lw.payroll || 0) + ', overhead ' + money(lw.overhead || 0) + ', interest ' + money(lw.interest) + ').</p></details>';
     h += '<details><summary><strong>Studio size and running costs</strong></summary><p><strong>' + esc(CONTENT.STUDIO_SIZES[sz.level] || ('Level ' + sz.level)) + '</strong> (from ' +
       money(sz.trailingRevenue) + ' revenue over the last year' + (sz.nextRevenue ? '; next size at ' + money(sz.nextRevenue) : '') + ').</p>' +
@@ -729,6 +767,8 @@ var UI = (function () {
         { key: 'ep', label: 'Episode', value: x => x.aired, render: x => x.status === 'airing' ? x.aired + ' / ' + x.episodes : (x.status === 'hiatus' ? 'Hiatus · ' + x.hiatusLeft + ' wk' : 'Ended') },
         { key: 'rating', label: 'Last rating', num: true, value: x => { const r = x.ratings.length ? x.ratings : (x.lastRatings || []); return r.length ? r[r.length - 1] : null; } },
         { key: 'avgs', label: 'Season averages', value: x => x.seasonAvgs.join(' · ') || null },
+        { key: 'trend', label: 'Ratings trend', num: true, value: x => x.ratingsTrend == null ? null : x.ratingsTrend, render: x => x.ratingsTrend == null ? '—' : (x.ratingsTrend>=0?'+':'')+x.ratingsTrend },
+        { key: 'renew', label: 'Last renewal chance', num: true, value: x => x.renewalChance == null ? null : x.renewalChance, render: x => x.renewalChance == null ? '—' : Math.round(x.renewalChance*100)+'%' },
         { key: 'fee', label: 'Fee / cost per ep', num: true, value: x => x.fee - x.epCost, render: x => money(x.fee) + ' / ' + money(x.epCost) },
         { key: 'profit', label: 'Profit', num: true, value: x => x.revenue - x.cost, render: x => '<span class="' + (x.revenue - x.cost < 0 ? 'neg' : '') + '">' + money(x.revenue - x.cost) + '</span>' }
       ]
@@ -944,13 +984,21 @@ var UI = (function () {
       dl('Released', dateLabel(f.releaseWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS, f.region || ''))) +
       dl('Budget', money(f.budget || 0)) + dl('Status', esc(f.result || f.stage || '—')) + '</dl>';
     h += '<h3>Cast and crew</h3><dl>' + [['director','Director'],['writer','Writer'],['lead','Lead actor'],['crew','Crew']].map(a =>
-      dl(a[1], esc((f.credits || {})[a[0]] || 'Not recorded'))).join('') + '</dl>';
+      dl(a[1], (f.creditIds && typeof f.creditIds[a[0]]==='number' && ['director','writer'].includes(a[0]) && Engine.getTalent(f.creditIds[a[0]])
+        ? '<a href="#" onclick="UI.openTalent('+f.creditIds[a[0]]+');return false">'+esc(f.credits[a[0]])+'</a>'
+        : esc((f.credits || {})[a[0]] || 'Not recorded')))).join('') +
+      ((f.credits&&f.credits.supporting||[]).length?dl('Supporting actors',esc(f.credits.supporting.join(', '))):'') +
+      ((f.credits&&f.credits.specialists||[]).length?dl('Specialist crew',esc(f.credits.specialists.join(', '))):'') + '</dl>';
+    if (f.talentSnapshot && Object.keys(f.talentSnapshot).length) h += '<details class="craft-breakdown"><summary>Talent at the time of production</summary>' +
+      Object.keys(f.talentSnapshot).flatMap(role=>{const group=Array.isArray(f.talentSnapshot[role])?f.talentSnapshot[role]:[f.talentSnapshot[role]];
+        return group.filter(Boolean).map(t=>'<p><strong>'+esc(role)+'</strong>: '+esc(t.name)+' — skill '+t.skill+', fame '+t.fame+' ('+esc(t.recognition||'Local Talent')+')</p>');}).join('') + '</details>';
     if ((f.staff || []).length) h += '<p class="muted">Studio departments at release: ' + f.staff.map(x => esc(x.department) + ' (' + x.heads + ' staff, skill ' + x.skill + ')').join('; ') + '</p>';
     h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') + dl('Audience', f.audience == null ? 'Not recorded' : f.audience+'/100') +
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
+    h += qualityDetails(f.qualityBreakdown, f.hypeBreakdown);
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
-    h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + ' (' + a.year + ')').join('<br>') || 'None') +
+    h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + (a.personName?' — '+esc(a.personName):'') + ' (' + a.year + ')').join('<br>') || 'None') +
       dl('Festivals', (f.festResults || []).map(a => esc(a.festival) + ' · ' + esc(a.result)).join('<br>') || 'None') + '</dl>';
     if ((f.decisions || []).length) h += '<h3>Production decisions</h3><p class="muted">' + f.decisions.map(esc).join(' · ') + '</p>';
     if (f.review || f.audience != null) {
@@ -960,6 +1008,20 @@ var UI = (function () {
     if (f.legacy) h += '<p class="muted">Some historic credits and market data were not recorded in earlier versions.</p>';
     if (f.projectId != null) h += '<button onclick="UI.openProject(' + f.projectId + ')">Open original project record</button>';
     return h;
+  }
+  function qualityDetails(q, hype) {
+    if (!q && !hype) return '';
+    let h = '<details class="craft-breakdown"><summary><strong>Why this film scored this way</strong></summary>';
+    if (q) {
+      const roles=q.roles||{};
+      h += '<p>Quality before diminishing returns: <strong>'+q.raw+'</strong> · Final quality: <strong>'+q.result+'/100</strong></p>' +
+        (q.ensemble!=null?'<p>Supporting cast and expanded crew: <strong>+'+q.ensemble+' quality</strong> (with diminishing returns)</p>':'') +
+        '<dl>'+Object.keys(roles).map(k=>dl(esc(k)+' skill contribution',Math.round(roles[k]*10)/10)).join('')+
+        dl('Production resources',q.production)+dl('Genre / topic match',q.story)+dl('Creative team / traits',q.creative)+dl('Department skill',q.staff)+
+        dl('Era',q.era)+dl('Your decisions',q.decisions)+dl('Uncertainty',q.variance)+'</dl>';
+    }
+    if (hype) h+='<p>Public awareness: <strong>'+hype.result+'/100</strong> (studio '+hype.studio+', creative publicity '+hype.publicity+', decisions '+hype.decisions+').</p>';
+    return h+'</details>';
   }
   function toggleRegion(id, region, checked) {
     const p = Engine.getProject(id);
@@ -1024,10 +1086,13 @@ var UI = (function () {
           'onchange="UI.toggleRegion(' + p.id + ',\'' + r.id + '\',this.checked)"> ' + esc(r.name) + '</label>').join('') + '</div>' +
         '<p>Estimated extra cost: <strong>' + money(quote.cost) + '</strong> · ' + quote.estimated + '</p>';
     }
+    h += qualityDetails(p.qualityBreakdown,p.hypeBreakdown);
     if (p.review) h += '<p class="film-review"><strong>' + esc(p.review.headline) + '</strong> — ' + esc(p.review.text) + '</p>';
+    if(p.continuity&&p.continuity.notes.length) h+=dl('Sequel continuity',esc(p.continuity.notes.map(x=>x.originalName+': '+x.status+' ('+(x.delta>=0?'+':'')+x.delta+' hype)').join('; ')));
+    if(p.backgroundCrew)h+=dl('Expanded background crew','Level '+p.backgroundCrew);
     h += '<h2>Cast and crew</h2><dl>' + Engine.castSummary(p).map(c =>
       dl(esc(c.label), typeof c.id === 'number' && Engine.getTalent(c.id)
-        ? '<a href="#" onclick="UI.openTalent(' + c.id + ');return false">' + esc(c.name) + '</a>' + (c.skill != null ? ' <span class="muted">· ' + c.skill + '</span>' : '')
+        ? '<a href="#" onclick="UI.openTalent(' + c.id + ');return false">' + esc(c.name) + '</a>' + (c.skill != null ? ' <span class="muted">· skill ' + c.skill + ' · fame ' + c.fame + ' · ' + esc(c.recognition) + '</span>' : '')
         : esc(c.name))).join('') + '</dl>';
     h += '<h2>Decisions taken</h2>';
     h += p.usedEvents.length
@@ -1040,6 +1105,14 @@ var UI = (function () {
     let h = drawerHead(t.name, esc(roleName(t)) + ' · ' + esc(st.label)) + portrait(t) + talentTrophies(t) + '<dl>';   // 8.3
     h += dl('Skill', t.skill + ' <div class="bar"><div style="width:' + t.skill + '%"></div></div>');
     h += dl('Fame', t.fame + ' <div class="bar"><div style="width:' + t.fame + '%"></div></div>');
+    h += dl('Recognition', esc(Engine.recognition(t).name));
+    h += dl('Home region', esc(nameOf(CONTENT.REGIONS, t.homeRegion || 'northamerica')));
+    h += dl('Career', esc(t.career && t.career.trend || 'Established'));
+    if(t.career && t.career.recent && t.career.recent.length) {
+      const recent=t.career.recent.slice(-3).reverse();
+      h += dl('Recent work', recent.map(x=>esc(x.film)+' · skill '+x.skill+' / fame '+x.fame).join('<br>'));
+    }
+    h += '<p class="muted">Craft boosts film quality; recognition and fame drive audience awareness. Tiers never block casting.</p>';
     h += dl('Reliability', Engine.effReliability(t));
     h += dl('Genre fit', esc(t.affinity.map(g => nameOf(CONTENT.GENRES, g)).join(', ')));
     if (t.specialty) { const sp = CONTENT.CREW_SPECIALTIES.find(x => x.id === t.specialty); if (sp) h += dl('Specialty', esc(sp.desc)); }
@@ -1047,11 +1120,19 @@ var UI = (function () {
     const interest = Engine.recruitmentInterest(t, 'feature');
     if (interest.elite && !st.roster) h += dl('Exclusive offer interest', Math.round(interest.chance * 100) + '% · Fame, critics and prestige help');
     if (t.awards && (t.awards.noms || t.awards.wins)) h += dl('Awards', t.awards.wins + ' won · ' + (t.awards.noms + t.awards.wins) + ' nominations');
+    if((t.awardHistory||[]).length) h+=dl('Personal honors',t.awardHistory.slice(-8).reverse().map(a=>esc(a.year+' · '+a.ceremony+' · '+a.category+(a.won?' — WIN':' — nominated'))).join('<br>'));
     h += '</dl><h2>Traits</h2><ul class="plain">' + Engine.traitsOf(t).map(tr => '<li><strong>' + esc(tr.name) + '</strong> – ' + esc(tr.desc) + '</li>').join('') + '</ul>';
     const credits = t.credits.map(id => Engine.getProject(id)).filter(Boolean);
     h += '<h2>Credits with you</h2>' + (credits.length
       ? '<ul class="plain">' + credits.map(p => '<li><a href="#" onclick="UI.openProject(' + p.id + ');return false">' + esc(p.title) + '</a>' + (p.result ? ' <span class="muted">· ' + esc(p.result) + '</span>' : '') + '</li>').join('') + '</ul>'
       : '<p class="muted">None yet.</p>');
+    if(['director','writer'].includes(t.role)) {
+      const career=Engine.talentCareer(t.id);
+      h+='<section class="artist-career"><h2>Full career profile</h2><p class="muted">'+esc(career.recognition.name)+' · '+career.totalCredits+' verified film credits across player and rival productions. Historical gaps are not invented.</p>';
+      h+='<h3>Filmography</h3>'+(career.films.length?'<ul class="plain">'+career.films.map(f=>'<li><a href="#" onclick="UI.openFilm(\''+esc(f.id)+'\');return false">'+esc(f.title)+'</a> · '+f.year+' · '+esc(f.studio)+' · '+(f.critic==null?'unrated':f.critic+'/100 critics')+(f.awards.length?' · '+f.awards.filter(a=>a.won).length+' personal wins':'')+'</li>').join('')+'</ul>':'<p class="muted">No verified filmography yet.</p>');
+      h+='<h3>Career milestones & incidents</h3>'+(career.timeline.length?'<ul class="career-timeline">'+career.timeline.map(e=>'<li><strong>'+esc(e.type)+'</strong> · '+dateLabel(e.week)+' — '+esc(e.text)+'</li>').join('')+'</ul>':'<p class="muted">No recorded career milestones or controversies yet.</p>');
+      h+='</section>';
+    }
     h += '<h2>Contract</h2>';
     const years = [1, 2, 3].slice(0, Engine.TUNING.contracts.maxYears);
     if (st.roster) {
@@ -1178,13 +1259,16 @@ var UI = (function () {
     draft.format='feature';draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
     draft.genre=p.genre;draft.topic=p.topic;draft.tier=p.tier;
     draft.sequelOf=p.id;
-    draft.cast={director:'',writer:'',lead:'',crew:''};
+    const suggested=Engine.sequelCastSuggestion(p);
+    draft.cast={director:suggested.director,writer:suggested.writer,lead:suggested.lead,crew:suggested.crew};
+    draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps('feature',draft.tier).supporting);
+    draft.specialists=[];draft.backgroundCrew=0;
     closeDrawer();go('newproject');
   }
-  function cancelSequel(){delete draft.sequelOf;render();}
+  function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' }; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { draft.title = ''; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -1271,7 +1355,7 @@ var UI = (function () {
     try{
       const ids=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
       const images=await PosterStore.bundle(ids);
-      const data=JSON.stringify({format:'finalcut-v11-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
+      const data=JSON.stringify({format:'finalcut-v12-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
       const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='FinalCut-backup-'+Engine.dateOf().year+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
     }catch(e){alert('Backup export failed: '+e.message);}
@@ -1281,14 +1365,20 @@ var UI = (function () {
     if(f.size>25000000){alert('The backup exceeds 25 MB.');return;}
     try{
       const b=JSON.parse(await f.text());
-      if(b.format!=='finalcut-v11-backup'||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version))throw new Error('Not a supported Final Cut backup.');
+      if(!['finalcut-v11-backup','finalcut-v12-backup'].includes(b.format)||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>12)throw new Error('Not a supported Final Cut backup.');
       if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
-      localStorage.setItem('backlot_save',JSON.stringify(b.game));
-      const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
-      PosterStore.resetCache();
-      await PosterStore.restore(b.posters||{});
-      resetHistory();closeDrawer();render();
-      alert('Backup imported. Custom posters were restored to this browser.');
+      const old=localStorage.getItem('backlot_save');
+      try {
+        localStorage.setItem('backlot_save',JSON.stringify(b.game));
+        const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
+        PosterStore.resetCache();
+        await PosterStore.restore(b.posters||{});
+        const declared=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
+        const absent=await PosterStore.missing(declared);
+        if(absent.length) { const ids=new Set(absent); Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save(); }
+        resetHistory();closeDrawer();render();
+        alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
+      } catch(err) { if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old); if(old)Engine.load();throw err; }
     }catch(e){alert('Backup import failed: '+e.message);}
     finally{input.value='';}
   }

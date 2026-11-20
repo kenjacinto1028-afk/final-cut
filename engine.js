@@ -2,7 +2,7 @@
 // Final Cut — engine.js
 // State, turn loop and all game rules. No DOM access here.
 // Load order: content.js → engine.js → media.js → ui.js
-var SAVE_VERSION = 11;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
+var SAVE_VERSION = 12;   // v9: topic demand, tiered festivals, reputation recruitment, event cadence; v8 (7.1): state.score; v7 (6.3): awards, studio.prestige (6.2 era effects add no state); v6 (6.1): state.events (cooldown, seen); v5 (phase 5): rivals, talent rival contracts, roster morale; v4 (phase 4): market, series, staff, studio.tier, project windows/market; v3 (4.1): finance
 
 var Engine = (function () {
   'use strict';
@@ -89,13 +89,15 @@ var Engine = (function () {
       minProdQuality: 0.4,
       hypeStudioFame: 0.4,
       hypeLeadFame: 0.25,
-      hypeDirectorFame: 0.08,
+      hypeDirectorFame: 0.08, hypeWriterFame: 0.045,
       slipChance: 0.03,
       traitEventShare: 0.4,
       crewSpecialtyMin: 40,
       fameGain: { Hit: 6, Profit: 3, Flop: -1, Won: 4, 'Official selection': 2, Screened: 1 },
       growthCap: 85,
-      eliteSkill: 65, eliteFame: 55, offerRefusalWeeks: 4
+      eliteSkill: 65, eliteFame: 55, offerRefusalWeeks: 4,
+      ensembleQuality: 0.09, specialistQuality: 0.07, ensembleHype: 0.045,
+      backgroundCrewShare: 0.018, backgroundCrewQuality: 1.1
     },
     contracts: {
       exclusiveFame: 20,
@@ -143,10 +145,10 @@ var Engine = (function () {
       episodeCostShare: 0.25,
       feeBase: 0.8, feeScore: 150,
       episodes: [10, 13], maxSeasons: 7, hiatusWeeks: 13,
-      ratingQuality: 0.08, ratingHype: 0.03, seasonFatigue: 0.9,
+      ratingQuality: 0.08, ratingHype: 0.03, seasonFatigue: 0.94,
       bonusThreshold: 8, bonusPerPoint: 0.05,
-      renewAvg: 7, renewLuck: 0.1,
-      renewFeeRaise: 0.15, renewCostRaise: 0.10, qualityDecay: 3
+      renewAvg: 7, renewLuck: 0.10, renewalFloor: 0.07, renewalCeil: 0.93,
+      renewFeeRaise: 0.13, renewCostRaise: 0.10, qualityDecay: 2
     },
     windows: {
       tvrights: { delay: 52, share: 0.04, weeks: 1 },
@@ -259,7 +261,7 @@ var Engine = (function () {
 // ===== SECTION: TUNING_AWARDS =====
   TUNING.awards = {
     ceremonyWeek: 10,
-    nominees: 4, maxPerStudio: 2, minScore: 48,
+    nominees: 4, maxPerStudio: 2, minScore: 52,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
     campaigns: [ { points: 0, share: 0 }, { points: 3, share: 0.03 }, { points: 7, share: 0.08 } ],
@@ -268,7 +270,7 @@ var Engine = (function () {
     selectBuzz: 2, prizeBuzz: 5, buzzMax: 10, selectFame: 1, prizeFame: 3, prizeTalentFame: 2,
     nomFame: 1, winFame: 3, pictureFame: 6, filmFameMax: 10, winCritics: 2,
     talentNomFame: 1, talentWinFame: 4, talentWinSkill: 1,
-    prestigeNom: 1, prestigeWin: 4, prestigePicture: 8, prestigeDecay: 0.85, prestigeMax: 100, prestigeHype: 0.05,
+    prestigeNom: 0.5, prestigeWin: 2, prestigePicture: 5, prestigeDecay: 0.85, prestigeMax: 100, prestigeHype: 0.05,
     keepHistory: 260
   };
 
@@ -358,7 +360,7 @@ var Engine = (function () {
   function gainStudioFame(points) {
     // Fame gains slow as a studio becomes widely known; established studios still progress.
     const before = state.studio.fame;
-    const actual = points > 0 ? points * (1 - before / 112) : points;
+    const actual = points > 0 ? points * Math.pow(Math.max(0.025, 1-before/105),1.42) : points;
     state.studio.fame = clamp(before + actual, 0, 100);
     return Math.round((state.studio.fame - before) * 10) / 10;
   }
@@ -477,6 +479,29 @@ var Engine = (function () {
   }
 
 // ===== SECTION: TALENT =====
+  const RECOGNITION = [
+    { min: 0, name: 'Local Talent' }, { min: 20, name: 'Regional Name' },
+    { min: 40, name: 'National Name' }, { min: 60, name: 'International Name' },
+    { min: 80, name: 'Global Star / Industry Icon' }
+  ];
+  function recognition(t) {
+    const fame = clamp(Number(t && t.fame) || 0, 0, 100);
+    const level = RECOGNITION.filter(x => fame >= x.min).length - 1;
+    const name = level === 4 && t && t.role !== 'actor' ? 'Industry Icon' : level === 4 ? 'Global Star' : RECOGNITION[level].name;
+    return { level, name, fame, homeRegion: t && t.homeRegion || 'northamerica' };
+  }
+  function talentReach(t, region) {
+    const tier = recognition(t).level;
+    if (!region || region === t.homeRegion) return 1;
+    return [0.28, 0.43, 0.62, 0.84, 1][tier];
+  }
+  function talentContribution(t, slot, genre, region) {
+    if (!t) return { quality: 0, hype: 0 };
+    const weight = TUNING.talent.weights[slot] || 0;
+    const quality = Math.round((t.skill - TUNING.talent.emptySkill) * weight + ((t.affinity || []).includes(genre) ? TUNING.talent.affinityBonus : 0));
+    const hypeWeight = { lead: TUNING.talent.hypeLeadFame, director: TUNING.talent.hypeDirectorFame, writer: TUNING.talent.hypeWriterFame, crew: 0 }[slot] || 0;
+    return { quality, hype: Math.round(t.fame * hypeWeight * talentReach(t, region)) };
+  }
   function talentList() { return state.talent; }
   function getTalent(id) { return byId(state.talent, Number(id)); }
   function uniqueName() {
@@ -502,7 +527,8 @@ var Engine = (function () {
     const t = {
       id: state.nextTalentId++, name: uniqueName(), role: role,
       specialty: role === 'crew' ? pick(CONTENT.CREW_SPECIALTIES).id : null,
-      skill: skill, fame: clamp(Math.round(skill * rnd(0, 0.7) - 8), 0, 100), reliability: rint(35, 90),
+      skill: skill, fame: clamp(Math.round(rnd(1, 73) * Math.pow(Math.random(), 0.75)), 0, 100), reliability: rint(35, 90),
+      homeRegion: pick(CONTENT.REGIONS).id, career: { recent: [], trend: 'Newcomer', peakSkill: skill, peakFame: 0, projects: 0, lastActiveWeek: null, plateauUntil: 0 },
       affinity: affinity, traits: traits, credits: [], contract: null, joinedWeek: state.week
     };
     state.talent.push(t);
@@ -534,7 +560,11 @@ var Engine = (function () {
   function effReliability(t) { return clamp(t.reliability + traitMods(t).reliability, 0, 100); }
   function talentFee(t, format) {
     const T = TUNING.talent;
-    const base = T.roleBase[t.role] * Math.pow(0.4 + t.skill / 80 + t.fame / 30, 2);
+    // Independent price drivers: star recognition commands a marketing premium;
+    // craftsmanship commands a separate creative fee. No tier-based multiplier or gate.
+    const craftRate = 0.55 + t.skill / 95;
+    const visibilityRate = 0.6 + t.fame / 58;
+    const base = T.roleBase[t.role] * Math.pow(2.0 * craftRate * visibilityRate, 1.55);
     // Acclaimed studios get a modest negotiation edge; fee remains driven by the artist.
     const repDiscount = state ? Math.min(0.06, (state.studio.fame + state.studio.criticsRep + (state.studio.prestige || 0)) * 0.00018) : 0;
     return round50(base * (T.formatFeeMult[format] || 1) * traitMods(t).feeMult * (1 - dealDiscount()) * (1 - repDiscount));
@@ -561,7 +591,8 @@ var Engine = (function () {
   function salaryOf(t) {
     return Math.round(talentFee(t, 'feature') * TUNING.contracts.salaryYearFactor / TUNING.weeksPerYear);
   }
-  function talentProject(t) { return activeProjects().find(p => SLOTS.some(s => p.cast[s] === t.id)) || null; }
+  function talentProject(t) { return activeProjects().find(p => SLOTS.some(s => p.cast[s] === t.id) ||
+    (p.supporting || []).includes(t.id) || (p.specialists || []).includes(t.id)) || null; }
   function isRoster(t) { return !!(t.contract && t.contract.type === 'exclusive'); }
   function isRivalTalent(t) { return !!(t.contract && t.contract.type === 'rival'); }
   function talentStatus(t) {
@@ -570,28 +601,74 @@ var Engine = (function () {
     if (isRivalTalent(t)) return { label: 'At ' + rivalName(t.contract.rivalId) + (p ? ' · finishing "' + p.title + '"' : ''), projectId: p ? p.id : null, roster: false, rivalId: t.contract.rivalId };
     return p ? { label: 'On "' + p.title + '"', projectId: p.id, roster: false } : { label: 'Available', projectId: null, roster: false };
   }
-  function growTalentSkill(t) {
-    const g = traitMods(t).growth;
-    t.skill = clamp(Math.round(t.skill + rint(1, 3) * g * Math.max(0, 1 - t.skill / TUNING.talent.growthCap)), 0, 100);
+  function careerEvent(t, type, text, filmId) {
+    if (!t || !['director','writer'].includes(t.role)) return;
+    const c=ensureCareer(t);
+    c.timeline=c.timeline||[];
+    if(c.timeline.some(x=>x.week===state.week&&x.type===type&&x.filmId===filmId)) return;
+    c.timeline.push({week:state.week,type,text:String(text).slice(0,180),filmId:filmId||null});
+    c.timeline=c.timeline.slice(-45); // bound storage on long campaigns
+  }
+  function talentCareer(id) {
+    const t=getTalent(id);
+    if(!t || !['director','writer'].includes(t.role))return null;
+    const films=filmHistory().filter(f=>f.creditIds && (f.creditIds[t.role]===t.id));
+    const timeline=(t.career&&t.career.timeline||[]).slice().sort((a,b)=>b.week-a.week);
+    return {id:t.id,role:t.role,recognition:recognition(t),films:films.map(f=>({id:f.id,title:f.title,studio:f.studio,year:f.year,
+      critic:f.critic,audience:f.audience,result:f.result,awards:(f.awards||[]).filter(a=>a.personId===t.id),format:f.format,genre:f.genre})),
+      timeline,awards:(t.awardHistory||[]).slice().reverse(),totalCredits:films.length};
+  }
+  function ensureCareer(t) {
+    if (!t.career) t.career = { recent: [], trend: 'Established', peakSkill: t.skill, peakFame: t.fame, projects: (t.credits || []).length, lastActiveWeek: null, plateauUntil: 0 };
+    if (!Array.isArray(t.career.recent)) t.career.recent = [];
+    if (['director','writer'].includes(t.role) && !Array.isArray(t.career.timeline))t.career.timeline=[];
+    return t.career;
+  }
+  function growTalentSkill(t, p) {
+    const c = ensureCareer(t), before = t.skill;
+    const experience = c.projects || 0, ready = c.plateauUntil <= state.week;
+    const potential = clamp(0.68 - Math.max(0, t.skill - 68) * 0.014 - Math.max(0, experience - 8) * 0.011, 0.08, 0.68);
+    const goodWork = p && p.quality >= 77 ? 0.12 : 0;
+    const breakthrough = p && p.quality >= 82 && Math.random() < 0.07;
+    const learned = ready && Math.random() < (potential + goodWork) ? (breakthrough ? rint(2, 4) : rint(1, 2)) * traitMods(t).growth : 0;
+    t.skill = clamp(Math.round(t.skill + learned), 1, 95);
+    c.projects = experience + 1;
+    c.lastActiveWeek = state.week;
+    c.peakSkill = Math.max(c.peakSkill || before, t.skill);
+    if (t.skill > before) c.trend = breakthrough ? 'Breakthrough' : 'Improving';
+    if(breakthrough && t.skill>before)careerEvent(t,'breakthrough','Creative breakthrough on "'+(p&&p.title||'a production')+'".',p&&('player:'+p.id));
+    else c.trend = t.skill >= 76 ? 'At their peak' : 'Steady';
+    if (experience > 8 && Math.random() < 0.09) { c.plateauUntil = state.week + rint(26, 78); c.trend = 'Plateau'; }
+    c.recent.push({ week: state.week, film: p ? p.title : '', skill: t.skill, fame: t.fame });
+    c.recent = c.recent.slice(-6);
+    return t.skill - before;
   }
   function addTalentFame(p) {
     const gain = TUNING.talent.fameGain[p.result] || 0;
     castTalent(p).forEach(t => {
-      const before = t.fame;
-      t.fame = clamp(Math.round(t.fame + gain * (gain > 0 ? traitMods(t).growth : 1)), 0, 100);
+      const c = ensureCareer(t), before = t.fame;
+      const criticalNotice = p.critic >= 82 && Math.random() < 0.45 ? rint(1, 3) : 0;
+      const weakReception = p.critic < 38 && t.fame > 45 ? 1 : 0;
+      const delta = Math.round(gain * (gain > 0 ? Math.min(1.3, traitMods(t).growth) : 1)) + criticalNotice - weakReception;
+      t.fame = clamp(t.fame + delta, 0, 100);
+      c.peakFame = Math.max(c.peakFame || before, t.fame);
+      if (t.fame - before >= 5) c.trend = 'Rising star';
+      else if (t.fame < before) c.trend = 'Cooling off';
       starMilestone(t, before, p);
       if (isRoster(t) && (p.result === 'Hit' || p.result === 'Won')) t.contract.morale = clamp((t.contract.morale == null ? TUNING.rivals.morale.start : t.contract.morale) + TUNING.rivals.morale.hitBonus, 0, 100);
     });
   }
   function starMilestone(t, before, p) {
     const m = TUNING.news.starFame.filter(n => before < n && t.fame >= n).pop();
-    if (m) addLog(t.name + ' is now a household name (fame ' + t.fame + ') after "' + p.title + '".', 'star');
+    if (m) { addLog(t.name + ' is now a household name (fame ' + t.fame + ') after "' + p.title + '".', 'star');
+      careerEvent(t,'recognition','Recognition reaches fame '+m+' after "'+p.title+'".','player:'+p.id);
+    }
   }
   function talentTick() {
     if (state.week % 13 === 0) {
       const n = rint(TUNING.talent.newPerQuarter[0], TUNING.talent.newPerQuarter[1]);
       for (let i = 0; i < n; i++) makeTalent(randomRole());
-      const free = state.talent.filter(t => !t.contract && !t.credits.length && !talentProject(t));
+      const free = state.talent.filter(t => !t.contract && !t.credits.length && !(t.worldCredits||[]).length && !talentProject(t));
       let extra = state.talent.length - TUNING.talent.maxPool;
       while (extra > 0 && free.length) {
         const t = free.splice(Math.floor(Math.random() * free.length), 1)[0];
@@ -601,9 +678,14 @@ var Engine = (function () {
     }
     if (dateOf().week === 1 && state.week > 0) {
       state.talent.forEach(t => {
-        if (isRoster(t)) return;
-        t.skill = clamp(t.skill + rint(-1, 2), 0, 100);
-        t.fame = clamp(t.fame - 1, 0, 100);
+        const c = ensureCareer(t);
+        const idle = c.lastActiveWeek == null ? state.week - (t.joinedWeek || 0) : state.week - c.lastActiveWeek;
+        if (idle > 104) {
+          const before = t.fame;
+          t.fame = clamp(t.fame - rint(0, idle > 260 ? 3 : 2), 0, 100);
+          if (before > t.fame) c.trend = 'Out of the spotlight';
+          if (idle > 208 && t.skill > 45 && Math.random() < 0.22) { t.skill--; c.trend = 'Seeking a comeback'; }
+        } else if (c.lastActiveWeek != null && idle < 52 && c.trend === 'Out of the spotlight') c.trend = 'Back in action';
       });
     }
   }
@@ -649,6 +731,7 @@ var Engine = (function () {
     t.contract = { type: 'exclusive', startWeek: state.week, endWeek: state.week + q.years * TUNING.weeksPerYear, salary: q.salary, warned: false,
       morale: TUNING.rivals.morale.start, idle: 0, offerWeek: null };
     addLog('Signed ' + t.name + ' to a ' + q.years + '-year exclusive contract (' + fmtMoney(q.salary) + '/week, bonus ' + fmtMoney(q.bonus) + ').', 'contract');
+    careerEvent(t,'contract','Signed with '+state.studio.name+'.');
     becomeExecutive();
     save();
     emit('contract', t);
@@ -664,6 +747,7 @@ var Engine = (function () {
     t.contract.warned = false;
     t.contract.morale = clamp((t.contract.morale == null ? TUNING.rivals.morale.start : t.contract.morale) + TUNING.rivals.morale.signBoost, 0, 100);
     addLog('Renewed ' + t.name + ' for ' + q.years + ' more year' + (q.years > 1 ? 's' : '') + ' (' + fmtMoney(q.salary) + '/week).', 'contract');
+    careerEvent(t,'contract','Contract renewed with '+state.studio.name+'.');
     save();
     emit('contract', t);
     return { ok: true };
@@ -677,6 +761,7 @@ var Engine = (function () {
     state.cash -= sev;
     endExclusive(t);
     addLog('Released ' + t.name + ' from their contract. Severance ' + fmtMoney(sev) + '.', 'contract');
+    careerEvent(t,'contract','Departed '+state.studio.name+'.');
     save();
     emit('contract', t);
     return { ok: true };
@@ -714,8 +799,37 @@ var Engine = (function () {
     });
     return out;
   }
-  function castTalent(p) { return SLOTS.map(s => p.cast[s]).filter(v => typeof v === 'number').map(getTalent).filter(Boolean); }
-  function castCheck(cast, format) {
+  function ensembleCaps(format, tier) {
+    if (format !== 'feature') return {supporting:0,specialists:0,backgroundCrew:0};
+    const support = [0,0,1,2,3,3][tier] || 0;
+    const specialists = [0,0,1,1,2,3][tier] || 0;
+    return {supporting:support,specialists,backgroundCrew: Math.min(2,Math.max(0,tier-1))};
+  }
+  function extraIds(o, key) {
+    return (Array.isArray(o && o[key]) ? o[key] : []).filter(v=>v!==''&&v!==null&&v!=='none')
+      .map(Number).filter(Number.isInteger);
+  }
+  function castTalent(p) {
+    const ids = SLOTS.map(s=>p.cast[s]).concat(extraIds(p,'supporting'),extraIds(p,'specialists'));
+    return [...new Set(ids.filter(v=>typeof v==='number'))].map(getTalent).filter(Boolean);
+  }
+  function entourageContribution(p) {
+    const T=TUNING.talent;
+    const support=extraIds(p,'supporting').map(getTalent).filter(Boolean), crew=extraIds(p,'specialists').map(getTalent).filter(Boolean);
+    const q1=support.reduce((sum,t,i)=>sum+Math.max(0,t.skill-T.emptySkill)*T.ensembleQuality/(1+i*.7),0);
+    const q2=crew.reduce((sum,t,i)=>sum+Math.max(0,t.skill-T.emptySkill)*T.specialistQuality/(1+i*.7),0);
+    const hype=support.reduce((sum,t,i)=>sum+t.fame*T.ensembleHype*talentReach(t,homeRegion())/(1+i*.65),0);
+    const crewPackage=clamp(Number(p.backgroundCrew)||0,0,2);
+    return {quality:Math.round((q1+q2+crewPackage*T.backgroundCrewQuality)*10)/10,hype:Math.round(hype*10)/10};
+  }
+  function castCheck(cast, format, o) {
+    o=o||{};
+    const caps=ensembleCaps(format,o.tier||0), supporting=extraIds(o,'supporting'), specialists=extraIds(o,'specialists');
+    const backgroundCrew=Number(o.backgroundCrew)||0;
+    if(supporting.length>caps.supporting||specialists.length>caps.specialists||!Number.isInteger(backgroundCrew)||backgroundCrew<0||backgroundCrew>caps.backgroundCrew)
+      return {reason:'That budget cannot support this ensemble size.',fees:0};
+    const all=SLOTS.map(s=>cast[s]).filter(v=>typeof v==='number').concat(supporting,specialists);
+    if(new Set(all).size!==all.length) return {reason:'An artist can only fill one role per film.',fees:0};
     let fees = 0;
     for (const s of SLOTS) {
       const v = cast[s];
@@ -733,6 +847,17 @@ var Engine = (function () {
         if (!isRoster(t)) fees += talentFee(t, format);
       }
     }
+    for(const [key,role] of [['supporting','actor'],['specialists','crew']]) {
+      for(const id of extraIds(o,key)) {
+        const t=getTalent(id);
+        if(!t||t.role!==role) return {reason:'Invalid additional '+role+' selection.',fees:0};
+        if(isRivalTalent(t)) return {reason:t.name+' works for a rival studio.',fees:0};
+        if(!isRoster(t)&&recruitmentCooldown(t)) return {reason:t.name+' recently declined a project.',fees:0};
+        const busy=talentProject(t);
+        if(busy) return {reason:t.name+' is busy on "'+busy.title+'".',fees:0};
+        if(!isRoster(t)) fees+=talentFee(t,format);
+      }
+    }
     return { reason: null, fees: fees };
   }
   function slotOptions(slot, format, genre, topic, budget) {
@@ -747,20 +872,29 @@ var Engine = (function () {
       const bp = talentProject(t);
       const busy = isRivalTalent(t) ? rivalName(t.contract.rivalId) : (bp ? bp.title : null);
       const interest = recruitmentInterest(t, format, genre, topic, budget);
-      opts.push({ id: t.id, name: t.name, skill: t.skill, fame: t.fame, fee: isRoster(t) ? 0 : talentFee(t, format), roster: isRoster(t),
+      opts.push({ id: t.id, name: t.name, skill: t.skill, fame: t.fame, recognition: recognition(t).name, homeRegion: t.homeRegion, trend: t.career && t.career.trend,
+        contribution: talentContribution(t, slot, genre, state.studio.homeRegion), fee: isRoster(t) ? 0 : talentFee(t, format), roster: isRoster(t),
         busy: busy || (!isRoster(t) && recruitmentCooldown(t) ? 'Declined for ' + recruitmentCooldown(t) + ' weeks' : null),
         interest: interest.chance, elite: interest.elite, affinity: t.affinity, specialty: t.specialty });
     });
     return opts;
   }
   function castSummary(p) {
-    return SLOTS.map(s => {
+    const base=SLOTS.map(s => {
       const v = p.cast[s];
       let name = 'Local hire', skill = TUNING.talent.emptySkill;
       if (v === 'founder') { name = state.founder.name + ' (founder)'; skill = null; }
       else if (typeof v === 'number') { const t = getTalent(v); name = t ? t.name : (p.castNames[s] || 'Unknown'); skill = t ? t.skill : null; }
-      return { slot: s, label: CONTENT.SLOT_LABELS[s], id: v, name: name, skill: skill };
+      const t = typeof v === 'number' ? getTalent(v) : null;
+      return { slot: s, label: CONTENT.SLOT_LABELS[s], id: v, name, skill, fame: t ? t.fame : 0, recognition: t ? recognition(t).name : 'Local hire' };
     });
+    for (const [key,label] of [['supporting','Supporting actor'],['specialists','Specialist crew']])
+      extraIds(p,key).forEach((id,i)=>{
+        const t=getTalent(id);
+        base.push({slot:key,label:label+' '+(i+1),id,name:t?t.name:'Former collaborator',skill:t?t.skill:null,
+          fame:t?t.fame:null,recognition:t?recognition(t).name:'Not recorded'});
+      });
+    return base;
   }
 
 // ===== SECTION: PROJECTS =====
@@ -794,6 +928,51 @@ var Engine = (function () {
       return {ok:false, reason:'A sequel to this film is already in development.'};
     return {ok:true,parent:parent};
   }
+  // Historical cast links are stable IDs: names alone do not prove a returning artist.
+  // Skill is never penalized by an actor change, only opening awareness.
+  function sequelContinuity(parent, cast, supporting) {
+    const notes = [], parentCast = parent && parent.cast || {};
+    let hype = 0;
+    for (const slot of ['lead','director','writer']) {
+      const original = parentCast[slot], selected = cast && cast[slot];
+      if (original == null || original === '' || (typeof original !== 'number' && original !== 'founder')) continue;
+      const originalArtist = typeof original === 'number' ? getTalent(original) : null;
+      const previous = parent.talentSnapshot && parent.talentSnapshot[slot];
+      const fame = clamp(previous && previous.fame != null ? previous.fame : originalArtist && originalArtist.fame || 0, 0, 100);
+      const returned = original === selected;
+      const weight = slot === 'lead' ? 1 : slot === 'director' ? .45 : .3;
+      const delta = returned ? Math.round((3 + fame * .07) * weight) : -Math.round((3 + fame * .10) * weight);
+      hype += delta;
+      notes.push({slot, originalId: original, originalName: previous && previous.name || originalArtist && originalArtist.name || (original === 'founder' ? state.founder.name : 'Original artist'),
+        selectedId: selected, returned, delta, status: returned ? 'Returning' : selected ? 'Recast' : 'Not attached'});
+    }
+    const oldSupports=extraIds(parent,'supporting'), newSupports=extraIds({supporting},'supporting');
+    oldSupports.slice(0,3).forEach(id=>{
+      const previous=getTalent(id), wasBack=newSupports.includes(id);
+      const fame=previous&&previous.fame||0;
+      const delta=wasBack?1+Math.round(fame*.025):-1-Math.round(fame*.025);
+      hype+=delta;
+      notes.push({slot:'supporting',originalId:id,originalName:previous&&previous.name||'Original supporting performer',selectedId:wasBack?id:null,returned:wasBack,delta,status:wasBack?'Returning':'Not returning'});
+    });
+    return { hype: clamp(hype, -18, 18), notes };
+  }
+  function sequelCastSuggestion(parent) {
+    const result = { director: null, writer: null, lead: null, crew: null };
+    if (!parent) return result;
+    for (const slot of ['director','writer','lead','crew']) {
+      const id = parent.cast && parent.cast[slot];
+      if (id === 'founder' && !isExecutive() && !founderProject()) result[slot] = 'founder';
+      else if (typeof id === 'number') {
+        const t = getTalent(id);
+        if (t && t.role === SLOT_ROLE[slot] && !isRivalTalent(t) && !talentProject(t) && !recruitmentCooldown(t)) result[slot] = id;
+      }
+    }
+    // Available supporting cast can return without occupying the lead slot.
+    result.supporting=(parent.supporting||[]).filter(id=>{
+      const t=getTalent(id);return t&&!isRivalTalent(t)&&!talentProject(t)&&!recruitmentCooldown(t);
+    });
+    return result;
+  }
   function franchiseFilms(fid) { return filmHistory().filter(f=>f.franchiseId===fid).sort((a,b)=>a.releaseWeek-b.releaseWeek); }
   function previewProject(o) {
     const f = TUNING.formats[o.format];
@@ -801,9 +980,11 @@ var Engine = (function () {
     const tier = f.tiers[o.tier];
     if (!tier) return { ok: false, reason: 'Pick a budget tier.' };
     const cast = normalizeCast(o.cast);
-    const cc = castCheck(cast, o.format);
+    const cc = castCheck(cast, o.format, o);
     const weeks = plannedWeeks(o.format);
-    const fees = cc.fees;
+    const backgroundCrew=Number(o.backgroundCrew)||0;
+    const crewPackageCost=Math.round(tier.budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
+    const fees = cc.fees + crewPackageCost;
     const prodBudget = tier.budget - fees;
     const weekly = Math.round(Math.max(prodBudget, 0) / weeks);
     let reason = null;
@@ -821,7 +1002,9 @@ var Engine = (function () {
     else if (fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
     else if (state.cash < fees + weekly * 2) reason = 'Not enough cash for the fees plus the first two weeks.';
     return { ok: !reason, reason: reason, budget: tier.budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
-      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget };
+      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget,
+      continuity: o.sequelOf == null ? null : sequelContinuity(getProject(o.sequelOf),cast,o.supporting),
+      extraFees:cc.fees, crewPackageCost };
   }
   function startProject(o) {
     if (!state || state.gameOver) return { ok: false, reason: 'No game running.' };
@@ -829,9 +1012,10 @@ var Engine = (function () {
     if (!pv.ok) return pv;
     const f = TUNING.formats[o.format];
     const cast = normalizeCast(o.cast);
+    const supporting=extraIds(o,'supporting'), specialists=extraIds(o,'specialists');
     // Chance to secure an elite artist is checked once per offer, before any cost is paid.
     // A declined offer has a short cooldown to avoid unlimited retrying in the same week.
-    for (const t of SLOTS.map(slot => cast[slot]).filter(x => typeof x === 'number').map(getTalent).filter(Boolean)) {
+    for (const t of [...SLOTS.map(slot=>cast[slot]),...supporting,...specialists].filter(x=>typeof x==='number').map(getTalent).filter(Boolean)) {
       if (isRoster(t) || !eliteTalent(t)) continue;
       const offer = recruitmentInterest(t, o.format, o.genre, o.topic, pv.budget);
       if (Math.random() >= offer.chance) {
@@ -850,7 +1034,8 @@ var Engine = (function () {
     const p = {
       id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: o.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
-      cast: cast, castNames: castNames, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
+      cast: cast, castNames: castNames, supporting, specialists,
+      backgroundCrew:Number(o.backgroundCrew)||0, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
       stage: 'development', stageWeeksLeft: f.stages.development, startWeek: state.week,
       sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
@@ -863,6 +1048,10 @@ var Engine = (function () {
       // Recognition improves opening awareness but increasing installments face diminishing novelty.
       p.hypeMod += Math.max(1, 10-Math.max(0,installment-2)*2);
       p.qualityMod -= Math.max(0,installment-2)*1.5;
+      p.franchiseExpectation = Math.max(0,(parent.critic||0)-60) * .06 + Math.max(0,installment-2)*2;
+      p.hypeMod -= Math.max(0,installment-3)*2;
+      p.continuity = sequelContinuity(parent,cast,supporting);
+      p.hypeMod += p.continuity.hype;
     }
     state.cash -= pv.fees;
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
@@ -893,7 +1082,7 @@ var Engine = (function () {
   function reliabilitySlip(p) {
     if (p.lastSlipWeek === state.week) return;
     for (const t of castTalent(p)) {
-      const chance = ((100 - effReliability(t)) / 100 * TUNING.talent.slipChance + traitMods(t).delayChance) / (1 + deptBonus('production'));
+      const chance = ((100 - effReliability(t)) / 100 * TUNING.talent.slipChance + traitMods(t).delayChance) / (1 + deptBonus('production') + (p.backgroundCrew||0)*0.22);
       if (Math.random() < chance) {
         p.stageWeeksLeft++;
         p.lastSlipWeek = state.week;
@@ -958,20 +1147,34 @@ var Engine = (function () {
     return knee + room * (1 - Math.exp(-(v - knee) / room));
   }
   function computeQuality(p) {
-    const T = TUNING.talent;
-    const tier = TUNING.formats[p.format].tiers[p.tier];
-    let q = T.baseQuality;
-    SLOTS.forEach(s => { q += slotSkill(p, s) * T.weights[s]; });
-    q += tier.quality * prodQualityMult(p.budget, p.fees || 0) + topicFit(p) + talentBonus(p, 'quality') + crewEffect(p, 'quality') + deptBonus('development') +
-      eraQuality(p.genre) + p.qualityMod + rnd(-8, 8);
-    return clamp(Math.round(softCap(q, TUNING.softCap.quality)), 1, 100);
+    const T = TUNING.talent, tier = TUNING.formats[p.format].tiers[p.tier];
+    const roles = {};
+    SLOTS.forEach(slot => { roles[slot] = Math.round(slotSkill(p, slot) * T.weights[slot] * 10) / 10; });
+    const production = tier.quality * prodQualityMult(p.budget, p.fees || 0);
+    const ensemble=entourageContribution(p);
+    const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
+    const staff = deptBonus('development'), era = eraQuality(p.genre), decisions = p.qualityMod || 0, variance = rnd(-8, 8);
+    const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
+    const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
+    p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
+    return result;
   }
   function castFame(p, slot) { const v = p.cast[slot]; const t = typeof v === 'number' ? getTalent(v) : null; return t ? t.fame : 0; }
   function computeHype(p) {
-    const T = TUNING.talent;
-    const h = state.studio.fame * T.hypeStudioFame + founderHype() + castFame(p, 'lead') * T.hypeLeadFame + castFame(p, 'director') * T.hypeDirectorFame +
-      talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype + p.hypeMod + rnd(-5, 5);
-    return clamp(Math.round(softCap(h, TUNING.softCap.hype)), 0, 100);
+    const T = TUNING.talent, markets = p.regions && p.regions.length ? p.regions : [homeRegion()];
+    const credits = {};
+    ['lead','director','writer'].forEach(slot => {
+      const t = typeof p.cast[slot] === 'number' ? getTalent(p.cast[slot]) : null;
+      const weight = {lead:T.hypeLeadFame, director:T.hypeDirectorFame, writer:T.hypeWriterFame}[slot];
+      credits[slot] = t ? t.fame * weight * markets.reduce((sum,r)=>sum+talentReach(t,r),0)/markets.length : 0;
+    });
+    const studio = state.studio.fame * T.hypeStudioFame + founderHype();
+    const publicity = talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype;
+    const ensemble=entourageContribution(p);
+    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod + rnd(-5, 5);
+    const result = clamp(Math.round(softCap(raw, TUNING.softCap.hype)), 0, 100);
+    p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, decisions:p.hypeMod, result };
+    return result;
   }
 
 // ===== SECTION: DECISIONS =====
@@ -1129,6 +1332,10 @@ var Engine = (function () {
       addLog(c.result || c.label, 'event', pd.category);
     } else if (p) {
       applyEffects(p, c.effects);
+      if(pd.talentId!=null) {
+        const participant=getTalent(pd.talentId);
+        if(participant)careerEvent(participant,pd.disaster?'controversy':'production',c.result||c.label,'player:'+p.id);
+      }
       p.usedEvents.push(pd.id);
       if (pd.id === 'cut') p.flags.cutDone = true;
       if (pd.id === 'marketing') p.flags.marketingDone = true;
@@ -1240,7 +1447,22 @@ var Engine = (function () {
     else if (critic >= 78 && audience >= 70) { headline = 'Breakout acclaim'; reason = 'Strong filmmaking connected with critics and moviegoers alike.'; }
     else if (critic < 45 && audience < 50) { headline = 'A difficult release'; reason = 'Both critical response and audience enthusiasm were muted.'; }
     else { headline = 'A mixed reception'; reason = 'Audiences and reviewers found different strengths in the finished film.'; }
-    return { headline:headline, text:reason + ' (' + genreName(f.genre) + ', ' + (byId(CONTENT.TOPICS,f.topic)||{name:f.topic||'original story'}).name + ').' };
+    const causes = [];
+    const breakdown=f.qualityBreakdown;
+    if (breakdown) {
+      const roles=breakdown.roles||{};
+      if ((roles.director||0)+(roles.writer||0) >= 33) causes.push('the director and screenplay supplied strong craft');
+      else if ((roles.director||0)+(roles.writer||0)<17) causes.push('limited creative experience held the production back');
+      if (breakdown.story >= 6) causes.push('the topic suited its genre');
+      if (breakdown.story < 0) causes.push('the genre and story were a difficult match');
+      if (breakdown.production<5) causes.push('the production struggled with limited resources');
+      if (breakdown.decisions>=5) causes.push('production decisions elevated the finished film');
+      if (breakdown.decisions<=-4) causes.push('difficult production choices left their mark');
+    }
+    if (f.sequelOf != null && f.installment >= 3) causes.push('franchise fatigue weighed on expectations');
+    if (!causes.length && (f.hype||0)>65 && critic<65) causes.push('publicity outpaced the final reviews');
+    const details = causes.length ? ' Notably, ' + causes.slice(0,2).join(' and ') + '.' : '';
+    return { headline, text:reason+details+' ('+genreName(f.genre)+', '+(byId(CONTENT.TOPICS,f.topic)||{name:f.topic||'original story'}).name+').' };
   }
   function annualReview() {
     const d = dateOf();
@@ -1265,6 +1487,9 @@ var Engine = (function () {
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + rnd(-10, 10)), 1, 100);
     p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
+    if (p.sequelOf != null) {
+      p.audience = clamp(Math.round(p.audience - (p.franchiseExpectation||0) + (p.quality>=78 ? 5 : 0)),1,100);
+    }
     p.review = receptionText(p);
     p.stage = 'release';
     p.releaseWeek = state.week;
@@ -1275,10 +1500,18 @@ var Engine = (function () {
     if (p.cast.director === 'founder') growStat('directing', 2, 4);
     if (p.cast.writer === 'founder') growStat('writing', 1, 3);
     if (isExecutive()) { growStat('business', 1, 2); growStat('charisma', 0, 2); }
+    p.talentSnapshot = {};
+    [['supporting',p.supporting||[]],['specialists',p.specialists||[]]].forEach(([key,ids])=>{
+      p.talentSnapshot[key]=ids.map(id=>getTalent(id)).filter(Boolean).map(t=>({id:t.id,name:t.name,skill:t.skill,fame:t.fame,recognition:recognition(t).name,homeRegion:t.homeRegion}));
+    });
+    SLOTS.forEach(slot => {
+      const t = typeof p.cast[slot] === 'number' ? getTalent(p.cast[slot]) : null;
+      if (t) p.talentSnapshot[slot] = { id:t.id, name:t.name, skill:t.skill, fame:t.fame, recognition:recognition(t).name, homeRegion:t.homeRegion };
+    });
     castTalent(p).forEach(t => {
       if (t.contract && t.contract.type === 'project' && t.contract.projectId === p.id) t.contract = null;
       if (!t.credits.includes(p.id)) t.credits.push(p.id);
-      growTalentSkill(t);
+      growTalentSkill(t, p);
     });
     p.staffSnapshot = Object.keys(state.staff.depts).map(id => ({ department: id, heads: state.staff.depts[id].heads, skill: state.staff.depts[id].skill }));
     if (p.format === 'short') {
@@ -1376,7 +1609,7 @@ var Engine = (function () {
     const ratio = p.gross / p.budget;
     const fame = 3 + clamp(Math.round(ratio * 4), 0, 12);
     p.result = profit < 0 ? 'Flop' : (profit >= p.budget ? 'Hit' : 'Profit');
-    if (p.sequelOf != null && p.result === 'Flop') {
+    if (p.sequelOf != null && (p.result === 'Flop' || p.audience < 48)) {
       p.franchiseBacklash = true;
       gainStudioFame(-1.2);
       addLog('Audiences cool on the '+(p.franchiseName||p.title)+' franchise after a disappointing sequel.', 'release');
@@ -1405,11 +1638,12 @@ var Engine = (function () {
       genre: f.genre, topic: f.topic || null, startWeek: f.startWeek == null ? null : f.startWeek,
       releaseWeek: f.week, year: dateOf(f.week).year, budget: f.budget,
       quality: f.quality, critic: f.critic == null ? null : f.critic,
+      review: f.review || record.review || null,
       hype: f.hype || 0, gross: f.gross || 0, revenue: f.revenue || 0,
       profit: f.stage === 'done' ? f.revenue - f.budget : null,
       audience: f.audience == null ? null : f.audience,
       result: f.result || 'In theaters', stage: f.stage,
-      credits: f.credits || {}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
+      credits: f.credits || {},creditIds:f.creditIds||record.creditIds||{}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
       regionalGross: f.regionalGross || {}, sequelOf:f.sequelOf||null, franchiseId:f.franchiseId||null, installment:f.installment||1, franchiseName:f.franchiseName||null,
       awards: record.awards || [], festResults: record.festResults || [],
       legacy: !f.topic || f.critic == null
@@ -1430,8 +1664,10 @@ var Engine = (function () {
       gross: p.gross || 0, revenue: p.revenue || 0, profit: p.revenue - p.spent,
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
-      credits: names, staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
-      decisions: p.usedEvents || [], legacy: p.releaseWeek != null && !p.regions
+      credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
+      creditIds:Object.assign({},p.cast,{supporting:p.supporting||[],specialists:p.specialists||[]}), staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
+      decisions: p.usedEvents || [], talentSnapshot: p.talentSnapshot || null, qualityBreakdown: p.qualityBreakdown || null, hypeBreakdown: p.hypeBreakdown || null,
+      legacy: p.releaseWeek != null && !p.regions
     };
   }
   function filmHistory() {
@@ -1724,17 +1960,23 @@ var Engine = (function () {
     const id = state.rivals.nextId++;
     const r = { id: id, name: free.length ? pick(free) : 'Studio ' + id, strategy: strategy, baseStrategy: strategy, focus: null, tier: tier, cash: 0,
       region: pick(CONTENT.REGIONS).id, fame: clamp(R.tierFame[tier] + rint(-5, 5) - (seed ? 0 : 10), 0, 100), status: 'active', foundedWeek: state.week, closedWeek: null,
-      films: [], qResult: 0, results: [], tierWeek: state.week, lossStreak: 0, winStreak: 0, negQuarters: 0, releases: 0, nextFilmId: 1 };
+      films: [], signatureGenre: null, marketMemory: {}, comebackCount: 0, qResult: 0, results: [], tierWeek: state.week, lossStreak: 0, winStreak: 0, negQuarters: 0, releases: 0, nextFilmId: 1 };
+    const identity = byId(CONTENT.RIVAL_STRATEGIES, r.baseStrategy || r.strategy);
+    r.signatureGenre = identity && identity.genres.length ? pick(identity.genres) : pick(CONTENT.GENRES).id;
     r.cash = Math.round(rivalBudget(r) * R.startCashBudgets);
     state.rivals.list.push(r);
     if (seed) greenlight(r, rint(4, 30));
     return r;
   }
   function rivalGenre(r) {
+    // A recognizable specialty stays relevant while the studio adapts to the current market.
     if (r.focus && r.focus.length && Math.random() < TUNING.rivals.focusChance) return pick(r.focus);
+    if (r.signatureGenre && Math.random() < (r.strategy === 'prestige' ? 0.55 : 0.34)) return r.signatureGenre;
     if (r.strategy === 'trend') return pick(hottestGenres(3));
     const s = byId(CONTENT.RIVAL_STRATEGIES, r.strategy);
-    return s && s.genres.length ? pick(s.genres) : pick(CONTENT.GENRES).id;
+    const genres = s && s.genres.length ? s.genres.slice() : CONTENT.GENRES.map(g=>g.id);
+    genres.sort((a,b)=>(genreDemand(b)+(r.marketMemory[b]||0)*0.06)-(genreDemand(a)+(r.marketMemory[a]||0)*0.06));
+    return Math.random()<0.45 ? pick(genres.slice(0,Math.min(3,genres.length))) : pick(genres);
   }
   function greenlight(r, lead) {
     const R = TUNING.rivals, S = stratDef(r.strategy);
@@ -1748,14 +1990,21 @@ var Engine = (function () {
       const topics = CONTENT.TOPICS.filter(t => t.good.includes(genre));
       const subject = sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
       const owned = rivalTalent(r);
-      const credits = {};
+      const credits = {}, creditIds={};
       [['director', 'director'], ['writer', 'writer'], ['lead', 'actor'], ['crew', 'crew']].forEach(pair => {
         const people = owned.filter(t => t.role === pair[1]);
-        credits[pair[0]] = people.length ? pick(people).name : pick(CONTENT.FIRST_NAMES) + ' ' + pick(CONTENT.LAST_NAMES);
+        const chosen=people.length?pick(people):null;
+        credits[pair[0]]=chosen?chosen.name:pick(CONTENT.FIRST_NAMES)+' '+pick(CONTENT.LAST_NAMES);
+        if(chosen)creditIds[pair[0]]=chosen.id;
       });
+    // Rival releases carry a supporting role so lead and supporting awards have real competition.
+    const support=owned.filter(t=>t.role==='actor'&&t.id!==creditIds.lead);
+    const supporting=support.length?pick(support):null;
+    credits.supporting=supporting?[supporting.name]:[pick(CONTENT.FIRST_NAMES)+' '+pick(CONTENT.LAST_NAMES)];
+    creditIds.supporting=supporting?[supporting.id]:[];
     const f = { id: r.nextFilmId++, title: sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
-      startWeek: state.week, credits: credits, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
+      startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
       quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
       hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype + (sequelSource ? 7 : 0)), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
@@ -1828,6 +2077,14 @@ var Engine = (function () {
     f.review = receptionText(f);
     f.weeksIn = 0;
     archiveRivalFilm(r, f);
+    for(const role of ['director','writer']){
+      const id=f.creditIds&&f.creditIds[role],t=id==null?null:getTalent(id);
+      if(!t)continue;
+      t.worldCredits=t.worldCredits||[];
+      const filmId='rival:'+r.id+':'+f.id;
+      if(!t.worldCredits.includes(filmId))t.worldCredits.push(filmId);
+      if(f.quality>=84)careerEvent(t,'breakthrough','Notable '+role+' credit on "'+f.title+'" for '+r.name+'.',filmId);
+    }
     f.studioReleasesAtRelease = r.releases;
     r.releases++;
     if (playerPressure(state.week, f.genre, true) > 0 || f.budget >= R.bigBudget * eraScale())
@@ -1858,13 +2115,17 @@ var Engine = (function () {
     const profit = f.revenue - f.budget;
     f.result = profit < 0 ? 'Flop' : (profit >= f.budget ? 'Hit' : 'Profit');
     r.qResult += profit;
+    r.marketMemory = r.marketMemory || {};
+    r.marketMemory[f.genre] = clamp((r.marketMemory[f.genre] || 0) * .75 + (f.result === 'Hit' ? 2 : f.result === 'Profit' ? 0.5 : -1), -4, 4);
+    if (f.result === 'Hit' && f.critic >= 70 && Math.random()<.28) r.signatureGenre=f.genre;
     r.fame = clamp(r.fame + (f.result === 'Hit' ? 4 : f.result === 'Profit' ? 1 : -2), 0, 100);
     archiveRivalFilm(r, f);
     if (f.result === 'Hit' && f.gross >= R.newsGross * eraScale()) addLog(rtx('hit', { rival: r.name, title: f.title, gross: fmtMoney(f.gross) }), 'rival');
     const prevStreak = r.hitStreak || 0;
     r.hitStreak = f.result === 'Hit' ? prevStreak + 1 : 0;
     if (r.hitStreak === 3) addLog(r.name + ' is on a three-film hit streak. Rival exhibitors are taking notice.', 'rival');
-    if (prevStreak >= 3 && f.result === 'Flop') addLog(r.name + ' breaks its winning streak with the disappointing release of  + f.title + .', 'rival');
+    if (prevStreak >= 3 && f.result === 'Flop') addLog(r.name + ' ends a winning streak with the disappointing release of "' + f.title + '".', 'rival');
+    if (r.lossStreak >= 2 && f.result === 'Hit' && r.comebackCount < 5) { r.comebackCount++; addLog(r.name + ' rebounds from a rough stretch with "' + f.title + '".', 'rival'); }
     const done = r.films.filter(x => x.stage === 'done');
     if (done.length > R.keepFilms) r.films.splice(r.films.indexOf(done[0]), 1);
   }
@@ -1926,7 +2187,10 @@ var Engine = (function () {
           addLog(rtx('switchTrend', { rival: r.name, old: stratName(old) }), 'rival');
           emit('rival', r);
         }
-      } else if (r.strategy !== 'trend') r.focus = null;
+      } else if (r.strategy !== 'trend') {
+        const best = Object.keys(r.marketMemory || {}).sort((a,b)=>r.marketMemory[b]-r.marketMemory[a])[0];
+        r.focus = best && r.marketMemory[best] >= 1.2 ? [best,r.signatureGenre].filter(Boolean) : null;
+      }
       if (r.strategy === 'trend' && r.baseStrategy !== 'trend' && r.winStreak >= R.trendRevertQuarters) {
         r.strategy = r.baseStrategy;
         r.focus = null;
@@ -2111,7 +2375,8 @@ var Engine = (function () {
       p.revenue += pilotFee;
       earn(pilotFee);
       const s = { id: state.nextSeriesId++, projectId: p.id, title: p.title, genre: p.genre, topic: p.topic, season: 1, episodes: rint(T.episodes[0], T.episodes[1]), aired: 0,
-        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [], status: 'airing', hiatusLeft: 0, revenue: pilotFee, cost: 0 };
+        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [], status: 'airing', hiatusLeft: 0, revenue: pilotFee, cost: 0,
+        renewalChance: null, ratingsTrend: 0, showMomentum: 0 };
       state.series.push(s);
       state.studio.fame = clamp(state.studio.fame + 2, 0, 100);
       addLog('The network picked up "' + p.title + '": ' + s.episodes + ' episodes at ' + fmtMoney(fee) + ' each (cost ' + fmtMoney(epCost) + '). Pilot fee ' + fmtMoney(pilotFee) + '.', 'tv');
@@ -2133,7 +2398,7 @@ var Engine = (function () {
         return;
       }
       if (s.status !== 'airing') return;
-      const base = (s.quality * T.ratingQuality + s.hype * T.ratingHype) * genreDemand(s.genre) * topicMarket(s.topic).demand * Math.pow(T.seasonFatigue, s.season - 1);
+      const base = (s.quality * T.ratingQuality + s.hype * T.ratingHype) * genreDemand(s.genre) * topicMarket(s.topic).demand * Math.pow(T.seasonFatigue, s.season - 1) * (1 + (s.showMomentum || 0));
       const prev = s.ratings.length ? s.ratings[s.ratings.length - 1] : base;
       const r = clamp(Math.round((prev * 0.6 + base * 0.4) * rnd(0.9, 1.1) * 10) / 10, 0.5, 30);
       s.ratings.push(r);
@@ -2152,29 +2417,38 @@ var Engine = (function () {
   function endSeason(s) {
     const T = TUNING.tv;
     const avg = Math.round(s.ratings.reduce((a, r) => a + r, 0) / s.ratings.length * 10) / 10;
+    const previous = s.seasonAvgs.length ? s.seasonAvgs[s.seasonAvgs.length - 1] : avg;
+    const trend = avg - previous;
     s.seasonAvgs.push(avg);
     s.lastRatings = s.ratings;
     s.ratings = [];
-    const renew = s.season < T.maxSeasons && (avg >= T.renewAvg || Math.random() < T.renewLuck);
+    const margin = s.fee / Math.max(1, s.epCost) - 1;
+    const chance = clamp(0.52 + (avg - T.renewAvg) * 0.085 + trend * 0.06 + margin * 0.04 + T.renewLuck - 0.1 - (s.season - 1) * 0.025, T.renewalFloor, T.renewalCeil);
+    s.renewalChance = Math.round(chance * 100) / 100;
+    s.ratingsTrend = Math.round(trend * 10) / 10;
+    const renew = s.season < T.maxSeasons && Math.random() < chance;
     if (!renew) {
       s.status = 'ended';
       const fame = s.season >= 3 ? 2 : 0;
       state.studio.fame = clamp(state.studio.fame + fame, 0, 100);
-      addLog('"' + s.title + '" ends after ' + s.season + ' season' + (s.season > 1 ? 's' : '') + ' (season average ' + avg + ').', 'tv');
+      addLog('"' + s.title + '" ends after ' + s.season + ' season' + (s.season > 1 ? 's' : '') + ' (season average ' + avg + ', trend ' + (trend>=0?'+':'') + s.ratingsTrend + ').', 'tv');
     } else {
       s.season++;
       s.aired = 0;
       s.episodes = rint(T.episodes[0], T.episodes[1]);
       s.fee = Math.round(s.fee * (1 + T.renewFeeRaise));
       s.epCost = Math.round(s.epCost * (1 + T.renewCostRaise));
-      s.quality = clamp(s.quality - T.qualityDecay, 1, 100);
-      s.hype = clamp(Math.round(avg * 6), 0, 100);
+      const creativeRefresh = avg > T.renewAvg + 2 && Math.random() < 0.22 ? rint(1, 3) : 0;
+      s.quality = clamp(s.quality - T.qualityDecay + creativeRefresh, 1, 100);
+      s.hype = clamp(Math.round(s.hype * .35 + avg * 3.5), 0, 100);
+      s.showMomentum = clamp((s.showMomentum || 0) * .5 + (trend > 1.5 ? 0.06 : trend < -1.5 ? -0.06 : 0), -0.12, 0.12);
       s.status = 'hiatus';
       s.hiatusLeft = T.hiatusWeeks;
       state.studio.fame = clamp(state.studio.fame + 1, 0, 100);
-      addLog('"' + s.title + '" is renewed for season ' + s.season + ' (season average ' + avg + ', new fee ' + fmtMoney(s.fee) + '/episode).', 'tv');
+      addLog('"' + s.title + '" is renewed for season ' + s.season + ' (season average ' + avg + ', ratings trend ' + (trend >= 0 ? '+' : '') + s.ratingsTrend + ', new fee ' + fmtMoney(s.fee) + '/episode).', 'tv');
     }
-    state.stopFlag = true;
+    // Routine renewals belong in the TV page and Studio Wire. Endings and a final-season announcement still pause play.
+    if (!renew || s.season === T.maxSeasons) state.stopFlag = true;
     emit('tv', s);
   }
 
@@ -2310,6 +2584,7 @@ var Engine = (function () {
     Object.keys(state.staff.depts).forEach(id => {
       const d = dept(id);
       if (!d.heads) return;
+      if (state.week % 13 === 0 && d.strikeWeeks <= 0 && d.morale >= 65 && d.skill < S.maxSkill && Math.random() < 0.55) d.skill = Math.min(S.maxSkill, Math.round((d.skill + 0.35) * 100) / 100);
       const target = clamp(55 + (d.payLevel - 1) * 90 - d.grievance, 0, 100);
       d.morale = clamp(Math.round((d.morale + (target - d.morale) * S.moraleRate) * 10) / 10, 0, 100);
       d.grievance = Math.max(0, d.grievance - 0.5);
@@ -2405,9 +2680,14 @@ var Engine = (function () {
     emit('awards', p);
     return { ok: true };
   }
-  function giveTalentAward(t, won) {
+  function giveTalentAward(t, won, award) {
     const A = TUNING.awards;
     t.awards = t.awards || { noms: 0, wins: 0 };
+    t.awardHistory = t.awardHistory || [];
+    if(award&&!t.awardHistory.some(x=>x.year===award.year&&x.cat===award.cat&&x.ceremonyId===award.ceremonyId&&x.filmId===award.filmId))
+      t.awardHistory.push({year:award.year,cat:award.cat,category:award.category,ceremony:award.ceremony,ceremonyId:award.ceremonyId,filmId:award.filmId,film:award.film,role:award.role,won});
+    t.awardHistory=t.awardHistory.slice(-60);
+    careerEvent(t,won?'award':'nomination',(won?'Won ':'Nominated for ')+award.category+' at '+award.ceremony+'.',award.filmId);
     if (won) { t.awards.wins++; t.fame = clamp(t.fame + A.talentWinFame, 0, 100); t.skill = clamp(t.skill + A.talentWinSkill, 0, 100); }
     else { t.awards.noms++; t.fame = clamp(t.fame + A.talentNomFame, 0, 100); }
   }
@@ -2457,14 +2737,14 @@ var Engine = (function () {
           if (kind==='winner') {
             p.buzz=Math.min(A.buzzMax,(p.buzz||0)+A.prizeBuzz);
             gainStudioFame(A.prizeFame+Math.floor(f.tier/3));
-            state.studio.prestige=clamp((state.studio.prestige||0)+Math.ceil(f.tier/2),0,100);
+            state.studio.prestige=clamp((state.studio.prestige||0)+Math.ceil(f.tier/3),0,100);
             castTalent(p).forEach(t=>{t.fame=clamp(t.fame+A.prizeTalentFame,0,100)});
             if (p.format==='short') p.result='Won';
             addLog(atx('festPrize',map)+' ('+f.level+' tier)', 'award');
             state.stopFlag=true;
           } else if (kind==='mention') {
             p.buzz=Math.min(A.buzzMax,(p.buzz||0)+2);
-            gainStudioFame(1);state.studio.prestige=clamp((state.studio.prestige||0)+1,0,100);
+            gainStudioFame(1);state.studio.prestige=clamp((state.studio.prestige||0)+0.5,0,100);
             addLog('"'+p.title+'" earns a Jury Special Mention at '+f.name+'.','award');
           } else if (kind==='selection') {
             p.buzz=Math.min(A.buzzMax,(p.buzz||0)+A.selectBuzz);
@@ -2493,6 +2773,25 @@ var Engine = (function () {
     if (c.id==='independent' && f.format==='feature' && f.budget>350000) return false;
     return true;
   }
+  function awardCandidate(e,cat) {
+    if(!cat.slot)return {name:null,id:null,skill:50,role:null};
+    const role=cat.slot==='lead'||cat.slot==='supporting'?'actor':cat.slot;
+    if(e.p){
+      const p=e.p;
+      const list=cat.slot==='supporting'?extraIds(p,'supporting'):[p.cast[cat.slot]];
+      const selected=list.map(id=>({id,t:typeof id==='number'?getTalent(id):null})).sort((a,b)=>(b.t?b.t.skill:0)-(a.t?a.t.skill:0))[0];
+      if(!selected)return null;
+      if(selected.id==='founder')return {name:state.founder.name,id:'founder',skill:state.founder.stats[cat.slot==='director'?'directing':'writing'],role};
+      if(!selected.t)return null;
+      return {name:selected.t.name,id:selected.t.id,skill:selected.t.skill,role};
+    }
+    const credits=e.f.credits||{}, ids=e.f.creditIds||{};
+    const name=credits[cat.slot], person=Array.isArray(name)?name[0]:name;
+    const ident=Array.isArray(ids[cat.slot])?ids[cat.slot][0]:ids[cat.slot];
+    if(!person)return null;
+    const t=typeof ident==='number'?getTalent(ident):null;
+    return {name:person,id:ident==null?null:ident,skill:t?t.skill:(e.f.quality||50),role};
+  }
   function runCeremony(c) {
     const A=TUNING.awards, year=dateOf().year, covered=year-1;
     if (year < c.startYear || covered < TUNING.startYear) return;
@@ -2517,7 +2816,8 @@ var Engine = (function () {
     const nomineesByProject={}, fameGain={};
     for (const cat of c.categories) {
       const choices=entries.filter(e=> (!cat.format || cat.format===e.f.format) && (!cat.debut || (e.f.studioReleasesAtRelease!=null && e.f.studioReleasesAtRelease<10)))
-        .map(e=>({e:e,score:e.base+(cat.slot && e.p ? (slotSkill(e.p,cat.slot)-50)*A.slotWeight : 0)+rnd(-A.noise,A.noise)}))
+        .map(e=>({e,person:awardCandidate(e,cat)})).filter(x=>x.person!=null)
+        .map(x=>({e:x.e,person:x.person,score:x.e.base+(cat.slot?(x.person.skill-50)*A.slotWeight:0)+rnd(-A.noise,A.noise)}))
         .filter(x=>x.score>=A.minScore || !x.e.p)
         .sort((a,b)=>b.score-a.score);
       const counts={}, nominated=[];
@@ -2527,12 +2827,20 @@ var Engine = (function () {
       const ordered=nominated.map(x=>({x:x,score:x.score+rnd(-A.winNoise,A.winNoise)})).sort((a,b)=>b.score-a.score);
       const victor=ordered[0].x;
       rec.cats.push({id:cat.id,name:cat.name,nominees:ordered.map(o=>({title:o.x.e.title,studio:o.x.e.studio,
-        rivalId:o.x.e.rivalId,projectId:o.x.e.projectId,filmId:o.x.e.filmId,winner:o.x===victor}))});
+        rivalId:o.x.e.rivalId,projectId:o.x.e.projectId,filmId:o.x.e.filmId,
+        personId:o.x.person.id,personName:o.x.person.name,role:o.x.person.role,winner:o.x===victor}))});
       for(const o of ordered){const e=o.x.e,won=o.x===victor;
-        const award={year:year,cat:cat.id,category:cat.name,ceremony:c.name,ceremonyId:c.id,won:won};
+        const award={year:year,cat:cat.id,category:cat.name,ceremony:c.name,ceremonyId:c.id,won,
+          filmId:e.filmId,personId:o.x.person.id,personName:o.x.person.name,role:o.x.person.role};
         if(e.p){const p=e.p;p.awards=p.awards||[];p.awards.push(award);
-          const talent=cat.slot ? [typeof p.cast[cat.slot]==='number'?getTalent(p.cast[cat.slot]):null].filter(Boolean) : castTalent(p);
-          talent.forEach(t=>giveTalentAward(t,won));
+          // Film-only prizes belong to the film. Personal honors go only to the credited actor, director or writer.
+          if(cat.slot && typeof award.personId==='number'){
+            const t=getTalent(award.personId);
+            if(t && ['actor','director','writer'].includes(t.role))giveTalentAward(t,won,Object.assign({film:p.title},award));
+          } else if(cat.slot && award.personId==='founder') {
+            state.founder.awardHistory=state.founder.awardHistory||[];
+            state.founder.awardHistory.push(Object.assign({film:p.title},award));
+          }
           state.studio.prestige=Math.min(A.prestigeMax,state.studio.prestige+(won?(cat.id==='picture'?A.prestigePicture:A.prestigeWin):A.prestigeNom));
           nomineesByProject[p.id]=(nomineesByProject[p.id]||[]).concat(cat.name);
           const points=(nomineesByProject[p.id].length===1?A.nomFame:0)+(won?(cat.id==='picture'?A.pictureFame:A.winFame):0);
@@ -2541,6 +2849,10 @@ var Engine = (function () {
             addLog('"'+p.title+'" wins '+cat.name+' at '+c.name+' '+year+'!','award');}
         }else{
           e.f.awards=e.f.awards||[];e.f.awards.push(award);
+          if(cat.slot && typeof award.personId==='number'){
+            const t=getTalent(award.personId);
+            if(t && ['actor','director','writer'].includes(t.role))giveTalentAward(t,won,Object.assign({film:e.title},award));
+          }
           if(won){const r=getRival(e.rivalId);if(r)r.fame=clamp(r.fame+2,0,100);
             if(cat.id==='picture'||cat.id==='indiefeature'||cat.id==='audiencefilm') addLog(e.studio+' wins '+cat.name+' for "'+e.title+'" at '+c.name+' '+year+'.','award','rivals');}
         }
@@ -2733,7 +3045,8 @@ var Engine = (function () {
     const income = freelance + revenue;
     const costs = TUNING.livingCost + interest + salaries + payroll + overhead + production;
     state.cash += income - costs;
-    state.lastWeek = { income: income, revenue: revenue, costs: costs, interest: interest, salaries: salaries, overhead: overhead, payroll: payroll };
+    state.lastWeek = { income: income, revenue: revenue, costs: costs, interest: interest, salaries: salaries, overhead: overhead, payroll: payroll,
+      production, freelance, living: TUNING.livingCost, margin: income-costs };
     bookWeek({ revenue: revenue, freelance: freelance, production: production, salaries: salaries, payroll: payroll,
       overhead: overhead, interest: interest, living: TUNING.livingCost });
     actives.forEach(p => { if (ACTIVE_STAGES.includes(p.stage)) advanceProject(p); });
@@ -2771,17 +3084,48 @@ var Engine = (function () {
 // ===== SECTION: SAVE_LOAD =====
   const SAVE_KEY = 'backlot_save';
   function storage() { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; } }
+  // Compact repetitive archive keys in long-running saves. The serialized game
+  // remains lossless; older plain-JSON saves and human-readable exports still load.
+  const SAVE_PACK_PREFIX = 'FCP1';
+  const SAVE_PACK_KEYS = /"([^"\\]+)":/g;
+  function encodeSave(obj) {
+    const raw = JSON.stringify(obj);
+    if (raw.length < 400000) return raw;
+    const counts = Object.create(null);
+    raw.replace(SAVE_PACK_KEYS, (match, key) => { counts[key] = (counts[key] || 0) + 1; return match; });
+    const keys = Object.keys(counts).filter(k => counts[k] > 3 && k.length > 2)
+      .sort((a, b) => (counts[b] * (b.length - 1)) - (counts[a] * (a.length - 1)))
+      .slice(0, 256);
+    const lookup = Object.create(null);
+    keys.forEach((key, i) => { lookup[key] = String.fromCharCode(0xE000 + i); });
+    const packed = raw.replace(SAVE_PACK_KEYS, (match, key) =>
+      Object.prototype.hasOwnProperty.call(lookup, key) ? '"' + lookup[key] + '":' : match);
+    const encoded = SAVE_PACK_PREFIX + JSON.stringify(keys) + '\n' + packed;
+    return encoded.length < raw.length ? encoded : raw;
+  }
+  function decodeSave(raw) {
+    if (!raw || !raw.startsWith(SAVE_PACK_PREFIX)) return JSON.parse(raw);
+    const sep = raw.indexOf('\n', SAVE_PACK_PREFIX.length);
+    if (sep === -1) throw new Error('Invalid compact save header');
+    const keys = JSON.parse(raw.slice(SAVE_PACK_PREFIX.length, sep));
+    if (!Array.isArray(keys) || keys.length > 256) throw new Error('Invalid compact save dictionary');
+    const reverse = Object.create(null);
+    keys.forEach((key, i) => { reverse[String.fromCharCode(0xE000 + i)] = key; });
+    const json = raw.slice(sep + 1).replace(SAVE_PACK_KEYS, (match, key) =>
+      Object.prototype.hasOwnProperty.call(reverse, key) ? '"' + reverse[key] + '":' : match);
+    return JSON.parse(json);
+  }
   function save() {
     const ls = storage();
     if (!ls || !state) return false;
-    try { ls.setItem(SAVE_KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+    try { ls.setItem(SAVE_KEY, encodeSave(state)); return true; } catch (e) { return false; }
   }
   function hasSave() { try { const ls = storage(); return !!(ls && ls.getItem(SAVE_KEY)); } catch (e) { return false; } }
   function load() {
     const ls = storage();
     if (!ls) return { ok: false, reason: 'Saving is not available in this browser.' };
     let obj;
-    try { obj = JSON.parse(ls.getItem(SAVE_KEY)); } catch (e) { return { ok: false, reason: 'Save file is damaged.' }; }
+    try { obj = decodeSave(ls.getItem(SAVE_KEY)); } catch (e) { return { ok: false, reason: 'Save file is damaged.' }; }
     if (!obj) return { ok: false, reason: 'No save found.' };
     if (obj.version === 8) {
       if (!obj.market) return { ok: false, reason: 'Save is missing market data.' };
@@ -2818,7 +3162,15 @@ var Engine = (function () {
       obj.campaignId = obj.campaignId || ('migrated-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1e8).toString(36));
       obj.annualReviews = obj.annualReviews || [];
       (obj.projects || []).forEach(p => { if (p.posterCustom == null) p.posterCustom = false; });
-      obj.version = SAVE_VERSION;
+      obj.version = 11;
+    }
+    if (obj.version === 11) {
+      // Upgrade talent without changing original skill, fame, credits or contracts.
+      (obj.talent || []).forEach(t => {
+        t.homeRegion = t.homeRegion || obj.studio.homeRegion || 'northamerica';
+        t.career = t.career || { recent: [], trend: 'Established', peakSkill: t.skill, peakFame: t.fame, projects: (t.credits || []).length, lastActiveWeek: null, plateauUntil: 0 };
+      });
+      obj.version = 12;
     }
     if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'Save is from version ' + obj.version + '; this build uses version ' + SAVE_VERSION + '. Start a new game.' };
     state = obj;
@@ -2841,7 +3193,8 @@ var Engine = (function () {
     TUNING: TUNING, SLOTS: SLOTS,
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
-    startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle,
+    startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
+    sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
     formats: formats, activeProject: activeProject, activeProjects: activeProjects, capacity: capacity, getProject: getProject,
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
     weeklyBurn: weeklyBurn, weeklyProfit: weeklyProfit, weeklySalaries: weeklySalaries,
@@ -2855,7 +3208,7 @@ var Engine = (function () {
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
     talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, traitsOf: traitsOf, effReliability: effReliability,
-    talentStatus: talentStatus, slotOptions: slotOptions, recruitmentInterest: recruitmentInterest, castSummary: castSummary,
+    talentStatus: talentStatus, recognition: recognition, talentReach: talentReach, talentContribution: talentContribution, slotOptions: slotOptions, recruitmentInterest: recruitmentInterest, castSummary: castSummary,talentCareer:talentCareer,
     roster: roster, rosterCap: rosterCap, weeksLeft: weeksLeft, isExpiring: isExpiring, expiringContracts: expiringContracts,
     contractQuote: contractQuote, signExclusive: signExclusive, renewContract: renewContract, releaseContract: releaseContract, severanceOf: severanceOf,
     news: news, newsFilters: newsFilters,

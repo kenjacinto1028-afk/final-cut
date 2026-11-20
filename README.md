@@ -5,6 +5,11 @@ A browser-based movie studio management simulation starting in 1970. Make shorts
 ## Play
 Open **`index.html`** in a modern browser, or publish the repository root using GitHub Pages. No build step required.
 
+## v12 — Current release
+The complete v12 update (A–F) includes independent fame/skill, recognition tiers, growing talent careers, richer productions and rivals, improved TV and financial forecasts, sequel cast continuity, optional expanded ensembles, and **full career filmographies for directors and writers only**. Personal honors belong to credited actors, directors and writers; movie trophies remain attached to films. Large save archives are compacted without losing data.
+
+This is the released game build, not the earlier A–E preview. **No special build step required.** See `docs/CHANGELOG_V12.md`, `docs/IMPACT_REPORT_V12.md`, and `docs/TEST_REPORT_V12.md`.
+
 ## New in v11
 - Regional distribution choices for short films.
 - Film reception and annual studio reviews, with AI rivalry narratives.
@@ -26,4 +31,4 @@ Your ordinary save uses local browser storage. **Custom images stay in your brow
 - `docs/` — architecture, changelogs and tests
 
 ## Tests
-`node tests/regression.js`, `node tests/v10_regression.js`, `node tests/v11_regression.js`. Long-term playtest: `node sim.js careful 1 123`. Full results and limitations: `docs/TEST_REPORT_V11.md`.
+`node tests/v12_smoke.js`, `node tests/v12_batch_f_regression.js`, `node tests/v12_compat_regression.js`, `node tests/v12_compat_v10_regression.js`, `node tests/v12_compat_v11_regression.js`, and `python tests/v12_browser.py`. Long-term playtest: `node sim.js careful 1 123`. Full results and limitations: `docs/TEST_REPORT_V12.md`.

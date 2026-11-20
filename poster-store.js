@@ -69,9 +69,14 @@ var PosterStore = (function () {
     if(cache.has(k))URL.revokeObjectURL(cache.get(k));cache.delete(k);signal();
   }
   function asDataURL(blob) { return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);}); }
+  async function missing(projectIds) {
+    const ids=[];
+    for (const id of projectIds) { if (!await readByKey(key(id))) ids.push(Number(id)); }
+    return ids;
+  }
   async function bundle(projectIds) {
     const posters={};
-    for(const id of projectIds){const b=await readByKey(key(id));if(b)posters[id]=await asDataURL(b);}
+    for(const id of projectIds){const b=await readByKey(key(id));if(!b)throw new Error('Custom poster '+id+' is missing from local storage. Restore it, or choose a generated poster before exporting.');posters[id]=await asDataURL(b);}
     return posters;
   }
   async function restore(posters) {
@@ -84,5 +89,5 @@ var PosterStore = (function () {
   function resetCache() {
     cache.forEach(u=>URL.revokeObjectURL(u));cache.clear();requested.clear();
   }
-  return { url, put, remove, bundle, restore, resetCache };
+  return { url, put, remove, missing, bundle, restore, resetCache };
 })();

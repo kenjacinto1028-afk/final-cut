@@ -18,7 +18,7 @@ function run(stratId, seed, ovr) {
   vm.createContext(ctx); vm.runInContext(SRC, ctx);
   const E = ctx.Engine, C = ctx.CONTENT, T = E.TUNING;
   Object.keys(ovr || {}).forEach(k => { const p = k.split('.'); let o = T; for (let i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = ovr[k]; });
-  E.newGame({ studioName: 'Sim ' + stratId, founderName: 'Bot' });
+  E.newGame({ studioName: 'Sim ' + stratId, founderName: 'Bot', homeRegion: process.env.SIM_REGION || 'northamerica' });
   const st = E.state;
 
   function val(e, p) {
@@ -125,9 +125,18 @@ function run(stratId, seed, ovr) {
     E.nextTurn();
   }
   const sc = st.score || E.scoreInfo();
+  // Opt-in storage verification uses the browser-like 5 MiB per-origin quota.
+  let storedChars = null, savedOkay = null, reloadedOkay = null;
+  if (process.env.SAVE_VERIFY) {
+    const ls = { data: '', setItem(_k, v) { if (v.length > 5 * 1024 * 1024) throw new Error('QuotaExceeded'); this.data = v; }, getItem() { return this.data; }, removeItem() { this.data=''; } };
+    ctx.localStorage = ls;
+    savedOkay = E.save();
+    storedChars = ls.data.length;
+    reloadedOkay = savedOkay && E.load().ok && E.state.filmArchive.rivals.length === st.filmArchive.rivals.length;
+  }
   const feats = st.projects.filter(p => p.format === 'feature');
-  return { strat: stratId, seed: seed, reason: sc.reason, year: sc.year, value: sc.value, parts: sc.parts, counts: sc.counts, profit: sc.profit,
-    saveBytes: Buffer.byteLength(JSON.stringify(st)), archiveBytes: Buffer.byteLength(JSON.stringify(st.filmArchive)), projectsBytes: Buffer.byteLength(JSON.stringify(st.projects)), rivalsBytes: Buffer.byteLength(JSON.stringify(st.rivals)), awardsBytes: Buffer.byteLength(JSON.stringify(st.awards)), archiveCount: (st.filmArchive && st.filmArchive.rivals || []).length, activeRivals: E.activeRivals().length,
+  return { region: process.env.SIM_REGION || 'northamerica', strat: stratId, seed: seed, reason: sc.reason, year: sc.year, value: sc.value, parts: sc.parts, counts: sc.counts, profit: sc.profit,
+    saveBytes: Buffer.byteLength(JSON.stringify(st)), packedSaveChars: storedChars, savedOkay, reloadedOkay, archiveBytes: Buffer.byteLength(JSON.stringify(st.filmArchive)), projectsBytes: Buffer.byteLength(JSON.stringify(st.projects)), rivalsBytes: Buffer.byteLength(JSON.stringify(st.rivals)), awardsBytes: Buffer.byteLength(JSON.stringify(st.awards)), archiveCount: (st.filmArchive && st.filmArchive.rivals || []).length, activeRivals: E.activeRivals().length,
     cash: Math.round(st.cash - st.debt), fame: Math.round(st.studio.fame), crit: Math.round(st.studio.criticsRep), prestige: Math.round(st.studio.prestige || 0), tier: st.studio.tier,
     features: feats.length, shorts: st.projects.length - feats.length, flops: feats.filter(p => p.result === 'Flop').length,
     detail: process.env.DETAIL ? feats.map(p => ({ y: E.dateOf(p.releaseWeek == null ? st.week : p.releaseWeek).year, b: p.budget, q: p.quality, h: p.hype, g: p.gross, rev: p.revenue, sp: p.spent, mk: p.marketingSpend, f: p.fees, r: p.result, m: p.market ? p.market.mult : null, o: p.opening, th: p.revenue - (p.windows||[]).reduce((a,w)=>a+w.paid,0) })) : undefined };

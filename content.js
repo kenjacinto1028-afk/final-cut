@@ -651,7 +651,8 @@ CONTENT.AWARDS = {
     { id: 'picture', name: 'Best Picture', slot: null },
     { id: 'direction', name: 'Best Direction', slot: 'director' },
     { id: 'screenplay', name: 'Best Screenplay', slot: 'writer' },
-    { id: 'performance', name: 'Best Lead Performance', slot: 'lead' }
+    { id: 'performance', name: 'Best Lead Performance', slot: 'lead' },
+    { id: 'supporting', name: 'Best Supporting Performance', slot: 'supporting' }
   ],
   campaigns: [
     { id: 'none', name: 'No campaign' },
@@ -866,6 +867,30 @@ CONTENT.DECISIONS = [
     choices: [
       { label: 'Record again in controlled conditions', effects: { costPct: 0.04, quality: 2 }, result: 'Clean audio saved the performances.' },
       { label: 'Use the authentic street sound', effects: { quality: -1, hype: 1 }, result: 'The scene kept its rough energy.' }
+    ] },
+  { id: 'dev_star_or_script', stage: 'development', text: 'Publicists want a bigger-name cameo in "{title}", but the writer believes that money belongs on the page.',
+    choices: [
+      { label: 'Pay for the cameo', effects: { costPct: 0.08, hype: 5, quality: -1 }, result: 'The name attracted press, but stole focus from the story.' },
+      { label: 'Strengthen the screenplay', effects: { costPct: 0.03, quality: 4, hype: -1 }, result: 'The team put its resources into a stronger script.' },
+      { label: 'Stay within the original plan', effects: {}, result: 'You kept the project on its planned course.' }
+    ] },
+  { id: 'dev_new_voice', stage: 'development', text: 'A lesser-known creative voice offers an unconventional interpretation of "{title}".',
+    choices: [
+      { label: 'Trust the unconventional approach', effects: { quality: 4, hype: -2, weeks: 1 }, result: 'The fresh approach made "{title}" more distinctive.' },
+      { label: 'Keep familiar broad appeal', effects: { hype: 3, quality: -1 }, result: 'The film stayed familiar and easier to market.' },
+      { label: 'Combine both approaches', effects: { quality: 1, hype: 1, costPct: 0.03 }, result: 'The creative team found a compromise.' }
+    ] },
+  { id: 'shoot_celebrity_press', stage: 'shoot', text: 'A cast member of "{title}" draws a crowd of reporters to the set.',
+    choices: [
+      { label: 'Stage a publicity day', effects: { hype: 5, quality: -2 }, result: 'The press loved the access, but filming lost focus.' },
+      { label: 'Protect the performances', effects: { quality: 2, hype: -1 }, result: 'The crew preserved momentum and protected the scenes.' },
+      { label: 'Schedule a small press window', effects: { costPct: 0.02, quality: 1, hype: 2 }, result: 'Publicity was contained to a brief, organized visit.' }
+    ] },
+  { id: 'shoot_performance_take', stage: 'shoot', text: 'An emotionally demanding scene in "{title}" is believable but could become exceptional with another day.',
+    choices: [
+      { label: 'Give the scene another day', effects: { quality: 4, weeks: 1, costPct: 0.03 }, result: 'The additional rehearsal delivered a standout performance.' },
+      { label: 'Preserve the raw first take', effects: { quality: 1, hype: 1 }, result: 'The original performance kept its spontaneous intensity.' },
+      { label: 'Move forward to protect the budget', effects: { costPct: -0.02, quality: -2 }, result: 'The studio stayed on budget but left potential on the table.' }
     ] },
   { id: 'shoot_light', stage: 'shoot', text: 'A sudden change in light makes the planned shot for "{title}" impossible.',
     choices: [
