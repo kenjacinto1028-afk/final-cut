@@ -1,0 +1,20 @@
+name: FinalCut v13.5 verification
+on:
+  push:
+    branches: [fix/production-center-v13-5]
+  pull_request:
+    branches: [main]
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check engine.js && node --check ui.js
+      - run: node tests/v13_5_production_center.js
+      - run: node tests/v13_smoke.js
+      - run: node tests/v13_4_honors.js
+      - run: node tests/v13_compat_regression.js
+      - run: node tests/v13_1_balance.js

@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.3)
+# Final Cut — Current Handoff (v13.5)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -46,3 +46,7 @@ The fullscreen v13.2 tutorial dialog was replaced by a **nonmodal 13-step guide*
 - `Media.uiSound` reuses opt-in synthesized sound effects (default off); the audio volume slider applies to music and sound. New screen transition and cue CSS respects reduced motion.
 - New browser test `tests/year_end_browser.py`, screenshots and reports `docs/CHANGELOG_V13_4.md`, `docs/TEST_REPORT_V13_4.md`.
 - GitHub Pages live-origin storage validation is still outstanding; no economic formulas changed.
+
+
+## v13.5 — Film Production Center
+Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Syndicate/Entertainment Tycoon repository is not a source for this application. `ui.js` adds the Projects-page center and retained detailed archive; `style.css` adds scoped cinematic styling; `engine.js` extends both player and AI theatrical hold and records optional `lastWeekGross`. Save v13, poster storage, tutorial, year-end honors and sound stay compatible. Run `node tests/v13_5_production_center.js` and the suites in `docs/CHANGELOG_V13_5.md`.
