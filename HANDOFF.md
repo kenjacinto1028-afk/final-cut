@@ -25,3 +25,8 @@ Short films can choose region circuits after post-production. Releases track cri
 
 ## Tests and limits
 Run the v13 tests listed in `docs/TEST_REPORT_V13.md`. Previous v12 regression suites are copied under v13-compatible test names, leaving old release tests preserved. Real cross-device IndexedDB behavior requires live-site verification. The v12 and v11 release archives remain preserved separately.
+
+
+## v13.1 corrective update
+
+See `docs/CHANGELOG_V13_1.md` and `docs/TEST_REPORT_V13_1.md`. Corrected randomized studio rankings regression, reduced high-end overhead/taxes, tuned indie recognition/box-office, capped major awards and increased Current Buzz decay. Real-origin poster persistence test requires an unrestricted browser and remains unverified on GitHub Pages.

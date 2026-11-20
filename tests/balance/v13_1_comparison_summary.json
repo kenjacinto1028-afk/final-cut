@@ -1,0 +1,90 @@
+{
+  "baseline": {
+    "campaigns": 20,
+    "reached2031": 19,
+    "reloaded": 20,
+    "avgScore": 839.9,
+    "avgCeremonyWins": 265.9,
+    "avgFestivalPrizes": 188.7,
+    "avgBuzz": 93.2,
+    "buzzRange": [
+      82,
+      98
+    ],
+    "avgCurrentPrestige": 52.1,
+    "scoresByStrategy": {
+      "prestige": {
+        "mean": 896.6,
+        "range": [
+          851,
+          933
+        ]
+      },
+      "blockbuster": {
+        "mean": 777,
+        "range": [
+          415,
+          888
+        ]
+      },
+      "cheap": {
+        "mean": 730,
+        "range": [
+          712,
+          754
+        ]
+      },
+      "careful": {
+        "mean": 956,
+        "range": [
+          944,
+          972
+        ]
+      }
+    }
+  },
+  "tuned": {
+    "campaigns": 20,
+    "reached2031": 20,
+    "reloaded": 20,
+    "avgScore": 873,
+    "avgCeremonyWins": 85.0,
+    "avgFestivalPrizes": 88.5,
+    "avgBuzz": 60.7,
+    "buzzRange": [
+      38,
+      71
+    ],
+    "avgCurrentPrestige": 35.1,
+    "scoresByStrategy": {
+      "prestige": {
+        "mean": 903.6,
+        "range": [
+          899,
+          908
+        ]
+      },
+      "blockbuster": {
+        "mean": 905.6,
+        "range": [
+          894,
+          916
+        ]
+      },
+      "cheap": {
+        "mean": 773,
+        "range": [
+          769,
+          783
+        ]
+      },
+      "careful": {
+        "mean": 909.8,
+        "range": [
+          898,
+          925
+        ]
+      }
+    }
+  }
+}

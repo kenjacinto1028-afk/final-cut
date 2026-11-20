@@ -32,3 +32,8 @@ Your ordinary save uses local browser storage. **Custom images stay in your brow
 
 ## Tests
 `node tests/v13_smoke.js`, `node tests/v13_compat_regression.js`, `node tests/v13_compat_v10_regression.js`, `node tests/v13_compat_v11_regression.js`, `node tests/v13_reputation.js`, `node tests/v13_world.js`, `node tests/v13_legacy.js`, and `python tests/v13_browser.py`. Twenty long seeded scenarios: `python tests/v13_multiseed.py`. Full results: `docs/TEST_REPORT_V13.md`.
+
+
+## v13.1 balance & QA patch
+
+See `docs/CHANGELOG_V13_1.md`, `docs/TEST_REPORT_V13_1.md` and `docs/IMPACT_REPORT_V13_1.md`. Engine save version remains 13 for backwards compatibility.

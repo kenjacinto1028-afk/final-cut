@@ -39,6 +39,17 @@ function run(stratId, seed, ovr) {
       let lvl = S.mkt; const tun = T.marketing;
       while (lvl > 0 && p.budget * tun[lvl].share > st.cash * 0.5) lvl--;
       best = lvl;
+    } else if (pd.id === 'regions' && p) {
+      // Compare portfolio strategies using their *actual distribution choices*,
+      // not the old home-only default that systematically understates the
+      // potential of higher-budget worldwide films.
+      const cushion=st.cash-Math.max(10000,E.weeklyBurn()*16);
+      const ratio=cushion/Math.max(1,p.budget);
+      const isShort=p.format==='short';
+      if(stratId==='blockbuster' && !isShort && ratio>2.2)best=2;
+      else if((stratId==='blockbuster'||stratId==='prestige'||stratId==='careful') && ratio>1.4)best=1;
+      else if(isShort && ratio>2.5 && stratId!=='cheap')best=1;
+      else best=0;
     } else if (pd.id === 'release_date') {
       pd.choices.forEach((c, i) => { const m = /outlook ×([\d.]+)/.exec(c.label); const v = (m ? +m[1] : 0) - ((c.effects && c.effects.weeks) || 0) * 0.01; if (v > bv) { bv = v; best = i; } });
     } else {

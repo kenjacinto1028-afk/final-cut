@@ -30,7 +30,8 @@ var Engine = (function () {
     studioShare: 0.5,
     boxOfficeBase: 0.5,
     boxOfficeRefBudget: 350000,
-    boxOfficeBudgetExp: 0.85,
+    boxOfficeBudgetExp: 0.89,
+    bigFilmAudienceCapPerDoubling: 0.055, smallFilmAudienceLegsBonus: 0.035,
     boxOfficeQualityExp: 1.3,
     boxOfficeLuck: [0.7, 1.3],
     legs: { base: 0.6, perQuality: 0.0025, max: 0.81 },
@@ -50,8 +51,8 @@ var Engine = (function () {
         name: 'Feature film', unlockFame: 15, minTier: 1,
         stages: { development: 6, preproduction: 4, shoot: 6, post: 8 },
         tiers: [
-          { id: 'shoestring', name: 'Shoestring', budget: 40000, quality: 0 },
-          { id: 'low', name: 'Low', budget: 120000, quality: 6 },
+          { id: 'shoestring', name: 'Shoestring', budget: 40000, quality: 2 },
+          { id: 'low', name: 'Low', budget: 120000, quality: 8 },
           { id: 'mid', name: 'Mid', budget: 350000, quality: 12 },
           { id: 'big', name: 'Big', budget: 1000000, quality: 16, minTier: 2 },
           { id: 'blockbuster', name: 'Blockbuster', budget: 3000000, quality: 20, minTier: 3 },
@@ -170,14 +171,14 @@ var Engine = (function () {
         { revenue: 50000,    overhead: 50,   revenueShare: 0,    staff: 0, prodStaff: 0 },
         { revenue: 250000,   overhead: 200,  revenueShare: 0.05, staff: 1, prodStaff: 0 },
         { revenue: 1000000,  overhead: 500,  revenueShare: 0.15, staff: 2, prodStaff: 1 },
-        { revenue: 3000000,  overhead: 1200, revenueShare: 0.30, staff: 4, prodStaff: 1 },
-        { revenue: 8000000,  overhead: 3000, revenueShare: 0.45, staff: 8, prodStaff: 2 }
+        { revenue: 3000000,  overhead: 1500, revenueShare: 0.22, staff: 4, prodStaff: 1 },
+        { revenue: 8000000,  overhead: 4200, revenueShare: 0.32, staff: 8, prodStaff: 2 }
       ],
       trailingQuarters: 4,
       staffPerRoster: 0.5,
       staffPay: 200,
       taxRate: 0.3,
-      taxBrackets: [[0, 0.3], [500000, 0.45], [2000000, 0.6]],
+      taxBrackets: [[0, 0.28], [500000, 0.38], [2000000, 0.48]],
       historyQuarters: 12,
       stopOnQuarter: false
     }
@@ -262,7 +263,8 @@ var Engine = (function () {
   TUNING.awards = {
     ceremonyWeek: 10,
     nominees: 4, maxPerStudio: 2, minScore: 60,
-    goldenWinMin: 98, otherWinMin: 84, criticsWinMin: 92, indieWinMin: 74, audienceWinMin: 87,
+    goldenWinMin: 111, otherWinMin: 104, criticsWinMin: 106, indieWinMin: 92, audienceWinMin: 104,
+    goldenMaxWinsPerStudio: 1, otherMaxWinsPerStudio: 1, festivalWinFloorBonus: 8, festivalMaxWinsPerFilm: 2, festivalMaxStudioWinsPerYear: 2,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
     campaigns: [ { points: 0, share: 0 }, { points: 2, share: 0.03 }, { points: 5, share: 0.08 } ],
@@ -276,7 +278,7 @@ var Engine = (function () {
   };
 
 // ===== SECTION: TUNING_NEWS =====
-  TUNING.reputation = { buzzWeeklyDecay: 0.983, buzzHype: 0.14, prestigeHalfLifeWeeks: 88,
+  TUNING.reputation = { buzzWeeklyDecay: 0.967, buzzHype: 0.14, prestigeHalfLifeWeeks: 88,
     prestigeWindowWeeks: 260, prestigeSoftRef: 205, legacyScore: 0.035 };
   TUNING.news = { starFame: [50, 75, 90], headlines: 5, feedMax: 300 };
 
@@ -286,6 +288,9 @@ var Engine = (function () {
     fame: 2, critics: 0.5, prestige: 0.5,
     win: 6, nom: 2, pictureWin: 6, festPrize: 3, festSelect: 1, awardsScale: 2,
     hit: 8, hitSeasons: 3,
+    // An indie hit earns recognition for excellent returns on a small budget,
+    // without pretending it earned a blockbuster gross or major trophy.
+    indieHitWeight: 4, indieHitMax: 60,
     curve: 0.5,
     leaderboardSize: 20
   };
@@ -390,7 +395,7 @@ var Engine = (function () {
   function currentBuzz(delta) {
     if(!state.reputation) return 0;
     // A well-known studio can stay busy without remaining at maximum public attention forever.
-    const adjusted=delta>0?delta*Math.max(0.5,1-state.reputation.buzz*.0045):delta;
+    const adjusted=delta>0?delta*Math.max(0.4,1-state.reputation.buzz*.005):delta;
     state.reputation.buzz=clamp(Math.round((state.reputation.buzz+adjusted)*10)/10,0,100);
     return state.reputation.buzz;
   }
@@ -1608,7 +1613,10 @@ var Engine = (function () {
       const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
         m.mult * rollout.openingMult * (1 + deptBonus('distribution')) * eraMods().boxOffice;
-      const cap = audienceCap();
+      // Large productions can reach a wider opening audience, but never receive
+      // automatic profitability; their higher budgets and marketing costs remain.
+      const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const cap=audienceCap()*(1+Math.min(.28,budgetMultiple*TUNING.bigFilmAudienceCapPerDoubling));
       p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
         (m.rivals.length ? ', incl. ' + m.rivals.map(r => r.studio + '\'s "' + r.title + '"').join(', ') : '') + ').', 'release');
@@ -1624,7 +1632,11 @@ var Engine = (function () {
     if (p.format === 'short') {
       return p.weeksInRelease < TUNING.festivalWaitWeeks ? 0 : festivalResult(p);
     }
-    const decay = legsDecay(p.quality);
+    // Niche independent films with strong audience response gain longer legs;
+    // poorly received microbudget productions get no subsidy.
+    const indieBonus=p.budget<=120000 && p.audience!=null ?
+      Math.max(0,Math.min(TUNING.smallFilmAudienceLegsBonus,(p.audience-68)*.0018)) : 0;
+    const decay = legsDecay(p.quality)+indieBonus;
     let gross = p.opening * Math.pow(decay, p.weeksInRelease - 1);
     if (p.weeksInRelease > 1) gross /= 1 + TUNING.rivals.holdPenalty * rivalPressure(state.week, p.genre, null, true).weight;
     gross = Math.round(gross);
@@ -1674,7 +1686,7 @@ var Engine = (function () {
     const fame = 3 + clamp(Math.round(ratio * 4), 0, 12);
     p.result = profit < 0 ? 'Flop' : (profit >= p.budget ? 'Hit' : 'Profit');
     if(p.result==='Hit')currentBuzz(7);
-    else if(p.result==='Flop')currentBuzz(-6);
+    else if(p.result==='Flop')currentBuzz(-10-(p.critic<45?3:0));
     if (p.sequelOf != null && (p.result === 'Flop' || p.audience < 48)) {
       p.franchiseBacklash = true;
       gainStudioFame(-1.2);
@@ -2874,10 +2886,22 @@ var Engine = (function () {
       // International and World juries require exceptional work and credible competition;
       // local circuits remain approachable for small independent filmmakers.
       const major = f.tier >= 4;
-      const victoryFloor = f.winner + (f.tier >= 5 ? 6 : major ? 4 : 0);
-      const winner = entries[0].score >= victoryFloor && (!major || entries.length >= 2) ? entries[0] : null;
+      const victoryFloor = f.winner + (f.tier >= 5 ? 6 : major ? 4 : 0) + A.festivalWinFloorBonus;
+      // Two festival wins per film is a rare sweep. Others remain eligible for
+      // Official Selection, mentions, and future independent opportunities.
+      const canWin = e => {
+        const film=e.player||e.rival;
+        const priorWins=(film.festResults||[]).filter(x=>x.kind==='winner');
+        // Festival seasons offer many screenings but only a handful of trophies
+        // to a single studio; apply the same scarcity to rivals and the player.
+        const studioId=e.player?'you':'rival:'+film.rivalId;
+        const studioWins=state.projects.filter(p=>studioId==='you' && (p.festResults||[]).some(x=>x.year===year && x.kind==='winner')).reduce((n,p)=>n+(p.festResults||[]).filter(x=>x.year===year&&x.kind==='winner').length,0) +
+          (state.filmArchive&&state.filmArchive.rivals||[]).reduce((n,f)=>n+((studioId==='rival:'+f.rivalId)?(f.festResults||[]).filter(x=>x.year===year&&x.kind==='winner').length:0),0);
+        return priorWins.length<A.festivalMaxWinsPerFilm && studioWins<A.festivalMaxStudioWinsPerYear;
+      };
+      const winner = (!major || entries.length >= 2) ? entries.find(e=>e.score >= victoryFloor && canWin(e)) || null : null;
       const shortPrize = entries.find(x => (x.player || x.rival).format === 'short' &&
-        x.score >= (major ? Math.max(f.selection + 9, victoryFloor - 3) : f.selection + 5));
+        canWin(x) && x.score >= (major ? Math.max(f.selection + 9, victoryFloor - 3) : f.selection + 5));
       entries.forEach((e,i) => {
         const film = e.player || e.rival, score=e.score;
         let result = 'Not selected', kind = 'rejected';
@@ -2974,7 +2998,7 @@ var Engine = (function () {
         rivalId:null, projectId:p.id, filmId:'player:'+p.id,
         base:ceremonyScore(film,c)+(c.id==='golden'?campaignPoints(p):0)+(p.buzz||0)*.3 };}));
     const rec={ id:c.id, year:year, covered:covered, name:c.name, cats:[] };
-    const nomineesByProject={}, fameGain={};
+    const nomineesByProject={}, fameGain={}, studioWinCounts={};
     for (const cat of c.categories) {
       const choices=entries.filter(e=> (!cat.format || cat.format===e.f.format) && (!cat.debut || (e.f.studioReleasesAtRelease!=null && e.f.studioReleasesAtRelease<10)))
         .map(e=>({e,person:awardCandidate(e,cat)})).filter(x=>x.person!=null)
@@ -2989,7 +3013,12 @@ var Engine = (function () {
       const ordered=nominated.map(x=>({x:x,score:x.score+rnd(-A.winNoise,A.winNoise)})).sort((a,b)=>b.score-a.score);
       // A category can have worthy nominees without an eligible winner.
       const minimum = c.id === 'golden' ? A.goldenWinMin : c.style === 'critics' ? A.criticsWinMin : c.style === 'indie' ? A.indieWinMin : c.style === 'audience' ? A.audienceWinMin : A.otherWinMin;
-      const victor = ordered[0].score >= minimum ? ordered[0].x : null;
+      const limit=c.id==='golden'?A.goldenMaxWinsPerStudio:A.otherMaxWinsPerStudio;
+      // Nomination is still earned on merit; a studio cannot sweep every
+      // trophy at a single ceremony simply by releasing a large slate.
+      const winningSlot=ordered.find(o=>o.score >= minimum && (studioWinCounts[o.x.e.studio]||0)<limit);
+      const victor=winningSlot?winningSlot.x:null;
+      if(victor)studioWinCounts[victor.e.studio]=(studioWinCounts[victor.e.studio]||0)+1;
       rec.cats.push({id:cat.id,name:cat.name,unawarded:!victor,nominees:ordered.map(o=>({title:o.x.e.title,studio:o.x.e.studio,
         rivalId:o.x.e.rivalId,projectId:o.x.e.projectId,filmId:o.x.e.filmId,
         personId:o.x.person.id,personName:o.x.person.name,role:o.x.person.role,winner:o.x===victor}))});
@@ -3206,10 +3235,13 @@ var Engine = (function () {
 // ===== SECTION: SCORE =====
   function stxt(key, map) { return String(CONTENT.SCORE.text[key]).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m)); }
   function scoreCounts() {
-    const c = { wins: 0, noms: 0, picture: 0, festPrizes: 0, festSelections: 0, hits: 0, shows: 0 };
+    const c = { wins: 0, noms: 0, picture: 0, festPrizes: 0, festSelections: 0, hits: 0, indieHits: 0, shows: 0 };
     state.projects.forEach(p => {
       if (p.format === 'pilot') return;
-      if (p.format === 'feature' && p.result === 'Hit') c.hits++;
+      if (p.format === 'feature' && p.result === 'Hit') {
+        c.hits++;
+        if (p.budget <= 120000 && (p.critic || 0) >= 60) c.indieHits++;
+      }
       (p.awards || []).forEach(a => { if (a.won) { c.wins++; if (a.cat === 'picture') c.picture++; } else c.noms++; });
       (p.festResults || []).forEach(f => { if (f.kind === 'selection' || f.result === 'Official selection') c.festSelections++; else if (f.kind === 'winner' || /grand|prize|winner|won/i.test(f.result || '')) c.festPrizes++; else if (f.kind === 'mention') c.festSelections++; });
     });
@@ -3225,7 +3257,7 @@ var Engine = (function () {
       fame: st.fame * S.fame,
       reputation: st.criticsRep * S.critics + (state.reputation ? state.reputation.currentPrestige : (st.prestige || 0)) * S.prestige +
         (state.reputation ? state.reputation.lifetimeLegacy : 0) * TUNING.reputation.legacyScore,
-      hits: S.hit * Math.pow(c.hits + c.shows, S.curve)
+      hits: S.hit * Math.pow(c.hits + c.shows, S.curve) + Math.min(S.indieHitMax,S.indieHitWeight * Math.sqrt(c.indieHits))
     };
     Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k] * 10) / 10; });
     const value = Math.max(0, Math.round(Object.keys(parts).reduce((a, k) => a + parts[k], 0)));
