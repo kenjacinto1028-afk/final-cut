@@ -1,8 +1,9 @@
-# Final Cut v13.3 — Interactive, Expanded Tutorial
-Baseline: published v13.2 (GitHub `main` 225591fedc7f28174702407e2fb68b8c0159291d). Working copy is isolated in this repository. Preserve previous release in `PREVIOUS_RELEASE_STATE.md` and v13.2 ZIP.
+# Final Cut v13.4 — Year-end awards reveal, transitions and audio
+Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a80166f3a5`). Isolated working copy; previous release preserved.
 
-- [x] Inspected v13.2 tutorial/nav/new-project/browser tests; wrote `FinalCut/docs/TUTORIAL_V13_3_DESIGN.md` with nonmodal click-through and acceptance criteria.
-- [x] Implemented 13-step nonmodal click-through tour with contextual highlights, actual sidebar visit auto-advance, manual Open-section CTA, mobile Menu fallback, minimize/resume, Escape/skip/replay; modified `FinalCut/ui.js` and `style.css`; JS syntax passed; business engine untouched.
-- [x] Replaced `FinalCut/tests/tutorial_browser.py`: verified 13-step click-through, navigation auto-advance, editor interaction, minimize, mobile Menu, keyboard Tab/Escape, preview, save/reload and no time/cash effects; 6 JS syntax checks, 8 current Node suites, 7 browser suites passed (local Chromium).
-- [x] Wrote `docs/CHANGELOG_V13_3.md`, `docs/TEST_REPORT_V13_3.md` and updated README/HANDOFF; prepared integrity-checked release ZIP at `/mnt/data/FinalCut_v13_3_2026-11-20.zip`. Library upload will follow as part of release publishing.
-- [x] Published 8 changed source/docs/test files to GitHub `main` commit `0843390888e7e2706543702f966b1e9377311890`; verified remote head, 99-file tree, script load order, changelog and test report. Packaged v13.3 ZIP and uploaded separate source/docs/screenshots to personal Library `/FinalCut/v13.3/`; v13.2 preserved.
+- [x] Inspected `FinalCut/engine.js` annualReview/ceremonies, `ui.js` modal/tutorial and `media.js` WebAudio/FX; wrote `FinalCut/docs/DESIGN_V13_4.md` with recap-only, save, reduced-motion and audio requirements.
+- [x] Added week-52 stop, persisted per-year dismissal, ceremony/festival recap and two-stage year-end popup in `FinalCut/engine.js`, `ui.js`, `index.html`; no extra award grants.
+- [x] Added short screen/decision transitions, ceremony reveal treatment and responsive, reduced-motion-aware styling in `FinalCut/style.css` and `ui.js`.
+- [x] Expanded `FinalCut/media.js` original WebAudio interface cues for navigation/reveal, production/box-office cues, and shared volume; existing SFX toggle stays opt-in.
+- [x] Added `FinalCut/tests/year_end_browser.py`: tested intro/reveal, real recorded rival/player wins and festival honors, no double grants, pending/tour deferral, save/reload, old-save migration, replay, keyboard, responsive and reduced motion/audio. Passed 9 Node gameplay, 8 browser suites, 6 syntax checks; screenshots saved under tests/.
+- [x] Wrote v13.4 changelog/design/test report, updated README/HANDOFF, packaged and integrity-checked `/mnt/data/FinalCut_v13_4_2026-11-20.zip`; published 12 source/test/doc files to GitHub `main` commit `c672427e33cf2d0b293371a690c883581732a967`; final Library/ZIP checkpoint refreshed.
