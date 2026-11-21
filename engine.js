@@ -619,6 +619,7 @@ var Engine = (function () {
       v14:{pitches:[],partnerships:{},rivalry:[],offers:[],classChanges:[],delegation:'ask',ambition:null}
     };
     state.market = initMarket();
+    captureDemandSnapshot();
     state.staff = initStaff();
     seedTalent();
     initRivals();
@@ -3107,6 +3108,31 @@ var Engine = (function () {
     }
     emit('market', mk);
   }
+  // Record true existing market demand, not simulated forecasts. Compact 20-week history.
+  function captureDemandSnapshot(){
+    if(!state||!state.market)return;
+    const m=state.market;if(!Array.isArray(m.demandHistory))m.demandHistory=[];
+    const sample={week:state.week,
+      genres:Object.fromEntries(CONTENT.GENRES.map(g=>[g.id,Math.round(genreDemand(g.id)*1000)/1000])),
+      topics:Object.fromEntries(CONTENT.TOPICS.map(t=>[t.id,Math.round(topicMarket(t.id).demand*1000)/1000]))};
+    const h=m.demandHistory, last=h[h.length-1];
+    if(last&&last.week===state.week)h[h.length-1]=sample;
+    else h.push(sample);
+    if(h.length>20)h.splice(0,h.length-20);
+  }
+  function demandMovers(kind){
+    if(!state||!state.market)return {valid:false,risers:[],fallers:[]};
+    const history=state.market.demandHistory||[],latest=history[history.length-1];
+    const baseline=history.slice().reverse().find(s=>latest&&s.week<=latest.week-8);
+    if(!latest||!baseline)return {valid:false,risers:[],fallers:[],weeks:8};
+    const key=kind==='topics'?'topics':'genres',names=key==='topics'?CONTENT.TOPICS:CONTENT.GENRES;
+    const rows=names.map(x=>({id:x.id,name:x.name,
+      delta:Math.round(((latest[key][x.id]||0)-(baseline[key][x.id]||0))*100),
+      demand:latest[key][x.id]}));
+    return {valid:true,weeks:latest.week-baseline.week,
+      risers:rows.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,3),
+      fallers:rows.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,3)};
+  }
   function marketInfo() {
     const mk = state.market;
     return {
@@ -5003,6 +5029,7 @@ var Engine = (function () {
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
     if(state.week%13===0)v14ClassificationTick();
     v14AmbitionTick();
+    captureDemandSnapshot();
     if (dateOf().week === TUNING.weeksPerYear) annualReview();
     checkBankruptcy();
     // Track actual booked project income, expenses, and release reach; keep
@@ -5330,6 +5357,7 @@ var Engine = (function () {
     }
     if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'Save is from version ' + obj.version + '; this build uses version ' + SAVE_VERSION + '. Start a new game.' };
     state = obj;
+    captureDemandSnapshot(); // Old saves establish a truthful baseline now, never backfill invented trends.
     state.annualReviews = state.annualReviews || [];
     // Existing saves already have historic annual reviews; don't replay those old
     // popups on migration. New games persist dismissed years as they are viewed.
@@ -5384,7 +5412,7 @@ var Engine = (function () {
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
     weeklyBurn: weeklyBurn, weeklyProfit: weeklyProfit, weeklySalaries: weeklySalaries,
     studioSize: studioSize, staffCount: staffCount, weeklyPayroll: weeklyPayroll, officePayroll: officePayroll, weeklyOverhead: weeklyOverhead, quarterToDate: quarterToDate,
-    marketInfo: marketInfo, marketOutlook: marketOutlook,
+    marketInfo: marketInfo, demandMovers:demandMovers, marketOutlook: marketOutlook,
     series: () => state.series, activeSeries: activeSeries, getSeries: getSeries, tvSlotsUsed: tvSlotsUsed, windowName: windowName,
     seriesPlan:seriesPlan,seriesScope:seriesScope,signSeriesSponsor:signSeriesSponsor,declineSeriesSponsor:declineSeriesSponsor,
     seriesFeasibility:seriesFeasibility,
