@@ -1294,7 +1294,12 @@ var Engine = (function () {
       hype+=delta;
       notes.push({slot:'supporting',originalId:id,originalName:previous&&previous.name||'Original supporting performer',selectedId:wasBack?id:null,returned:wasBack,delta,status:wasBack?'Returning':'Not returning'});
     });
-    return { hype: clamp(hype, -18, 18), notes };
+    const fans=filmFollowing(parent);
+    const audienceLift=clamp(Math.round(Math.log10(1+fans.loyal)*1.35-2),0,6);
+    if(audienceLift)notes.push({slot:'fans',originalName:'Existing loyal audience',returned:true,
+      delta:audienceLift,status:'Returning audience'});
+    hype+=audienceLift;
+    return { hype: clamp(hype, -18, 18), notes, returningFans:fans.loyal, audienceLift };
   }
   function sequelCastSuggestion(parent) {
     const result = { director: null, writer: null, lead: null, crew: null };
@@ -1312,6 +1317,41 @@ var Engine = (function () {
       const t=getTalent(id);return t&&!isRivalTalent(t)&&!talentProject(t)&&!recruitmentCooldown(t);
     });
     return result;
+  }
+
+  // Followers are simulated interest, not unique measured admissions.
+  // Derive them from the canonical film record so old saves require no invented history.
+  function filmFollowing(p) {
+    if(!state||!p||p.releaseWeek==null)return {active:0,loyal:0,trend:'Not released',status:'No following'};
+    const reach=p.format==='feature'?filmAdmissions(p):
+      p.format==='short'?shortAudience(p):
+      (Number.isFinite(p.estimatedOnlineViews)?p.estimatedOnlineViews:estimatedTvHouseholds(p));
+    const q=clamp(Number(p.quality)||0,0,100),a=clamp(Number(p.audience)||0,0,100);
+    const qualityFit=clamp((q*.55+a*.45-42)/45,0,1.25);
+    const honor=(p.awards||[]).filter(x=>x.won).length+(p.festResults||[]).filter(x=>x.kind==='winner').length;
+    const awareness=Math.min(25000000,Math.max(0,reach||0))*.14*qualityFit*(1+Math.min(.15,honor*.025));
+    const loyalty=clamp(.11+(q-55)*.005+(a-55)*.0035+Math.min(.1,honor*.018),.06,.52);
+    const loyal0=Math.round(awareness*loyalty);
+    const age=Math.max(0,state.week-p.releaseWeek);
+    const durable=q>=78&&a>=70;
+    const permanent=durable?.72:q>=68?.36:.10;
+    const loyal=Math.round(loyal0*(permanent+(1-permanent)*Math.exp(-age/(durable?650:250))));
+    const casual=Math.max(0,awareness-loyal0);
+    const active=Math.round(loyal+casual*Math.exp(-age/(durable?105:64)));
+    const status=age>=52&&q>=74&&loyal>=3500&&loyal/Math.max(1,active)>.42?
+      'Cult classic':loyal>=8000?'Dedicated following':active>=8000?'Growing following':'Small following';
+    return {active,loyal,trend:age<8?'Building':age>104&&durable?'Enduring':'Gradually cooling',status};
+  }
+  function studioFollowing(){
+    if(!state)return {active:0,loyal:0,trend:'New studio'};
+    const films=(state.projects||[]).filter(p=>p.releaseWeek!=null);
+    const followers=films.map(filmFollowing).sort((a,b)=>b.active-a.active);
+    const loyalty=films.map(filmFollowing).sort((a,b)=>b.loyal-a.loyal);
+    // Shared moviegoers are not simply added twice across every film.
+    const active=Math.round(followers.reduce((n,f,i)=>n+f.active/(1+i*.75),0));
+    const loyal=Math.round(loyalty.reduce((n,f,i)=>n+f.loyal/(1+i*.95),0));
+    return {active:Math.min(active,30000000),loyal:Math.min(loyal,12000000),
+      trend:films.length>0?'Built through studio releases':'New studio'};
   }
   function franchiseFilms(fid) { return filmHistory().filter(f=>f.franchiseId===fid).sort((a,b)=>a.releaseWeek-b.releaseWeek); }
   function previewProject(o) {
@@ -1598,10 +1638,12 @@ var Engine = (function () {
     const studio = state.studio.fame * T.hypeStudioFame + founderHype() + (state.reputation?state.reputation.buzz*TUNING.reputation.buzzHype:0);
     const publicity = talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype;
     const ensemble=entourageContribution(p);
-    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod +
+    const earnedFans=studioFollowing();
+    const studioFanHype=clamp(Math.floor(Math.log10(1+earnedFans.loyal)-3),0,3);
+    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod + studioFanHype +
       (p.dna?(V14_VISIONS[p.dna.vision]?.hype||0):0) + rnd(-5, 5);
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.hype)), 0, 100);
-    p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, decisions:p.hypeMod, result };
+    p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, studioFans:studioFanHype, decisions:p.hypeMod, result };
     return result;
   }
 
@@ -2711,6 +2753,7 @@ var Engine = (function () {
       budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
       pressReviews:(p.pressReviews||[]).slice(),pressHypeDelta:p.pressHypeDelta||0,sponsor:p.sponsor||null,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
+      following:filmFollowing(p),
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
       estimatedHouseholdImpressions:estimatedTvHouseholds(p), estimatedOnlineViews:p.estimatedOnlineViews||null,
       mediaVariant:p.mediaVariant||null,
@@ -5348,6 +5391,7 @@ var Engine = (function () {
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
+    filmFollowing:filmFollowing, studioFollowing:studioFollowing,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
     shortAudience: shortAudience, shortRunRemaining: shortRunRemaining, shortScreeningWeeks:shortScreeningWeeks,
