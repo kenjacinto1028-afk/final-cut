@@ -836,3 +836,15 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .fc-review-rating{color:#d8c7a0;text-align:right;font-variant-numeric:tabular-nums}
 .fc-film-sponsor{padding:10px;border-left:3px solid #9ebbb0}
 @media(max-width:480px){.fc-film-promotion,.fc-film-press{padding:11px}.fc-film-review-list article{grid-template-columns:1fr}.fc-review-rating{text-align:left}}
+
+/* v14.3c — clear real studio releases and market overlap signals. */
+.fc-calendar-legend{border-left:3px solid #8cae9d;padding:9px 11px;color:#c7d9cd;font-size:12px;margin:8px 0 14px}
+.fc-v14-calendar>div.fc-calendar-competition{border-color:#b79c67}
+.fc-v14-calendar-film{margin:8px 0;padding:9px;border-radius:6px;background:#30413d;border:1px solid #536860;min-width:0}
+.fc-v14-calendar-film strong,.fc-v14-calendar-film small,.fc-v14-calendar-film em{display:block;overflow-wrap:anywhere}
+.fc-v14-calendar-film strong{font-size:13px;color:#e9ebdf}
+.fc-v14-calendar-film small{font-size:10px;line-height:1.6;color:#c1cdc4;margin-top:3px}
+.fc-v14-calendar-film em{font-size:10px;font-style:normal;color:#e4ca9b;margin-top:4px}
+.fc-v14-calendar-film button{border:0!important;background:transparent!important;padding:1px!important;color:#dcebdc!important;text-decoration:underline;white-space:normal;text-align:left;font-weight:800;min-height:34px}
+.fc-v14-calendar-film.fc-v14-own{border-color:#6da38c;background:#2f473e}
+.fc-v14-calendar-film.fc-calendar-alert{border-left:3px solid #d2ad75}

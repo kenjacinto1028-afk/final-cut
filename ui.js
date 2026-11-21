@@ -1777,13 +1777,33 @@ var UI = (function () {
     const r=Engine.v14AfterlifeAction(id,kind);setFlash(r.ok?'Catalog decision recorded.':r.reason);render();
   }
   function v14Calendar(){
-    const weeks=Engine.v14ReleaseCalendar();
-    return '<section class="fc-v14-profile-section"><div class="fc-v14-section-heading"><div><small>COMPETITIVE RELEASE PLANNING</small>'+
-      '<h2>Upcoming 12 weeks</h2><p>Real rival film dates and existing market pressure—not fabricated availability.</p></div></div>'+
+    const weeks=Engine.v14ReleaseCalendar(),fmt=f=>nameOf(Engine.formats(),f.format||'feature');
+    return '<section class="fc-v14-profile-section"><div class="fc-v14-section-heading"><div>'+
+      '<small>COMPETITIVE RELEASE PLANNING</small><h2>Upcoming 12 weeks</h2>'+
+      '<p>Highlighted titles are real scheduled releases. Your planned shorts and TV pilots may have <strong>estimated</strong> dates that change with production decisions.</p></div></div>'+
+      '<p class="fc-calendar-legend">Your studio · rival features · genre/story-topic clashes within two weeks. A warning signals audience overlap, not a guaranteed loss.</p>'+
       '<div class="fc-v14-calendar">'+weeks.map(w=>
-        '<div><strong>'+esc(dateLabel(w.week))+'</strong><small>'+esc(w.season)+' · pressure '+w.pressure.toFixed(1)+'</small>'+
-        (w.rivals.length?w.rivals.map(f=>'<p>'+esc(f.studio)+' · '+esc(f.title)+'</p>').join(''):'<p class="muted">No announced rival opening</p>')+
-        (w.mine.length?'<p class="fc-v14-own">'+w.mine.map(f=>esc(f.title)).join(', ')+' · your studio</p>':'')+
+        '<div class="'+(w.rivals.some(f=>f.genreMatches?.length||f.topicMatches?.length)?'fc-calendar-competition':'')+'">'+
+        '<strong>'+esc(dateLabel(w.week))+'</strong>'+
+        '<small>'+esc(w.season)+' · market pressure '+w.pressure.toFixed(1)+'</small>'+
+        (w.mine.length?w.mine.map(f=>
+          '<article class="fc-v14-calendar-film fc-v14-own"><strong>'+
+          '<button type="button" onclick="UI.openProject('+f.id+')">'+esc(f.title)+'</button></strong>'+
+          '<small>'+esc(fmt(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+
+          (f.topic?' / '+esc(nameOf(CONTENT.TOPICS,f.topic)):'')+
+          ' · Your studio · '+esc(f.status)+(f.estimate?' (forecast)':'')+'</small></article>'
+        ).join(''):'')+
+        (w.rivals.length?w.rivals.map(f=>
+          '<article class="fc-v14-calendar-film fc-v14-rival'+
+          (f.genreMatches?.length||f.topicMatches?.length?' fc-calendar-alert':'')+'">'+
+          '<strong class="fc-calendar-title">'+esc(f.title)+'</strong><small>'+esc(f.studio)+
+          ' · Feature film · '+esc(nameOf(CONTENT.GENRES,f.genre))+
+          (f.topic?' / '+esc(nameOf(CONTENT.TOPICS,f.topic)):'')+'</small>'+
+          (f.sameWeek?.length?'<em>Same week as your '+esc(f.sameWeek.join(', '))+'</em>':'')+
+          (f.genreMatches?.length?'<em>Genre overlap: '+esc(f.genreMatches.join(', '))+'</em>':'')+
+          (f.topicMatches?.length?'<em>Story-topic overlap: '+esc(f.topicMatches.join(', '))+'</em>':'')+
+          '</article>'
+        ).join(''):'<p class="muted">No announced rival opening</p>')+
         '</div>').join('')+'</div></section>';
   }
 
