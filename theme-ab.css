@@ -818,3 +818,21 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .fc-custom-poster-loading{display:grid;gap:8px;align-content:center;background:#293737;border:1px dashed #70887b;min-height:100px;max-width:200px;padding:15px;font-size:12px;color:#e4ebdf}
 .fc-custom-poster-loading small{font-size:10px;color:#b2c2b9}
 @media(max-width:530px){.fc-filmhub-checklist li{grid-template-columns:1fr;gap:3px}.fc-filmhub-open button{width:100%}}
+
+/* v14.3b — optional one-time promotion, sponsor accountability and tiered critic coverage. */
+.fc-film-promotion,.fc-film-press{background:#243230;border:1px solid #546c60;border-radius:8px;padding:14px 16px;margin:15px 0;color:#e7ede6}
+.fc-film-promotion h3,.fc-film-press h3{font:normal 19px Georgia,Cambria,serif;margin:8px 0 10px;color:#e9e3d6}
+.fc-film-promotion p,.fc-film-press p{font-size:12px;line-height:1.6;margin:6px 0 10px}
+.fc-film-promotion small,.fc-film-press small{font-size:10px;color:#b5cec2}
+.fc-film-promotion .fc-v14-release-options>div{padding:10px;background:#30413c;border:1px solid #587367;border-radius:6px;min-width:0}
+.fc-film-promotion .fc-v14-release-options>div>strong{display:block;margin-bottom:6px}
+.fc-film-promotion button{min-height:42px;white-space:normal}
+.fc-sponsor-offer{padding:13px;margin-top:9px;border:1px solid #6c846e;background:#304139;border-radius:8px}
+.fc-sponsor-offer .actions{display:flex;flex-wrap:wrap;gap:8px}
+.fc-film-review-list{display:grid;gap:9px;margin:11px 0}
+.fc-film-review-list article{background:#2d3d3b;border:1px solid #506b60;border-radius:7px;padding:11px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 10px}
+.fc-film-review-list article small{display:block;margin-top:3px}
+.fc-film-review-list article p{grid-column:1/-1;margin:4px 0 0;font-size:12px}
+.fc-review-rating{color:#d8c7a0;text-align:right;font-variant-numeric:tabular-nums}
+.fc-film-sponsor{padding:10px;border-left:3px solid #9ebbb0}
+@media(max-width:480px){.fc-film-promotion,.fc-film-press{padding:11px}.fc-film-review-list article{grid-template-columns:1fr}.fc-review-rating{text-align:left}}

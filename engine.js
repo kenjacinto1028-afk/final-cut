@@ -1929,6 +1929,138 @@ var Engine = (function () {
     save();emit('release_response',p);return {ok:true,cost:q.cost};
   }
 
+  // v14.3b — one bounded pre-release film promotion. Existing feature
+  // marketing, publicity pushes and opening strategies remain independent,
+  // fully accounted decisions rather than an unlimited extra hype faucet.
+  const FILM_PROMOTIONS={
+    local:{name:'Local press & screenings',share:.018,minimum:55,hype:3,
+      description:'Small local campaign. Low cost and restrained awareness gain.'},
+    targeted:{name:'Target genre audiences',share:.048,minimum:110,hype:5,
+      description:'Reach a more receptive genre audience, with a larger cost.'},
+    broad:{name:'Broad preview campaign',share:.092,minimum:190,hype:8,
+      description:'A wider audience hears about the film, but spending may not pay back.'}
+  };
+  function filmPromotionQuote(id,kind){
+    const p=getProject(Number(id)),plan=FILM_PROMOTIONS[kind];
+    if(!p||!plan)return {ok:false,reason:'Select an existing film and promotion level.'};
+    if(!state||state.gameOver||p.releaseWeek!=null||p.stage==='done')
+      return {ok:false,reason:'Pre-release film promotion closes when the film premieres.'};
+    if(p.promotionCampaign)return {ok:false,reason:'This film has already used its one optional pre-release campaign.'};
+    const cost=Math.max(plan.minimum,Math.round(p.budget*plan.share/5)*5);
+    if((p.marketingSpend||0)+cost>p.budget*.55)
+      return {ok:false,reason:'Existing marketing spending has already reached this film’s planned budget limit.'};
+    if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for this campaign.',cost};
+    return {ok:true,kind,name:plan.name,cost,hypeLift:plan.hype,
+      description:plan.description+' Release hype varies with other cast, script, marketing and market factors.'};
+  }
+  function filmPromote(id,kind){
+    const q=filmPromotionQuote(id,kind);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    state.cash-=q.cost;state.finance.q.production+=q.cost;
+    p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+    p.hypeMod=clamp((p.hypeMod||0)+q.hypeLift,-80,80);
+    p.promotionCampaign={kind:q.kind,week:state.week,cost:q.cost,hypeLift:q.hypeLift};
+    recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
+    filmStory(p,'promotion',q.name+' cost '+fmtMoney(q.cost)+
+      ' and may improve opening awareness without guaranteeing revenue.');
+    addLog('Pre-release campaign for "'+p.title+'": '+q.name+
+      ', spending '+fmtMoney(q.cost)+'.','release');
+    save();emit('film_promotion',p);return {ok:true,cost:q.cost};
+  }
+
+  // Fictional sponsor offers are determined by real fame, CURRENT attention
+  // and prestige. No initial offers, no retries within the same film and no
+  // paid placement that can recur indefinitely. Rejection has no penalty.
+  const FILM_SPONSORS=[
+    {name:'Harbor Coffee Cooperative',genres:['drama','comedy','romance','documentary'],brand:'Neighborhood café'},
+    {name:'Northline Outdoor Supply',genres:['action','adventure','thriller','western'],brand:'Outdoor apparel'},
+    {name:'Silver Dial Audio',genres:['music','comedy','sci-fi','sciencefiction'],brand:'Consumer sound equipment'},
+    {name:'Meridian Travel Bureau',genres:['adventure','drama','comedy','romance'],brand:'Regional travel operator'},
+    {name:'Crescent Clockworks',genres:['drama','mystery','thriller','documentary'],brand:'Heritage timepieces'},
+    {name:'Blue Lantern Publishing',genres:['fantasy','sci-fi','drama','mystery'],brand:'Independent publisher'}
+  ];
+  function filmSponsorQuote(id){
+    const p=getProject(Number(id));
+    if(!p||!state||state.gameOver)return {ok:false,reason:'Select an active studio film.'};
+    if(p.sponsor)return {ok:false,reason:'A sponsor has already partnered with this film.'};
+    if(p.sponsorDeclined)return {ok:false,reason:'The sponsorship offer was declined for this project.'};
+    if(p.releaseWeek!=null||p.stage==='done')return {ok:false,reason:'Sponsors must be contracted before a film premieres.'};
+    const r=state.reputation||{buzz:0,currentPrestige:0},fame=state.studio.fame||0;
+    if(fame<18||(r.buzz||0)<9&&(r.currentPrestige||0)<8)
+      return {ok:false,reason:'No sponsor approaches yet. Build Lifetime Fame 18+ and current Buzz 9+ or Prestige 8+ through successful films.'};
+    const tier=fame>=72&&(r.currentPrestige||0)>=28?3:
+      fame>=43&&(r.buzz||0)>=17?2:1;
+    const source=FILM_SPONSORS[(p.id+String(p.genre||'').length+tier)%FILM_SPONSORS.length];
+    const fit=source.genres.includes(p.genre);
+    const amount=Math.max(50,Math.round(Math.min(p.budget*(.024+tier*.011),tier*40000)/25)*25);
+    const hypeLift=fit?Math.min(4,tier+1):1;
+    const criticRisk=Math.min(5,(fit?0:2)+Math.max(1,tier-1));
+    return {ok:true,name:source.name,brand:source.brand,tier,
+      tierName:['','Local partner','Regional partner','National partner'][tier],
+      fit,upfront:amount,hypeLift,criticRisk,expires:'At premiere',
+      description:source.brand+' brand placement. '+(fit?
+        'Genre fit is credible, but the commercial tie may still influence reviewers.':
+        'Genre mismatch is visible to audiences and increases the risk of critical backlash.')+
+        ' Cash and publicity are real; artistic and critical tradeoffs are not guaranteed to cancel out.'};
+  }
+  function acceptFilmSponsor(id){
+    const q=filmSponsorQuote(id);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    p.sponsor={name:q.name,brand:q.brand,tier:q.tier,fit:q.fit,
+      upfront:q.upfront,hypeLift:q.hypeLift,criticRisk:q.criticRisk,week:state.week};
+    earn(q.upfront);p.revenue=(p.revenue||0)+q.upfront;
+    p.hypeMod=clamp((p.hypeMod||0)+q.hypeLift,-80,80);
+    recordProjectPulse(p,state.week,0,q.upfront,0,p.stage,0);
+    filmStory(p,'sponsor',q.name+' provided '+fmtMoney(q.upfront)+
+      ' for visible brand placement before the premiere.');
+    addLog(q.name+' partnered on "'+p.title+'", paying '+fmtMoney(q.upfront)+
+      '. Possible critic penalty: up to '+q.criticRisk+' points.','studio');
+    save();emit('film_sponsor',p);return {ok:true,upfront:q.upfront};
+  }
+  function declineFilmSponsor(id){
+    const q=filmSponsorQuote(id);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    p.sponsorDeclined=true;
+    filmStory(p,'sponsor','Declined a commercial placement to retain independent creative control.');
+    save();emit('film_sponsor_declined',p);return {ok:true};
+  }
+
+  // Persist short original opinions. These are fictional in-world publications,
+  // never real ratings or invented reviews for old already-released saves.
+  const CRITIC_TIERS=[
+    [['Mira Cole','The Local Reels'],['Hugo Vale','Neighborhood Film Notes'],['Anya Roe','The Weekly Screen']],
+    [['Felix Grant','Regional Film Ledger'],['Nina Porter','The City Review'],['Elias North','Midlands Picture Journal']],
+    [['Celeste Wynn','National Screen'],['Theo Maren','Critics Forum'],['Imani Wells','The Picture Gazette']],
+    [['Adrienne Solis','World Film Review'],['Noel Quinn','International Cinema Letter'],['Sasha Trent','The Global Screen']]
+  ];
+  function criticCoverage(p){
+    const fame=state.studio.fame||0,r=state.reputation||{buzz:0,currentPrestige:0};
+    const standing=fame*.55+(r.buzz||0)*.25+(r.currentPrestige||0)*.30;
+    const maxTier=standing>=67?4:standing>=41?3:standing>=22?2:1;
+    const count=maxTier===1?(p.critic>=75?2:1):maxTier===2?2:maxTier===3?3:4;
+    const seed=(p.id*211+(p.title||'').split('').reduce((s,c)=>s+c.charCodeAt(0),0)+Math.round((p.critic||0)*7))>>>0;
+    const textGood=['A confident story with memorable detail.','The filmmaking shows assured character work.','Its dramatic choices earn their impact.','An engaging picture with a clear identity.'];
+    const textMixed=['A worthwhile idea with uneven execution.','There is craft here, though the pacing wanders.','The film has moments, but never fully settles.','Promising material meets uncertain direction.'];
+    const textPoor=['The story struggles to find its footing.','Ambition exceeds the resources on screen.','The cast cannot overcome a thin narrative.','A hesitant release with little momentum.'];
+    const out=[];
+    for(let i=0;i<count;i++){
+      let tier=Math.min(maxTier,1+i);
+      // A genuinely outstanding indie can draw a rare elite visitor.
+      if(maxTier===1&&p.critic>=92&&(seed%9===0)&&i===count-1)tier=3;
+      const n=(seed+i*71)%(CRITIC_TIERS[tier-1].length),source=CRITIC_TIERS[tier-1][n];
+      const noise=((seed+i*43)%23)-11;
+      const rating=clamp(Math.round(p.critic+noise),5,100);
+      const lines=rating>=73?textGood:rating<46?textPoor:textMixed;
+      const text=lines[(seed+i*13)%lines.length];
+      out.push({name:source[0],publication:source[1],tier,score:rating,
+        stars:Math.round(rating/10)/2,text,week:state.week});
+    }
+    return out;
+  }
+  function criticPublicityDelta(reviews){
+    const impression=reviews.reduce((n,r)=>n+(r.score>=72?r.tier:r.score<=45?-r.tier:0),0);
+    return clamp(Math.round(impression/2),-6,6);
+  }
   function release(p) {
     const g = byId(CONTENT.GENRES, p.genre) || { audience: 1, critics: 0 };
     const st = state.studio;
@@ -1940,7 +2072,13 @@ var Engine = (function () {
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
-      (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10)), 1, 100);
+      (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10) -
+      (p.sponsor?.criticRisk||0)), 1, 100);
+    // Reviews change publicity, not the underlying quality or guaranteed award
+    // outcome. Publication tiers affect reach, never the score the critic gives.
+    p.pressReviews=criticCoverage(p);
+    p.pressHypeDelta=criticPublicityDelta(p.pressReviews);
+    p.hype=clamp(p.hype+p.pressHypeDelta,0,100);
     p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
     if (p.sequelOf != null) {
       p.audience = clamp(Math.round(p.audience - (p.franchiseExpectation||0) + (p.quality>=78 ? 5 : 0)),1,100);
@@ -2354,6 +2492,7 @@ var Engine = (function () {
       title: p.title, genre: p.genre, topic: p.topic, startWeek: p.startWeek,
       releaseWeek: p.releaseWeek, year: dateOf(p.releaseWeek).year,
       budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
+      pressReviews:(p.pressReviews||[]).slice(),pressHypeDelta:p.pressHypeDelta||0,sponsor:p.sponsor||null,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
       estimatedHouseholdImpressions:estimatedTvHouseholds(p),
@@ -4759,6 +4898,8 @@ var Engine = (function () {
     shortPostReleaseQuote:shortPostReleaseQuote,shortPostReleaseAction:shortPostReleaseAction,
     estimatedTvHouseholds:estimatedTvHouseholds, householdImpressionsForRating:householdImpressionsForRating,
     estimatedTicketPrice: estimatedTicketPrice, releasePushQuote: releasePushQuote, pushRelease: pushRelease,
+    filmPromotionOptions:()=>FILM_PROMOTIONS,filmPromotionQuote:filmPromotionQuote,filmPromote:filmPromote,
+    filmSponsorQuote:filmSponsorQuote,acceptFilmSponsor:acceptFilmSponsor,declineFilmSponsor:declineFilmSponsor,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
