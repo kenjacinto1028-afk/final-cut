@@ -3765,6 +3765,27 @@ var Engine = (function () {
     }
     emit('tv', p);
   }
+  function seriesFeasibility(id){
+    const s=typeof id==='object'?id:getSeries(id);
+    if(!s)return null;
+    const episodes=Math.max(0,(s.episodes||0)-(s.aired||0));
+    const cost=Math.max(0,(s.epCost||0)*episodes);
+    const earned=(s.fee||0)*episodes;
+    const guaranteed=s.sponsor&&s.sponsor.season===s.season?
+      (s.sponsor.perEpisode||0)*episodes:0;
+    // Unsigned offers are never counted as guaranteed income.
+    const margin=earned+guaranteed-cost;
+    const cash=state.cash;
+    const firstWeek=(s.epCost||0)+TUNING.livingCost+weeklySalaries()+weeklyPayroll()+weeklyOverhead();
+    const risk=margin<0?'Underfunded':cash<firstWeek?'Lean but achievable':'Comfortable';
+    return {season:s.season,episodes,productionNeed:cost,contractedRevenue:earned,
+      guaranteedSponsorship:guaranteed,uncommittedOffers:s.sponsorOffer?s.sponsorOffer.perEpisode:0,
+      projectedDirectMargin:margin,firstWeekCashNeed:firstWeek,
+      status:risk,scope:s.scope||'standard',starDemand:s.starDemand||1,
+      note:margin<0?'Contract income does not cover remaining episode costs; sponsor proposals are not guaranteed.':
+        cash<firstWeek?'Studio cash is thin for the next episode plus weekly obligations.':
+          'Current booked episode income can support scheduled production before major disruptions.'};
+  }
   function seriesPlan(id,kind,episodes){
     const s=getSeries(id);
     if(!s||!s.flexibleSeries||s.status==='ended')return {ok:false,reason:'Only active flexible-budget series can change their next-season plan.'};
@@ -5256,6 +5277,7 @@ var Engine = (function () {
     marketInfo: marketInfo, marketOutlook: marketOutlook,
     series: () => state.series, activeSeries: activeSeries, getSeries: getSeries, tvSlotsUsed: tvSlotsUsed, windowName: windowName,
     seriesPlan:seriesPlan,seriesScope:seriesScope,signSeriesSponsor:signSeriesSponsor,declineSeriesSponsor:declineSeriesSponsor,
+    seriesFeasibility:seriesFeasibility,
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
