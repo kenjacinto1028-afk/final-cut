@@ -136,6 +136,7 @@
   .fc-wire-filters button,.fc-wire-more button{min-height:42px}
 
   /* Save library, dialogs, drawer and large tables must fit device width. */
+  #app.start .fc-mobile-header{display:none}
   .start #content{display:block;min-height:100dvh;padding:0}
   .start #main{width:100%;max-width:none;min-height:100dvh;margin:0;
     padding:clamp(26px,6vw,42px) 20px calc(30px + env(safe-area-inset-bottom));
