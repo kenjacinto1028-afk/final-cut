@@ -109,6 +109,7 @@ try:
       page.evaluate("UI.go('saves')")
       page.locator(".fc-save-import input").set_input_files(str(exported))
       page.wait_for_function("SaveSlots.list().slots.length===4")
+      page.locator(".fc-game-dialog [data-yes]").click()
       imported=page.evaluate("SaveSlots.list().slots.find(s=>s.active)")
       assert imported["campaignId"]!=original_campaign
       assert page.evaluate("Engine.getProject(%s).posterCustom"%project_id)==True
