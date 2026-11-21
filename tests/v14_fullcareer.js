@@ -40,9 +40,18 @@ for(const [idx,spec] of strategies.entries()){
      const fmt=idx===0?'short':week%3===0?'short':'feature';
      const title='Film '+idx+'-'+week,genre=idx===2?'horror':idx===1?'comedy':'drama';
      const topic=idx===2?'haunted':idx===1?'roadtrip':'smalltown';
+     const budget=E.TUNING.formats[fmt].tiers[0].budget;
+     function hired(role,fraction){
+       return E.slotOptions(role,fmt,genre,topic,budget).filter(o=>
+         Number.isInteger(o.id)&&!o.busy&&(o.roster||(o.fee||0)<=budget*fraction))
+         .sort((a,b)=>(b.skill||0)-(a.skill||0))[0]?.id||'';
+     }
+     const cast=idx===0?{director:'founder',writer:'founder',lead:'',crew:''}:
+       {director:hired('director',.14),writer:hired('writer',.10),
+        lead:hired('lead',.18),crew:hired('crew',.08)};
      const opts={title,format:fmt,tier:0,genre,topic,
        vision:spec.vision,releasePosition:idx===0?'prestige':idx===1?'wide':'targeted',
-       cast:{director:idx===0?'founder':'',writer:idx===0?'founder':'',lead:'',crew:''}};
+       cast};
      attemptedLaunches++;
      const r=E.startProject(opts);if(r.ok)started++;else rejected[r.reason||'unknown']=(rejected[r.reason||'unknown']||0)+1;
    }
