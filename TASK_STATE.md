@@ -111,3 +111,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Expanded to 26 chapter-labeled steps in ui.js covering script acquisition/Film DNA, creative dilemmas, sequels, rival release calendar, audience reach, afterlife, studio identity/ambitions, v14.1 balance and v14.2 save slots/backups. Added an optional shortcut for returning players and reduced-motion-aware targeting.
 - [x] Added Playwright acceptance for all 26 steps, real nav highlight/autoadvance, section opens, startup preview, jump-to-features, minimize, keyboard access, no money/time mutation and 320/390px mobile. Wired into existing v14 integrated QA and deprecated the outdated 13-step test entrypoint.
 - [x] 26-step tutorial browser test passed within integrated v14 workflow #44869923225 (including 320/390px, no financial mutation, chapter navigation and jump shortcut). v13.5–v13.9, v14.1/v14.2 compatibility suites passed. PR #9 merged at fe76f9a; live main Pages #44870108460 and integrated v14 CI #44870109012 both succeeded.
+
+## v14.3 — Next update queued (planning only, 2026-11-21)
+- [x] Reviewed live screenshots and existing film decisions, short afterlife, festival kit, poster/still, rival calendar, financial graphs, critic score and archive UI.
+- [x] Created `docs/NEXT_UPDATE_V14_3_PLAN.md` covering all 12 requests, proposed gameplay consequences, release dependencies, regression gates and task/model effort.
+- [ ] Implement v14.3a: film action discovery, post-release eligibility explanations and poster/film still cleanup — only after user authorizes implementation.
+- [ ] Implement v14.3b: promotion, tiered sponsors and critics — only after user authorizes implementation.
+- [ ] Implement v14.3c: release calendar, in-game festival confirmation, graphs, tooltips and World Archive — only after user authorizes implementation.
+- [ ] Implement v14.3d: state-aware first-film tutorial; playthrough/balance/compat QA, stage merges and live deploy — only after user authorizes implementation.

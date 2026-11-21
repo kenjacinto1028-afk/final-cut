@@ -1,5 +1,7 @@
 # Final Cut — Studio Tycoon
 
+**Next planned release (not implemented):** [v14.3 film lifecycle, marketing, sponsorships, critic reviews and playable tutorial](docs/NEXT_UPDATE_V14_3_PLAN.md). Covers 12 player feedback items; see document for stages, safeguards and test acceptance.
+
 ## In-game tutorial — Updated for v14.2
 Open **? Tutorial** in the sidebar or **How to play** on the title screen. The 26-step, nonmodal walkthrough covers scripts, Film DNA, collaboration, production decisions, release competition, film audience/afterlife, earned studio identity, the v14.1 risk economy and v14.2 safe local saves. Existing players can choose **Jump to new features**. You can keep navigating while the guide is open and complete it without spending cash. Browser acceptance: `python tests/v14_2_tutorial_browser.py`.
 
