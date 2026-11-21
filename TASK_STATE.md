@@ -84,3 +84,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] Stage 3: Compare multi-seed outcomes against v14 baseline; run all existing v13/v14 browser and economy regressions and merge/deploy.
 
 - [x] Stage 3 testing gate: 12 standard-start 61-year region/strategy careers; v13 and v14 economic/award/save regressions; 390px Playwright mobile worker, old save slots and film UI checks. Workflow: .github/workflows/v14_1.yml.
+
+- [x] Mobile queue safety: bound large snapshots to one in-flight Worker job with coalesced dirty state, flush pending or active compression on tab hide; added rapid-turn consistency acceptance on Chromium.

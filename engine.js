@@ -4506,11 +4506,12 @@ var Engine = (function () {
   // the UI thread. Explicit saves, imports and slot switches remain synchronous.
   // Every write is tagged, so an older worker result can never overwrite a new
   // campaign or a more recent manual/weekly save.
-  let largeSaveWorker=null,largeSaveScheduled=null,largeSaveGeneration=0,largeSaveWorkerUnavailable=false;
+  let largeSaveWorker=null,largeSaveScheduled=null,largeSaveGeneration=0,largeSaveWorkerUnavailable=false,largeSaveWorkerBusy=false,largeSaveNeedsLatest=false;
   function invalidatePendingLargeSave(){
     largeSaveGeneration++;
     if(largeSaveScheduled!==null&&typeof clearTimeout==='function')clearTimeout(largeSaveScheduled);
     largeSaveScheduled=null;
+    largeSaveNeedsLatest=false;
   }
   function scheduleTurnSave(){
     if(fastSimulationTesting)return true;
@@ -4522,14 +4523,18 @@ var Engine = (function () {
         largeSaveWorker=new Worker('save-worker.js');
         largeSaveWorker.onmessage=event=>{
           const x=event.data;
-          if(!x||x.generation!==largeSaveGeneration||!state||x.campaignId!==state.campaignId)return;
-          if(x.type==='encoded'){
+          largeSaveWorkerBusy=false;
+          const current=x&&x.generation===largeSaveGeneration&&state&&x.campaignId===state.campaignId;
+          if(current&&x.type==='encoded'){
             try{storage()?.setItem(SAVE_KEY,x.payload);}catch(e){console.warn('Large FinalCut autosave could not fit browser storage',e);}
-          }else console.warn('FinalCut background save failed',x.reason);
+          }else if(current&&x.type==='failed')console.warn('FinalCut background save failed',x.reason);
+          // At most one in-flight snapshot. A new turn during compression
+          // replaces the queued work instead of accumulating multi-megabyte clones.
+          if(largeSaveNeedsLatest&&state){largeSaveNeedsLatest=false;scheduleTurnSave();}
         };
         largeSaveWorker.onerror=event=>{
           console.warn('FinalCut save worker unavailable; reverting to normal synchronous saving');
-          largeSaveWorkerUnavailable=true;
+          largeSaveWorkerUnavailable=true;largeSaveWorkerBusy=false;largeSaveNeedsLatest=false;
           largeSaveWorker.terminate();largeSaveWorker=null;
           if(state)save();
         };
@@ -4540,18 +4545,21 @@ var Engine = (function () {
     largeSaveScheduled=setTimeout(()=>{
       largeSaveScheduled=null;
       if(!state||largeSaveGeneration!==token||state.campaignId!==campaignId)return;
-      try{largeSaveWorker.postMessage({type:'encode',generation:token,campaignId,snapshot:state});}
-      catch(e){largeSaveWorkerUnavailable=true;save();}
+      if(largeSaveWorkerBusy){largeSaveNeedsLatest=true;return;}
+      try{
+        largeSaveWorkerBusy=true;
+        largeSaveWorker.postMessage({type:'encode',generation:token,campaignId,snapshot:state});
+      }catch(e){largeSaveWorkerBusy=false;largeSaveWorkerUnavailable=true;save();}
     },350);
     return true;
   }
   if(typeof document!=='undefined'&&document.addEventListener){
     // A dirty, queued snapshot must be flushed before a tab is hidden.
     document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='hidden'&&largeSaveScheduled!==null&&state)save();
+      if(document.visibilityState==='hidden'&&(largeSaveScheduled!==null||largeSaveWorkerBusy)&&state)save();
     });
     if(typeof window!=='undefined'&&window.addEventListener)
-      window.addEventListener('pagehide',()=>{if(largeSaveScheduled!==null&&state)save();});
+      window.addEventListener('pagehide',()=>{if((largeSaveScheduled!==null||largeSaveWorkerBusy)&&state)save();});
   }
   function save() {
     invalidatePendingLargeSave();

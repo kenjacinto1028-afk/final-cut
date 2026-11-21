@@ -51,6 +51,13 @@ try:
   page.reload(wait_until='domcontentloaded')
   page.evaluate("Engine.load()")
   assert page.evaluate("Engine.state.filmArchive.rivals.length")==1750
+  # Rapid successive turns must coalesce queued archives while preserving
+  # the last state (older worker completions must never overwrite progress).
+  page.evaluate("""() => {
+    for(let i=0;i<4;i++){if(Engine.state.pending)Engine.choose(Engine.state.pending.choices.length-1);Engine.nextTurn();}
+    Engine.state.cash=987654;
+  }""")
+  page.wait_for_function("Engine.inspectSave(localStorage.getItem('backlot_save'))?.week>=4",timeout=40000)
   # A newer explicit sync save must never be overwritten by an older Worker.
   page.evaluate("""() => {Engine.nextTurn();Engine.state.cash=123456789; if(!Engine.save())throw Error('manual save failed');}""")
   page.wait_for_timeout(1500)
