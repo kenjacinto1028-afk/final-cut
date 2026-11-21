@@ -7,6 +7,7 @@
   const margin = 8;
   let position = null;
   let drag = null;
+  let autoPlaceQueued = false;
 
   function clamp(x, y) {
     const width = node.getBoundingClientRect().width || 392;
@@ -42,6 +43,36 @@
     node.style.removeProperty('right');
     node.style.removeProperty('bottom');
     try { localStorage.removeItem(key); } catch (_) {}
+    queueAutomaticPlacement();
+  }
+
+  // Keep guided actions usable even before the player manually moves the guide.
+  function queueAutomaticPlacement() {
+    if (position || autoPlaceQueued || node.hidden) return;
+    autoPlaceQueued = true;
+    requestAnimationFrame(() => {
+      autoPlaceQueued = false;
+      if (position || node.hidden) return;
+      const width = node.getBoundingClientRect().width;
+      const height = node.getBoundingClientRect().height;
+      const maxX = Math.max(margin, innerWidth - width - margin);
+      const maxY = Math.max(margin, innerHeight - height - margin);
+      const candidates = [[margin,maxY],[margin,margin],[maxX,margin],[maxX,maxY]];
+      const important = [...document.querySelectorAll('#main button.primary, #drawer button.primary, #main .tutorial-target, #drawer .tutorial-target')]
+        .filter(el => el.getClientRects().length && !el.closest('#tutorial'))
+        .map(el => el.getBoundingClientRect())
+        .filter(r => r.width < innerWidth * .75 && r.height < innerHeight * .55);
+      function overlap(x,y,r) {
+        return Math.max(0,Math.min(x+width,r.right+12)-Math.max(x,r.left-12)) *
+          Math.max(0,Math.min(y+height,r.bottom+12)-Math.max(y,r.top-12));
+      }
+      candidates.sort((a,b) => important.reduce((s,r)=>s+overlap(a[0],a[1],r),0) -
+        important.reduce((s,r)=>s+overlap(b[0],b[1],r),0));
+      node.style.left = candidates[0][0] + 'px';
+      node.style.top = candidates[0][1] + 'px';
+      node.style.right = 'auto';
+      node.style.bottom = 'auto';
+    });
   }
 
   node.addEventListener('pointerdown', event => {
@@ -85,11 +116,12 @@
       head.setAttribute('aria-label', 'Move tutorial. Drag this header or use arrow keys. Double click to reset.');
       head.title = 'Drag to move · arrow keys to nudge · double click to reset';
     }
+    queueAutomaticPlacement();
     if (position && !node.hidden) requestAnimationFrame(() => {
       if (!drag && position) place(position.x, position.y, false);
     });
   });
   observer.observe(node, {childList:true});
-  addEventListener('resize', () => { if (position) place(position.x, position.y, false); });
+  addEventListener('resize', () => { if (position) place(position.x, position.y, false); else queueAutomaticPlacement(); });
   restore();
 })();
