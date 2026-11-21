@@ -1661,13 +1661,16 @@ var Engine = (function () {
     // transparently from its recorded gross and modeled opening-week price.
     return admissionsFromGross(p.gross||0,p.releaseWeek||0);
   }
-  function recordProjectPulse(p,week,gross,revenue,spent,stage,admissions){
+  function recordProjectPulse(p,week,gross,revenue,spent,stage,admissions,screenings,households){
     if(!Array.isArray(p.performanceHistory))p.performanceHistory=[];
     const row=p.performanceHistory.find(x=>x.week===week);
     if(row){
-      row.gross+=gross;row.revenue+=revenue;row.spent+=spent;row.admissions+=admissions;row.stage=stage;
+      row.gross+=gross;row.revenue+=revenue;row.spent+=spent;row.admissions+=admissions;
+      row.screenings=(row.screenings||0)+(screenings||0);
+      row.households=(row.households||0)+(households||0);row.stage=stage;
     }else{
-      p.performanceHistory.push({week,stage,gross,revenue,spent,admissions});
+      p.performanceHistory.push({week,stage,gross,revenue,spent,admissions,
+        screenings:screenings||0,households:households||0});
       if(p.performanceHistory.length>32)p.performanceHistory.splice(0,p.performanceHistory.length-32);
     }
     p.lastWeekRevenue=revenue;
@@ -1679,6 +1682,10 @@ var Engine = (function () {
       thisWeekSpent:last&&last.week===state.week?last.spent:0,
       thisWeekAdmissions:last&&last.week===state.week?last.admissions:0,
       estimatedAdmissions:filmAdmissions(p),
+      estimatedScreeningViewers:shortAudience(p),
+      estimatedHouseholdImpressions:estimatedTvHouseholds(p),
+      thisWeekScreenings:last&&last.week===state.week?last.screenings||0:0,
+      thisWeekHouseholds:last&&last.week===state.week?last.households||0:0,
       ticketPrice:p.format==='feature'?estimatedTicketPrice(state.week):null,
       trackedSince:history.length?history[0].week:null,legacy:!history.length&&p.releaseWeek!=null};
   }
@@ -1718,8 +1725,18 @@ var Engine = (function () {
     return TUNING.shortScreening.netRevenuePerViewer1970*Math.pow(1+TUNING.shortScreening.annualGrowth,yrs);
   }
   function shortAudience(p){
-    return p&&p.format==='short'&&Number.isFinite(p.estimatedScreeningViewers)
-      ?p.estimatedScreeningViewers:null;
+    if(!p||p.format!=='short'||p.releaseWeek==null)return null;
+    if(Number.isFinite(p.estimatedScreeningViewers))return p.estimatedScreeningViewers;
+    // Legacy completed shorts have only lifetime screening receipts, so
+    // reconstruct a labeled modeled estimate without inventing weekly rows.
+    return Math.max(0,Math.round((p.shortRunCollected||p.revenue||0)/shortNetPerViewer(p.releaseWeek)));
+  }
+  function estimatedTvHouseholds(p){return p&&p.format==='pilot'&&Number.isFinite(p.estimatedHouseholdImpressions)
+    ?p.estimatedHouseholdImpressions:null;}
+  function householdImpressionsForRating(r,week){
+    // Modeled household exposure per episode, NOT unique real households.
+    const years=Math.floor(Math.max(0,week||0)/TUNING.weeksPerYear);
+    return Math.max(0,Math.round(r*35000*Math.pow(1.025,years)));
   }
   function shortRunRemaining(p){
     const weeks=p.shortRunWeeks||shortScreeningWeeks(p);
@@ -1858,7 +1875,9 @@ var Engine = (function () {
       releaseWeek: p.releaseWeek, year: dateOf(p.releaseWeek).year,
       budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
-      estimatedAdmissions:filmAdmissions(p), performanceHistory:(p.performanceHistory||[]).slice(-32),
+      estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
+      estimatedHouseholdImpressions:estimatedTvHouseholds(p),
+      performanceHistory:(p.performanceHistory||[]).slice(-32),
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
@@ -2652,6 +2671,7 @@ var Engine = (function () {
     const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift, T.pickupFloor, T.pickupCeil);
     p.stage = 'done';
     if (Math.random() < chance) {
+      p.estimatedHouseholdImpressions=0;
       const epCost = Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
       const pilotFee = Math.round(p.budget * T.pilotFeeShare);
@@ -2668,6 +2688,7 @@ var Engine = (function () {
       const devFee = Math.round(p.budget * T.passFeeShare);
       p.result = 'Passed';
       p.revenue += devFee;
+      p.estimatedHouseholdImpressions=null; // network declined: no airing household data
       earn(devFee);
       addLog('The networks passed on "' + p.title + '" (development fee ' + fmtMoney(devFee) + ').', 'tv');
     }
@@ -2693,7 +2714,10 @@ var Engine = (function () {
       s.revenue += s.fee + bonus;
       s.cost += s.epCost;
       const p = getProject(s.projectId);
-      if (p) { p.revenue += s.fee + bonus; p.spent += s.epCost; }
+      if (p) {
+        p.revenue += s.fee + bonus; p.spent += s.epCost;
+        p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
+      }
       if (s.aired >= s.episodes) endSeason(s);
     });
     return { revenue: revenue, cost: cost };
@@ -3494,7 +3518,9 @@ var Engine = (function () {
     if (!state || state.gameOver || state.pending) return false;
     state.week++;
     const priorProjects=new Map(state.projects.map(p=>[p.id,{gross:p.gross||0,revenue:p.revenue||0,
-      spent:p.spent||0,stage:p.stage,admissions:p.format==='feature'?filmAdmissions(p):0}]));
+      spent:p.spent||0,stage:p.stage,admissions:p.format==='feature'?filmAdmissions(p):0,
+      screenings:p.format==='short'?shortAudience(p)||0:0,
+      households:p.format==='pilot'?estimatedTvHouseholds(p)||0:0}]));
     marketTick();
     const interest = Math.round(state.debt * TUNING.weeklyInterest);
     const salaries = weeklySalaries();
@@ -3538,8 +3564,10 @@ var Engine = (function () {
       const old=priorProjects.get(p.id);if(!old)return;
       const gross=(p.gross||0)-old.gross,revenue=(p.revenue||0)-old.revenue,spent=(p.spent||0)-old.spent;
       const admissions=p.format==='feature'?Math.max(0,(filmAdmissions(p)||0)-(old.admissions||0)):0;
-      if(gross||revenue||spent||old.stage!==p.stage||ACTIVE_STAGES.includes(p.stage)||p.stage==='release')
-        recordProjectPulse(p,state.week,gross,revenue,spent,p.stage,admissions);
+      const screenings=p.format==='short'?Math.max(0,(shortAudience(p)||0)-(old.screenings||0)):0;
+      const households=p.format==='pilot'?Math.max(0,(estimatedTvHouseholds(p)||0)-(old.households||0)):0;
+      if(gross||revenue||spent||screenings||households||old.stage!==p.stage||ACTIVE_STAGES.includes(p.stage)||p.stage==='release')
+        recordProjectPulse(p,state.week,gross,revenue,spent,p.stage,admissions,screenings,households);
     });
     save();
     emit('turn');
@@ -3710,6 +3738,8 @@ var Engine = (function () {
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
+    shortAudience: shortAudience, shortRunRemaining: shortRunRemaining,
+    estimatedTvHouseholds:estimatedTvHouseholds, householdImpressionsForRating:householdImpressionsForRating,
     estimatedTicketPrice: estimatedTicketPrice, releasePushQuote: releasePushQuote, pushRelease: pushRelease,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
