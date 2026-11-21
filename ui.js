@@ -852,6 +852,7 @@ var UI = (function () {
       CONTENT.GENRES.map(g => opt(g.id, g.name, g.id === draft.genre)).join('') + '</select></label>';
     h += '<label>Topic <select onchange="UI.setDraft(\'topic\', this.value)">' +
       CONTENT.TOPICS.map(t => opt(t.id, t.name, t.id === draft.topic)).join('') + '</select></label>';
+    h+=releaseConflictPanel(draft.genre,draft.topic,Engine.state.week+(pv.weeks||0));
     h += '<section class="fc-budget-step"><h2>1. Choose your spending limit</h2>'+
       '<p class="muted">Your cap is a plan, not an upfront payment. The '+esc(FinalCutBudget.budgetClass(draft.format,draft.budgetCap))+
       ' budget label is descriptive; artistic viability depends on scope, cast and allocations.</p>'+
@@ -1999,7 +2000,7 @@ var UI = (function () {
       h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
-        h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
+        h+=filmTimeline(original)+filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
       h+='</section>';
     } else if(filmHubTab==='reviews'){
       h+='<section class="fc-hub-panel"><h3>Critical reception</h3>'+filmCriticsPanel(f)+
@@ -2185,6 +2186,48 @@ var UI = (function () {
   }
   // v14.3a: every Film Hub always explains the current stage and the
   // eligibility of future options. The engine quote remains authoritative.
+  // Simple estimated/recorded milestones. Estimates may move after decisions.
+  function filmTimeline(p){
+    if(!p)return '';
+    const history=[];
+    if(p.startWeek!=null)history.push(['Greenlit',dateLabel(p.startWeek),true]);
+    if(p.stage!=='done'&&p.stage!=='release'){
+      history.push([CONTENT.STAGE_LABELS[p.stage]||p.stage,
+        (p.stageWeeksLeft||0)+' wk remaining in current stage (estimate)',false]);
+    }
+    if(p.releaseWeek!=null)history.push(['Premiere',dateLabel(p.releaseWeek),true]);
+    else{
+      const scheduled=Engine.v14ReleaseCalendar().flatMap(w=>w.mine.map(f=>({...f,week:w.week}))).find(f=>f.id===p.id);
+      history.push(['Expected premiere',scheduled?
+        dateLabel(scheduled.week)+(scheduled.estimate?' · estimated':' · scheduled'):'Date to be determined',false]);
+    }
+    if(p.stage==='release')history.push(['Screenings',Math.max(1,p.weeksInRelease||1)+' weeks into release',true]);
+    if(p.stage==='done'&&p.releaseWeek!=null)history.push(['Screening run','Completed',true]);
+    if(p.format==='short'&&p.releaseWeek!=null){
+      const next=Engine.shortFestivalStatus(p)?.next;
+      history.push(['Festival eligibility',next?esc(next.name)+' · '+dateLabel(next.week)+' (selection not guaranteed)':
+        'No future jury currently eligible',false]);
+    }
+    return '<section class="fc-qol-timeline"><h3>Film Timeline</h3><ol>'+
+      history.map(([label,detail,known])=>'<li class="'+(known?'is-known':'')+'"><strong>'+esc(label)+'</strong><span>'+detail+'</span></li>').join('')+
+      '</ol><small>Forecast milestones are approximate and may change with production and release decisions.</small></section>';
+  }
+  function releaseConflictPanel(genre,topic,releaseWeek){
+    if(!Number.isFinite(releaseWeek))return '';
+    const weeks=Engine.v14ReleaseCalendar();
+    const clashes=weeks.filter(w=>Math.abs(w.week-releaseWeek)<=2).flatMap(w=>w.rivals
+      .filter(f=>f.genre===genre||(topic&&f.topic===topic)).map(f=>({...f,week:w.week}))).slice(0,4);
+    const options=weeks.map(w=>({week:w.week,penalty:w.rivals.filter(f=>f.genre===genre||(topic&&f.topic===topic)).length}))
+      .filter(w=>w.week>=releaseWeek-1&&w.week<=releaseWeek+4).sort((a,b)=>a.penalty-b.penalty||Math.abs(a.week-releaseWeek)-Math.abs(b.week-releaseWeek));
+    return '<section class="fc-qol-release-clashes"><h3>Release Conflict Check</h3><p class="muted">Estimated premiere '+dateLabel(releaseWeek)+
+      ' · competitor dates and production timing can change.</p>'+
+      (clashes.length?clashes.map(f=>'<p class="fc-qol-clash"><strong>'+esc(f.title)+'</strong> · '+dateLabel(f.week)+
+        ' · '+esc(f.studio)+(f.genre===genre?' · Same genre':'')+(topic&&f.topic===topic?' · Same story topic':'')+'</p>').join(''):
+        '<p class="fc-qol-clear">No closely overlapping rival genres or topics announced within two weeks.</p>')+
+      (options.length?'<p class="muted">Lower-conflict week in the current 12-week calendar: <strong>'+
+        dateLabel(options[0].week)+'</strong> ('+options[0].penalty+' known matches). Informational only; scheduling is not changed.</p>':'')+
+      '<button type="button" onclick="UI.go(&quot;calendar&quot;)">Compare full release calendar</button></section>';
+  }
   function filmLifecycleGuide(p){
     if(!p)return '';
     const released=p.releaseWeek!=null,short=p.format==='short',
@@ -2387,7 +2430,7 @@ var UI = (function () {
     if(Engine.sequelEligibility(p.id).ok)
       h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Continue this story in any media</button>';
     h += awardIcons(p);   // 8.3
-    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
+    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmTimeline(p)+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
       v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
