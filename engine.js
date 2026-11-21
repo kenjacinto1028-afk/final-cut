@@ -606,6 +606,7 @@ var Engine = (function () {
       filmArchive: { rivals: [], incompleteBefore: null },
       annualReviews: [],
       yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
+      premierePresented: [], // Release reports are presentation only, one per film with saved dismissal.
       reputation: { buzz: 5, currentPrestige: 0, lifetimeLegacy: 0, prestigeEvents: [] },
       world: { yearbook: [], decadeChampions: [], leadershipEvents: [] },
       legacyPlay: { milestones: [], initiative: null, nextInitiativeWeek: 0, reissues: [], lastReissueWeek: -999, industryShift: null, shiftHistory: [] },
@@ -5253,6 +5254,9 @@ var Engine = (function () {
     // Existing saves already have historic annual reviews; don't replay those old
     // popups on migration. New games persist dismissed years as they are viewed.
     state.yearEndPresented = Array.isArray(state.yearEndPresented) ? state.yearEndPresented : state.annualReviews.map(r => r.year);
+    // Legacy studios already saw their historical releases. Do not replay all premieres after upgrade.
+    state.premierePresented = Array.isArray(state.premierePresented) ? state.premierePresented :
+      state.projects.filter(p => p.releaseWeek != null).map(p => p.id);
     state.reputation = state.reputation || migrateReputation(state);
     state.world = state.world || {yearbook:[],decadeChampions:[],leadershipEvents:[]};
     state.legacyPlay = state.legacyPlay || {milestones:[],initiative:null,nextInitiativeWeek:0,reissues:[],lastReissueWeek:-999,industryShift:null,shiftHistory:[]};
