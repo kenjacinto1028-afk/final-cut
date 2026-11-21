@@ -594,7 +594,7 @@ var UI = (function () {
       '<div><small>Budget / spent</small><strong>'+money(chosen.budget)+' / '+money(chosen.spent)+'</strong><em>Actual cash outflow, no new costs</em></div>'+
       '<div><small>'+ (chosen.critic!=null?'Critic reception':'Early quality range') +'</small><strong>'+esc(estimate.value)+'</strong><em>'+esc(estimate.note)+'</em></div>'+
       '<div><small>Release timing</small><strong>'+esc(estRelease)+'</strong><em>Dates move with setbacks or decisions</em></div>'+
-      '<div><small>Recorded box office</small><strong>'+money(chosen.gross||0)+'</strong><em>'+(chosen.stage==='release'?'Last week '+money(chosen.lastWeekGross||0):chosen.stage==='done'?'Theatrical run recorded':'Not yet released')+'</em></div></div>';
+      '<div><small>'+(chosen.format==='feature'?'Theatrical gross':'Studio receipts')+'</small><strong>'+money(chosen.format==='feature'?(chosen.gross||0):(chosen.revenue||0))+'</strong><em>'+(chosen.format==='feature'?'Last week '+money(Engine.projectPulse(chosen).thisWeekGross):'Festival / network receipts')+'</em></div></div>';
     const current=s.pending&&s.pending.projectId===chosen.id;
     const decision='<div class="fc-decision"><small>STUDIO DECISIONS</small><h3>'+(current?'A decision needs your attention':'Routine work is delegated')+'</h3><p>'+(current?'A production decision is waiting. Open it to review the choices before continuing.':'Work, production costs and scheduled event decisions are processed each week. You may inspect the project or advance to the next decision at any time.')+'</p><div class="fc-actions"><button onclick="UI.openProject('+chosen.id+')">Open project details</button><button onclick="'+(s.pending?'UI.render()':'UI.advance()')+'" '+(s.pending?'disabled':'')+'>'+(s.pending?'Resolve pending decision':'Advance to next decision')+'</button></div></div>';
     const stageDetails='<section class="fc-stage-detail"><h2>Production milestones</h2><div class="fc-milestones">'+mark+'</div><div class="fc-notes"><div><small>Timeline</small><strong>'+esc(st.status)+'</strong><p>'+(chosen.stage==='release'?'Theatrical gross is booked automatically each week; stronger films can stay in theaters for up to '+Engine.TUNING.maxReleaseWeeks+' weeks.':chosen.stage==='done'?'This title is finished. Its financial and awards history stays in Filmography.':'The studio completes each phase and triggers choices at its scheduled milestones.')+'</p></div>'+decision+'</div></section>';
@@ -605,7 +605,7 @@ var UI = (function () {
     const old=list.length>7?'<button class="fc-more" onclick="UI.centerShowMore()">'+(centerShowOlder?'Show fewer':'Show '+(list.length-7)+' more')+'</button>':'';
     const recent=theaters.slice(0,3).map(p=>'<div class="fc-week-film"><span>'+esc(p.title)+'</span><strong>'+money(p.lastWeekGross||0)+'</strong><small>Week '+p.weeksInRelease+' · total '+money(p.gross||0)+'</small></div>').join('');
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE</small><h2>In theaters</h2><p>Recorded ticket gross; not a forecast. Competition and word of mouth influence future weeks.</p></div><div class="fc-pulse-list">'+(recent||'<p>No feature films currently in theaters.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
@@ -1237,6 +1237,7 @@ var UI = (function () {
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
       (f.reissueRevenue?dl('Classic reissues',money(f.reissueRevenue)+' (separate from original theatrical gross)'):'') +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
+    if(f.projectId!=null && Engine.getProject(f.projectId))h+='<details class="fc-film-expanded"><summary>Weekly earnings & audience trends</summary>'+projectPerformanceBoard(Engine.getProject(f.projectId))+'</details>';
     h += qualityDetails(f.qualityBreakdown, f.hypeBreakdown);
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
     h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + (a.personName?' — '+esc(a.personName):'') + ' (' + a.year + ')').join('<br>') || 'None') +
@@ -1320,6 +1321,7 @@ var UI = (function () {
     const sr = Engine.series().find(x => x.projectId === p.id);
     if (sr) h += dl('Series', 'Season ' + sr.season + ' · ' + (sr.status === 'airing' ? 'episode ' + sr.aired + '/' + sr.episodes : sr.status) + (sr.seasonAvgs.length ? ' · averages ' + sr.seasonAvgs.join(', ') : ''));
     h += '</dl>';
+    h += projectPerformanceBoard(p);
     if ((p.format === 'feature' || p.format === 'short') && p.releaseWeek == null) {
       const quote = Engine.regionQuote(p, p.regions);
       h += '<h2>Distribution planning</h2><p class="muted">Choose markets before release. The home market is included. Shorts gain modest screening income; features gain potential box office. Overseas distribution has extra costs.</p>' +
