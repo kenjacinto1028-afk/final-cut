@@ -1472,7 +1472,7 @@ var UI = (function () {
       '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
       '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
-    return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
+    return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+financeGlossary()+
 
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.resetMyFilmographyFilters()">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
@@ -1597,6 +1597,7 @@ var UI = (function () {
     let h = '<h1>Finance</h1><div class="strip">' + stat('Cash', '<span class="' + (s.cash < 0 ? 'neg' : '') + '">' + money(s.cash) + '</span>') +
       stat('Weekly profit', '<span class="' + (wp < 0 ? 'neg' : '') + '">' + money(wp) + '</span>') +
       stat('Quarter so far', '<span class="' + (qtd.profit < 0 ? 'neg' : '') + '">' + money(qtd.profit) + '</span>') + stat('Debt', money(s.debt)) + '</div>';
+    h+=financeGlossary();
     h += '<p><button onclick="UI.loan(true)">Borrow ' + money(Engine.TUNING.loanStep) + '</button> <button onclick="UI.loan(false)">Repay ' + money(Engine.TUNING.loanStep) + '</button> ' +
       '<span class="muted">Limit ' + money(Engine.loanCap()) + ' (rises with fame) · about ' + Math.round(Engine.TUNING.weeklyInterest * 52 * 100) + '% a year.</span></p>';
     h += '<details open><summary><strong>Quarterly summary</strong></summary>' + quarterTable(s.finance.history.slice(-4), qtd) +
@@ -1988,6 +1989,37 @@ var UI = (function () {
   function criticReachName(tier){
     return {1:'City / Local Critic',2:'Regional Critic',3:'National Critic',4:'International Critic'}[Number(tier)]||'Film Critic';
   }
+  // Film postmortem only compares available recorded outcomes. No historical forecast invented.
+  function filmPostmortem(p){
+    if(!p||p.stage!=='done')return '';
+    const rows=Engine.projectPulse(p).history||[];
+    const releaseRows=rows.filter(r=>p.releaseWeek!=null&&r.week>=p.releaseWeek);
+    const opening=releaseRows[0],following=Engine.filmFollowing(p);
+    const amount=Number(p.spent)||0,budget=Number(p.budget)||0,diff=amount-budget;
+    const openingRevenue=opening&&Number.isFinite(opening.revenue)?opening.revenue:null;
+    return '<section class="fc-qol-postmortem"><h3>Release Postmortem</h3>'+
+      '<p class="muted">Recorded outcomes compared with your spending plan and opening week, not invented pre-release forecasts.</p>'+
+      '<dl>'+dl('Planned budget',money(budget))+dl('Recorded direct costs',money(amount))+
+      dl('Versus spending plan',(diff>0?'+':'')+money(diff)+' ('+(diff>0?'over plan':'under or on plan')+')')+
+      dl('Opening-week studio receipts',openingRevenue==null?'Historical weekly record unavailable':money(openingRevenue))+
+      dl('Total studio receipts',money(p.revenue||0))+
+      dl('Direct P/L',money((p.revenue||0)-amount))+
+      dl('Final quality',Number.isFinite(p.quality)?p.quality+'/100':'Not recorded')+
+      dl('Audience rating',Number.isFinite(p.audience)?p.audience+'/100':'Not recorded')+
+      dl('Active / loyal film followers',following.active.toLocaleString('en-US')+' / '+following.loyal.toLocaleString('en-US'))+'</dl>'+
+      '<small>Shared studio payroll and overhead remain separate from direct project P/L. Rights and festivals may continue after screening.</small></section>';
+  }
+  function financeGlossary(){
+    return '<details class="fc-qol-finance-glossary"><summary>Understanding the numbers · Gross, receipts, profit and reach</summary>'+
+      '<dl>'+dl('Box office gross','Total simulated theatrical ticket sales before the studio share and distribution costs; feature films only.')+
+      dl('Studio receipts','Money actually credited to the studio from ticket shares, short screenings, TV, sponsors and later rights.')+
+      dl('Direct film P/L','Film receipts minus directly booked production, talent and promotional costs; excludes general studio overhead.')+
+      dl('Studio operating profit','Actual income minus operating and project costs in the accounting period; may differ from film P/L.')+
+      dl('Overhead','Shared administrative and studio-running expenses, deducted from company finances rather than individual film P/L.')+
+      dl('Audience estimates','Ticket visits, screening visits and household impressions are modeled exposure, not audited unique people.')+
+      dl('Followers','Estimated interested and loyal audiences; not verified unique viewers or ticket purchases.')+
+      '</dl></details>';
+  }
   function v145FilmHub(f){
     const original=f.projectId!=null?Engine.getProject(f.projectId):null;
     const following=original?Engine.filmFollowing(original):null;
@@ -2032,7 +2064,7 @@ var UI = (function () {
         dl('Estimated audience',f.format==='feature'?compactCount(f.estimatedAdmissions)+' ticket visits':
            f.format==='short'?compactCount(f.estimatedScreeningViewers)+' screening visits':
            compactCount(f.estimatedHouseholdImpressions)+' household impressions')+'</dl>';
-      if(original)h+=projectPerformanceBoard(original);
+      if(original)h+=financeGlossary()+filmPostmortem(original)+projectPerformanceBoard(original);
       h+='</section>';
     } else if(filmHubTab==='legacy'){
       h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3>'+fanSummary+'<dl>'+
@@ -2443,7 +2475,7 @@ var UI = (function () {
     if(Engine.sequelEligibility(p.id).ok)
       h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Continue this story in any media</button>';
     h += awardIcons(p);   // 8.3
-    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmTimeline(p)+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
+    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmTimeline(p)+filmPostmortem(p)+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
       v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
