@@ -795,3 +795,11 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 @media(prefers-reduced-motion:reduce){
   #main .alert[role="status"]{animation:none!important;transition:none!important}
 }
+
+/* v14.2 refreshed 26-step guide: readable small-screen navigation while all gameplay remains clickable. */
+@media(max-width:480px){
+ .tutorial-head{align-items:flex-start}
+ .tutorial-kicker{line-height:1.5;overflow-wrap:anywhere}
+ .tutorial-actions button{min-height:44px;touch-action:manipulation}
+ .tutorial-card{overscroll-behavior:contain}
+}

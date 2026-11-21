@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## In-game tutorial — Updated for v14.2
+Open **? Tutorial** in the sidebar or **How to play** on the title screen. The 26-step, nonmodal walkthrough covers scripts, Film DNA, collaboration, production decisions, release competition, film audience/afterlife, earned studio identity, the v14.1 risk economy and v14.2 safe local saves. Existing players can choose **Jump to new features**. You can keep navigating while the guide is open and complete it without spending cash. Browser acceptance: `python tests/v14_2_tutorial_browser.py`.
+
 ## v14.2 — Responsive saves and phone-friendly polish
 Save Now, Return to Title and large campaign archive/copy/import operations now compress large histories in a background Worker instead of freezing the page. Save status is announced to screen readers, and 320px/390px mobile layouts have bigger tap targets and safe-area spacing. On a browser without Workers, the game falls back to the same synchronous lossless save format. The original **v13** save schema, FCP1/FCP2 decoding, studio results and v14.1 balance are unchanged. See [v14.2 release notes](docs/CHANGELOG_V14_2.md).
 

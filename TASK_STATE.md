@@ -105,3 +105,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Memory polish: explicit saves cancel obsolete active weekly worker to prevent two competing multi-MB encoders; FCP2 title metadata fast path only, older FCP1/plain archives still perform strict index repair.
 - [x] Merged tested v14.2 branch through PR #8 into `main` at `9d175561d`; seven v13/v14 regression suites and dedicated v14.2 mobile/Node tests passed on PR. Physical Android/iPhone validation remains explicitly outstanding.
 - [x] Verified main release checkpoint `08103ecf`: Pages #44868786379 and integrated v14 gameplay + legacy browser QA #44868787074 both passed. PR #8 dedicated v14.2 tests and the separate 12×61-year v14.1 economic balance gate also passed; the economic rules are unchanged.
+
+## v14.2 tutorial refresh (November 21, 2026)
+- [x] Review tutorial against approved v14/v14.1/v14.2 mechanics and preserve nonmodal interaction.
+- [x] Expanded to 26 chapter-labeled steps in ui.js covering script acquisition/Film DNA, creative dilemmas, sequels, rival release calendar, audience reach, afterlife, studio identity/ambitions, v14.1 balance and v14.2 save slots/backups. Added an optional shortcut for returning players and reduced-motion-aware targeting.
+- [x] Added Playwright acceptance for all 26 steps, real nav highlight/autoadvance, section opens, startup preview, jump-to-features, minimize, keyboard access, no money/time mutation and 320/390px mobile. Wired into existing v14 integrated QA and deprecated the outdated 13-step test entrypoint.
+- [ ] Run legacy/new test workflows, merge to main and verify live deployment.
