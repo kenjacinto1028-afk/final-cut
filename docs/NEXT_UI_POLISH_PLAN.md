@@ -102,7 +102,7 @@ Goal: make the film industry feel varied without generating obviously repetitive
 
 ## v14.8 — Studio Wire and quality-of-life implementation
 
-**Status:** Implemented on feature branch `feature/v14-8-studio-wire-qol`; testing and merge pending.
+**Status:** Released as FinalCut v14.8 on `main` via PR #20 (merge commit `45f5741`). All 13 required code-test workflows passed and GitHub Pages deployed the release.
 
 - [x] Studio Wire: **News**, **Rival Releases**, and **Market Trends** tabs without another dashboard panel.
 - [x] Rival Releases: genuine twelve-week rival schedule, dated feature releases, genre/topic labels and overlap warnings; full Calendar shortcut.
@@ -115,6 +115,6 @@ Goal: make the film industry feel varied without generating obviously repetitive
 - [x] Remember Filters/Subtabs: independent Filmography, Rankings and Archive filters per studio in session storage; Studio Wire tab/category and each Film Hub's last selected subtab are also remembered.
 - [x] Film Postmortem: on completed-film Film Hub Overview and Performance, compare recorded budget and direct costs, opening-week and cumulative studio receipts (when weekly history exists), final quality/reception and followers. *Historic pre-release quality forecasts were never saved; no such comparisons are invented.*
 - [x] Financial Clarity: collapsible glossary of box office, studio receipts, direct film P/L, overhead, operating profit, modeled audience estimates and followers in Finance/Filmography/Film Hub.
-- [ ] Final regression signoff and merge to `main`, followed by GitHub Pages verification.
+- [x] Final regression signoff and merge to `main`, followed by successful GitHub Pages deployment #44915779188.
 
 **Gameplay constraint:** The only model data addition is bounded actual market-demand history for trend comparisons. Film economics, progress rates, save format, fan counts, and award outcomes are unchanged.
