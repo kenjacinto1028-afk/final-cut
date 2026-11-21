@@ -37,8 +37,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Checked FinalCut main and preserved the v13.7 multiple-save baseline; confirmed user examples of zero-gross Filmography and Software Inc monitoring reference.
 - [x] Verified shorts/pilots have revenue without theatrical gross; Filmography listed box office only. Feature admissions will be explicitly labeled modeled estimates from booked gross; shorts/pilots never get invented counts.
 - [x] Added bounded 32-week `performanceHistory`, per-project revenue/cost/gross deltas, optional publicity push and modeled admissions in `engine.js`; v13 format preserved.
-- [ ] Add Filmography gross / net income / profit-loss per film, distinct for shorts, pilots and feature films.
-- [ ] Implement fixed-width collapsible project-performance dock on the right, with film stages, weekly audience and income, plus recent trends; responsive.
-- [ ] Enrich production detail and postrelease dashboard with film performance timeline, audience reach and finances.
-- [ ] Add tests (unit / multiseason / browser/mobile / save compatibility) and document results.
+- [x] Updated `ui.js` Filmography with feature-only box office, real studio receipts, per-film direct P/L, estimated tickets and studio finance summary.
+- [x] Added Software Inc-inspired collapsible right dock via `index.html`, `ui.js`, `theme-ab.css`: live stage/earnings/admissions, bars, project click-through, mobile overlay.
+- [x] Extended Production Center, film and project drawers with 12-week income/gross charts and modeled admissions; one-time post-opening publicity option with real cost.
+- [ ] Added `tests/v13_8_film_finance.js`, Chromium `tests/v13_8_film_monitor_browser.py`, CI workflow and `docs/CHANGELOG_V13_8.md`; running full regressions.
 - [ ] Merge validated update to main and check live Pages deployment.
