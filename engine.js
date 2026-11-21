@@ -1286,6 +1286,7 @@ var Engine = (function () {
       filmStory(p,'script','Acquired '+pv.scriptPitch.title+' for '+fmtMoney(pv.scriptFee)+'; story: '+pv.scriptPitch.hook);
     }
     state.cash -= pv.fees + (pv.scriptFee||0);
+    if(pv.scriptFee)state.finance.q.production+=pv.scriptFee; // report actual screenplay rights expense
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
     state.projects.push(p);
     const hires = castTalent(p).map(t => t.name);
