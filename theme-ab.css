@@ -836,3 +836,51 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .fc-review-rating{color:#d8c7a0;text-align:right;font-variant-numeric:tabular-nums}
 .fc-film-sponsor{padding:10px;border-left:3px solid #9ebbb0}
 @media(max-width:480px){.fc-film-promotion,.fc-film-press{padding:11px}.fc-film-review-list article{grid-template-columns:1fr}.fc-review-rating{text-align:left}}
+
+/* v14.3c — clear real studio releases and market overlap signals. */
+.fc-calendar-legend{border-left:3px solid #8cae9d;padding:9px 11px;color:#c7d9cd;font-size:12px;margin:8px 0 14px}
+.fc-v14-calendar>div.fc-calendar-competition{border-color:#b79c67}
+.fc-v14-calendar-film{margin:8px 0;padding:9px;border-radius:6px;background:#30413d;border:1px solid #536860;min-width:0}
+.fc-v14-calendar-film strong,.fc-v14-calendar-film small,.fc-v14-calendar-film em{display:block;overflow-wrap:anywhere}
+.fc-v14-calendar-film strong{font-size:13px;color:#e9ebdf}
+.fc-v14-calendar-film small{font-size:10px;line-height:1.6;color:#c1cdc4;margin-top:3px}
+.fc-v14-calendar-film em{font-size:10px;font-style:normal;color:#e4ca9b;margin-top:4px}
+.fc-v14-calendar-film button{border:0!important;background:transparent!important;padding:1px!important;color:#dcebdc!important;text-decoration:underline;white-space:normal;text-align:left;font-weight:800;min-height:34px}
+.fc-v14-calendar-film.fc-v14-own{border-color:#6da38c;background:#2f473e}
+.fc-v14-calendar-film.fc-calendar-alert{border-left:3px solid #d2ad75}
+
+/* v14.3c — recorded chart values with keyboard/touch selection and full weekly data. */
+.fc-pulse-wrap{max-width:100%;min-width:0}
+.fc-chart-summary,.fc-chart-selection{font-size:11px;line-height:1.6;color:#c7d5ce;margin:5px 0 7px;overflow-wrap:anywhere}
+.fc-chart-summary strong{color:#ecf4ea;font-variant-numeric:tabular-nums}
+.fc-chart-selection{min-height:18px;color:#cfe4d9}
+.fc-pulse-column{border:0!important;background:transparent!important;margin:0!important;padding:0 1px!important;border-radius:2px!important;cursor:pointer;outline-offset:2px}
+.fc-pulse-column:hover i,.fc-pulse-column:focus-visible i,.fc-pulse-column.is-selected i{background:#dfc396!important}
+.fc-pulse-column:focus-visible{outline:2px solid #e9c990}
+.fc-chart-data{padding:5px 0;margin-top:7px;color:#c5d9d0;font-size:11px}
+.fc-chart-data summary{cursor:pointer;min-height:32px}
+.fc-chart-data table{width:100%;border-collapse:collapse;margin-top:7px}
+.fc-chart-data th,.fc-chart-data td{padding:5px 7px;border-bottom:1px solid #52615d;font-size:11px;text-align:left}
+
+/* v14.3c concise explanatory help, keyboard and touch compatible. */
+.fc-help{display:inline-flex;align-items:center;vertical-align:middle;position:relative;margin-left:5px}
+.fc-help>button{display:inline-grid;place-items:center;width:23px;height:23px;min-width:23px;min-height:23px;padding:0;border:1px solid #738d7d;border-radius:50%;background:#3d504b;color:#e4ebdf;font-size:11px;font-weight:800;cursor:pointer}
+.fc-help>button:focus-visible{outline:2px solid #e9c990;outline-offset:2px}
+.fc-help-info:not([hidden]){position:absolute;z-index:12;left:0;top:calc(100% + 7px);width:min(265px,70vw);padding:11px;background:#e7e8db;border:1px solid #7e9785;color:#21312b;border-radius:6px;box-shadow:0 8px 24px #0008;font-size:12px;line-height:1.45;text-align:left;white-space:normal;letter-spacing:normal;font-weight:400}
+@media(max-width:400px){.fc-help-info:not([hidden]){width:min(210px,65vw)}}
+
+/* v14.3c — proper in-game festival kit / encore confirmation. */
+#film-action-modal[hidden]{display:none!important}
+#film-action-modal{position:fixed;inset:0;z-index:65;display:grid;place-items:center;padding:13px}
+.fc-action-shade{position:absolute;inset:0;background:#0a1419d9;display:grid;place-items:center;padding:12px}
+.fc-action-card{position:relative;width:min(520px,100%);max-height:93dvh;overflow:auto;background:#283b38;border:2px solid #93ae9c;border-radius:12px;box-shadow:0 18px 65px #000c;color:#f1eee7;padding:24px}
+.fc-action-card>small{color:#c5d7c7;font-size:10px;letter-spacing:.12em}
+.fc-action-card h2{font:normal 27px Georgia,serif;margin:10px 0;color:#f3ebdc}
+.fc-action-card p{font-size:13px;line-height:1.6;color:#d2dcd4}
+.fc-action-card dl{display:grid;gap:10px;margin:14px 0}
+.fc-action-card dl>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #536e60;padding:9px 0}
+.fc-action-card dt,.fc-action-card dd{font-size:13px;margin:0}
+.fc-action-footer{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:18px}
+.fc-action-footer button{min-height:44px;white-space:normal}
+@media(max-width:410px){.fc-action-card{padding:17px}.fc-action-footer button{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){.fc-action-card *{transition:none!important;animation:none!important}}

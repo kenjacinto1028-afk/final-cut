@@ -1886,15 +1886,42 @@ var Engine = (function () {
     filmStory(p,'strategy','Committed to a '+V14_RELEASE_PLANS[kind].name.toLowerCase()+' release.');
     save();emit('release_plan',p);return {ok:true};
   }
+  // Expose all actual scheduled player releases. Shorts and pilots lack a
+  // fixed release-date decision, so their future entries are explicitly marked
+  // as estimates, never misrepresented as booked rival calendar slots.
+  function v14ProjectedRelease(p){
+    const fixed=plannedRelease(p);
+    if(fixed!=null)return {week:fixed,status:'scheduled',estimate:false};
+    if(p.releaseWeek!=null)return p.stage==='release'?
+      {week:state.week,status:'screening now',estimate:false,started:p.releaseWeek}:null;
+    if(p.stage==='done')return null;
+    const order=ACTIVE_STAGES.indexOf(p.stage),fmt=TUNING.formats[p.format];
+    if(order<0||!fmt)return null;
+    let weeks=Math.max(0,p.stageWeeksLeft||0);
+    for(let i=order+1;i<ACTIVE_STAGES.length;i++)
+      weeks+=Math.max(0,fmt.stages[ACTIVE_STAGES[i]]||0);
+    return {week:state.week+Math.max(1,weeks),status:'estimated',estimate:true};
+  }
   function v14ReleaseCalendar(){
     if(!state)return [];
+    const myProjects=state.projects.map(p=>({p,release:v14ProjectedRelease(p)}))
+      .filter(x=>x.release!=null);
     return Array.from({length:12},(_,offset)=>{
       const week=state.week+offset;
+      const mine=myProjects.filter(x=>x.release.week===week).map(({p,release})=>({
+        id:p.id,title:p.title,format:p.format,genre:p.genre,topic:p.topic,
+        studio:state.studio.name,status:release.status,estimate:release.estimate,
+        started:release.started==null?null:release.started
+      }));
       const rivals=activeRivals().flatMap(r=>(r.films||[]).filter(f=>f.week===week&&f.stage!=='done')
-        .map(f=>({studio:r.name,title:f.title,genre:f.genre,rivalId:r.id}))).slice(0,5);
-      const mine=state.projects.filter(p=>p.format==='feature'&&(
-        p.stage==='release'&&p.releaseWeek===week||plannedRelease(p)===week))
-        .map(p=>({id:p.id,title:p.title,genre:p.genre}));
+        .map(f=>{
+          const nearby=myProjects.filter(x=>Math.abs(x.release.week-week)<=2);
+          const genreMatches=nearby.filter(x=>x.p.genre===f.genre).map(x=>x.p.title);
+          const topicMatches=nearby.filter(x=>x.p.topic&&f.topic&&x.p.topic===f.topic).map(x=>x.p.title);
+          const sameWeek=nearby.filter(x=>x.release.week===week).map(x=>x.p.title);
+          return {studio:r.name,title:f.title,format:'feature',genre:f.genre,topic:f.topic||null,
+            rivalId:r.id,genreMatches,topicMatches,sameWeek,nearPlayer:nearby.length>0};
+        })).slice(0,5);
       return {week,season:seasonOf(week).name,rivals,mine,
         pressure:Math.round((rivalPressure(week,'drama').weight+(state.market.slate[offset]||0))*10)/10,
         seasonDemand:Math.round(seasonMult(week)*100)/100};
