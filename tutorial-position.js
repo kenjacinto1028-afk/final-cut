@@ -123,5 +123,7 @@
   });
   observer.observe(node, {childList:true});
   addEventListener('resize', () => { if (position) place(position.x, position.y, false); else queueAutomaticPlacement(); });
+  // Game content often scrolls into view after a step is rendered; re-evaluate then.
+  document.addEventListener('scroll', queueAutomaticPlacement, {capture:true, passive:true});
   restore();
 })();
