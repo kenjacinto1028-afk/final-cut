@@ -550,23 +550,91 @@ var UI = (function () {
       }).join('')+'</div>'+
       '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+esc(dateLabel(rows[rows.length-1].week))+'</span></div>';
   }
+  function projectHealth(p){
+    const finished=Number.isFinite(p.quality)&&Number.isFinite(p.hype);
+    const q=finished?String(p.quality):centerEstimate(p).value;
+    let hype;
+    if(finished)hype=String(p.hype);
+    else{
+      const guess=Math.max(0,Math.min(95,Math.round((Engine.state?.studio?.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
+      hype=Math.max(0,guess-9)+'–'+Math.min(100,guess+9);
+    }
+    const score=finished?'<div><small>Critics</small><strong>'+p.critic+'/100</strong><em>Final critic score</em></div>':'';
+    return '<div class="fc-film-health">'+
+      '<div><small>'+ (finished?'Film quality':'Quality forecast') +'</small><strong>'+esc(q)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Finished film craftsmanship':'Uncertain until release')+'</em></div>'+
+      '<div><small>'+(finished?'Release hype':'Hype forecast')+'</small><strong>'+esc(hype)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Public awareness at opening':'Planning estimate, not final')+'</em></div>'+
+      score+'</div>';
+  }
+  function shortFestivalPanel(p){
+    const st=Engine.shortFestivalStatus(p);
+    if(!st)return '';
+    const all=st.planned,judged=st.judged;
+    return '<div class="fc-short-festivals"><div><small>FESTIVAL EXPOSURE</small><strong>'+
+      st.selections+' selections / mentions / wins</strong><span>'+judged+' of '+all+' submitted festivals judged</span></div>'+
+      '<div><small>NEXT JURY DATE</small><strong>'+esc(st.next?st.next.name:'No remaining festival dates')+'</strong>'+
+      (st.next?'<span>'+esc(dateLabel(st.next.week))+' · '+esc(st.next.level||'Festival')+'</span>':'<span>The film and awards stay in the archive</span>')+'</div></div>';
+  }
+  function shortFilmActions(p,compact){
+    if(p.format!=='short'||p.releaseWeek==null)return '';
+    const press=Engine.shortPostReleaseQuote(p.id,'press'),encore=Engine.shortPostReleaseQuote(p.id,'encore');
+    const actions=[];
+    if(press.ok)actions.push(['press','Prepare festival press kit',press]);
+    if(encore.ok)actions.push(['encore','Book encore screenings',encore]);
+    if(compact){
+      if(!actions.length)return '';
+      const [kind,title,q]=actions[0];
+      return '<button class="fc-monitor-shortaction" type="button" onclick="UI.shortReleaseAction('+p.id+',\''+kind+'\')">'+esc(title)+' · '+money(q.cost)+'</button>';
+    }
+    const cards=actions.map(([kind,title,q])=>'<div class="fc-short-choice"><div><strong>'+esc(title)+'</strong>'+
+      '<p>'+esc(q.description)+'</p></div><button type="button" onclick="UI.shortReleaseAction('+p.id+',\''+kind+'\')">Invest '+money(q.cost)+'</button></div>').join('');
+    const complete=(p.shortFestivalPressKit?'<span>✓ Festival press kit funded</span>':'')+
+      (p.shortEncore?'<span>✓ Encore screenings '+money(p.shortEncore.paid)+' / '+money(p.shortEncore.total)+' booked</span>':'');
+    return cards||complete?'<section class="fc-short-actions"><h3>After-release opportunities</h3>'+
+      '<p>Optional actions only. Your festivals and screening receipts continue automatically.</p>'+
+      (complete?'<div class="fc-short-actions-done">'+complete+'</div>':'')+cards+'</section>':'';
+  }
+  function shortReleaseAction(id,kind){
+    const quote=Engine.shortPostReleaseQuote(id,kind);
+    if(!quote.ok){setFlash(quote.reason);render();return;}
+    const label=kind==='press'?'festival press kit':'four-week encore screening run';
+    if(!confirm('Spend '+money(quote.cost)+' on a '+label+' for this short film? Results are not guaranteed.'))return;
+    const result=Engine.shortPostReleaseAction(id,kind);
+    setFlash(result.ok?'The '+label+' is now underway.':result.reason);
+    render();
+  }
   function projectPerformanceBoard(p){
     const pulse=Engine.projectPulse(p),net=(p.revenue||0)-(p.spent||0),feature=p.format==='feature';
-    const watchers=feature?'<div><small>Est. admissions</small><strong>'+compactCount(pulse.estimatedAdmissions)+'</strong><em>Modeled from ticket gross, not measured viewers</em></div>':
-      '<div><small>Audience measure</small><strong>'+esc(p.format==='short'?'Festival circuit':'Network ratings')+'</strong><em>'+esc(p.format==='short'?'Exact screening attendance is not tracked':'Pilot audience headcount not recorded')+'</em></div>';
-    return '<section class="fc-performance-board"><div class="fc-performance-heading"><h2>Performance & earnings</h2><span>'+esc(p.stage==='release'?'Now in release':p.stage==='done'?'Completed / earning rights':'Production in progress')+'</span></div>'+
-      '<div class="fc-performance-metrics"><div><small>This week · receipts</small><strong>'+money(pulse.thisWeekRevenue)+'</strong><em>Money booked to your studio</em></div>'+
-      '<div><small>All-time receipts</small><strong>'+money(p.revenue||0)+'</strong><em>Includes later rights payments</em></div>'+
+    let watchers,disclaimer;
+    if(feature){
+      watchers='<div><small>Est. theatrical admissions</small><strong>'+
+        (p.releaseWeek==null?'—':compactCount(pulse.estimatedAdmissions))+'</strong><em>Modeled ticket visits, not unique moviegoers</em></div>';
+      disclaimer='Theatrical admissions are estimated using simulated ticket prices, not verified attendance.';
+    }else if(p.format==='short'){
+      watchers='<div><small>Est. screening visits</small><strong>'+compactCount(pulse.estimatedScreeningViewers)+
+        '</strong><em>Modeled from studio screening receipts</em></div>';
+      disclaimer='Short-film screening visits are estimated from studio receipts at a modeled rate per attendee; repeat visitors may be counted more than once. Festival selections are tracked separately.';
+    }else{
+      watchers='<div><small>Est. TV household impressions</small><strong>'+
+        compactCount(pulse.estimatedHouseholdImpressions)+'</strong><em>Modeled from aired episode ratings; not unique homes</em></div>';
+      disclaimer='Household impressions are estimates derived from simulated TV episode ratings, not verified unique households. Unpicked pilots have no viewer counts.';
+    }
+    const st=p.format==='short'&&p.stage==='release'?'Screenings · week '+p.weeksInRelease+
+      ' / '+(p.shortRunWeeks||Engine.TUNING.shortScreening.maxWeeks):
+      p.stage==='release'?'Now in release':p.stage==='done'?'Completed / festival & rights life':'Production in progress';
+    return '<section class="fc-performance-board"><div class="fc-performance-heading"><h2>Performance & earnings</h2><span>'+esc(st)+'</span></div>'+
+      projectHealth(p)+
+      '<div class="fc-performance-metrics"><div><small>This week · receipts</small><strong>'+money(pulse.thisWeekRevenue)+'</strong><em>Booked studio earnings</em></div>'+
+      '<div><small>All-time receipts</small><strong>'+money(p.revenue||0)+'</strong><em>All earned project income</em></div>'+
       watchers+
-      '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less production & release expenses</em></div></div>'+
+      '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less direct film spending</em></div></div>'+
       '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
       (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':'')+'</div>'+
-      (feature?'<p class="fc-performance-caveat">Ticket admission estimates use a simulated annual ticket-price assumption; they are not real attendance measurements. Original theatrical gross excludes later rentals and rights revenue.</p>':
-         '<p class="fc-performance-caveat">This format does not have tracked theatrical tickets. '+(p.format==='short'?'Festival/screening receipts':'Pilot deals and series income')+' appear under studio receipts.</p>')+
+      '<p class="fc-performance-caveat">'+esc(disclaimer)+'</p>'+
+      (p.format==='short'?shortFestivalPanel(p)+shortFilmActions(p,false):'')+
       (feature&&p.stage==='release'?releasePushAction(p):'')+
       '</section>';
   }
-  function releasePushAction(p){
+    function releasePushAction(p){
     const quote=Engine.releasePushQuote(p.id);
     if(p.releasePush)return '<p class="fc-performance-caveat">Publicity push completed · '+money(p.releasePush.cost)+' invested.</p>';
     if(!quote.ok)return '';
@@ -2113,6 +2181,7 @@ var UI = (function () {
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
+    shortReleaseAction:shortReleaseAction,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
