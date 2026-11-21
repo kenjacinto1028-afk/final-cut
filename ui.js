@@ -205,8 +205,7 @@ var UI = (function () {
     }
     // Allow actual sidebar navigation to complete an instruction; no business state changes.
     if (tutorialStep >= 0 && TUTORIAL_STEPS[tutorialStep].visit === v) {
-      tutorialStep = Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + 1);
-      tutorialMinimized = false;
+      tutorialStartStep(tutorialStep+1);
     }
     setFlash('');
     render();
@@ -2482,6 +2481,7 @@ var UI = (function () {
     }
     const n = TUTORIAL_STEPS.length, i = Math.max(0, Math.min(n - 1, tutorialStep));
     const item = TUTORIAL_STEPS[i], last = i === n - 1;
+    const goal=tutorialGoalStatus(item);
     el.hidden = false;
     document.body.classList.add('tutorial-open');
     if (tutorialMinimized) {
@@ -2500,23 +2500,29 @@ var UI = (function () {
       '<h2 id="tutorial-title">' + esc(item.title) + '</h2>' +
       '<p id="tutorial-description">' + esc(item.text) + '</p>' +
       '<p class="tutorial-location"><strong>Find it:</strong> ' + esc(item.location) + '</p>' +
+      '<p class="tutorial-live '+(goal.ok?'is-ready':'is-waiting')+'" role="status" aria-live="polite">'+
+      (goal.ok?'✓ Ready · ':'Action required · ')+esc(goal.text)+'</p>' +
+      (Engine.state&&i===5&&Engine.state.projects.length?
+        '<p class="tutorial-note">Already have a film? <button type="button" onclick="UI.tutorialFollowExistingFilm()">Follow my latest existing film</button></p>':'') +
       (!Engine.state ? '<p class="tutorial-note">Preview only — start a new game to explore these sections.</p>' :
         item.visit && !where ? '<p class="tutorial-note">You are already on this page. Click its sidebar link or select Next.</p>' :
         item.visit ? '<p class="tutorial-note">Click the highlighted link to advance automatically, or use Open section.</p>' : '') +
       '<div class="tutorial-actions">' +
       '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">Skip tutorial</button>' +
-      (i === 0 ? '<button type="button" onclick="UI.tutorialJumpToUpdates()">Jump to new features</button>' : '') +
+      (i === 0 ? '<button type="button" onclick="UI.tutorialJumpToUpdates()">Browse feature reference</button>' : '') +
+      (tutorialMode==='reference'?'<button type="button" onclick="UI.tutorialRestartGuided()">Start guided first film</button>':'') +
       (i ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
       (where ? '<button type="button" onclick="UI.tutorialOpenSection()">Open ' + esc(label ? label[1] : 'section') + '</button>' : '') +
-      (last ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Finish · Plan a film</button>' :
-        '<button type="button" class="primary" onclick="UI.tutorialMove(1)">Next</button>') +
+      (last ? '<button type="button" class="primary" onclick="UI.closeTutorial()">Finish guide</button>' :
+        '<button type="button" class="primary" '+(goal.ok?'':'disabled aria-disabled="true"')+
+        ' onclick="UI.tutorialMove(1)">Next</button>') +
       '</div></section>';
     tutorialHighlight(item, scroll);
   }
   function openTutorial() {
     tutorialReturnFocus = document.activeElement;
-    tutorialStep = 0;
-    tutorialMinimized = false;
+    tutorialMode='guided';tutorialTargetId=null;
+    tutorialStartStep(0);
     closeMobileNav();
     if (drawer) closeDrawer();
     renderTutorial(false);
@@ -2526,14 +2532,18 @@ var UI = (function () {
   // Returning players can skip basic controls without losing the full guide.
   function tutorialJumpToUpdates() {
     if(tutorialStep<0)return;
-    tutorialStep=TUTORIAL_STEPS.findIndex(step=>step.title==='Discover scripts and film DNA');
-    tutorialMinimized=false;
+    tutorialMode='reference';
+    tutorialStartStep(TUTORIAL_STEPS.findIndex(step=>step.title==='Pick format, cast and budget'));
     renderTutorial(true);
   }
+  function tutorialRestartGuided(){
+    if(tutorialStep<0)return;
+    tutorialMode='guided';tutorialStartStep(0);renderTutorial(false);
+  }
   function tutorialMove(delta) {
-    if (tutorialStep < 0) return;
-    tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
-    tutorialMinimized = false;
+    if(tutorialStep<0)return;
+    if(delta>0&&!tutorialGoalStatus(TUTORIAL_STEPS[tutorialStep]).ok)return;
+    tutorialStartStep(tutorialStep+delta);
     renderTutorial(true);
   }
   function tutorialOpenSection() {
@@ -2550,6 +2560,7 @@ var UI = (function () {
     if (tutorialStep < 0) return;
     tutorialStep = -1;
     tutorialMinimized = false;
+    tutorialMode='guided';tutorialTargetId=null;
     renderTutorial(false);
     if (planFilm && Engine.state) { tutorialReturnFocus = null; go('newproject'); return; }
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
