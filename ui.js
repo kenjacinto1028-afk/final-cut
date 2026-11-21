@@ -586,7 +586,8 @@ var UI = (function () {
         '<div class="fc-v14-meta"><span>'+esc(mediaName(x))+'</span>'+
         '<span>'+esc(nameOf(CONTENT.GENRES,x.genre))+'</span></div>'+
         '<p class="fc-v14-script-qualities">+'+x.strengths.map(i=>esc(v[i])).join(' · +')+
-        '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span></p>'+
+        '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span>'+ 
+        (x.fee>0?'<br><small>Paid script readiness: +1 to +2 craft (based on vision match); success never guaranteed.</small>':'')+'</p>'+
         '<div class="fc-v14-script-foot"><strong>'+money(x.fee)+' script fee</strong>'+
         '<button'+(claimed?' disabled':'')+' onclick="UI.v14SelectScript(&quot;'+esc(x.id)+'&quot;)">'+
         (claimed?'Rights taken':selected?'Selected':'Develop this script')+'</button></div></article>';
@@ -691,7 +692,7 @@ var UI = (function () {
         opt('partner','Writer partnership (lower fee; limited bidding protection)',draft.pitchApproach==='partner')+
         opt('buyout','Secure rights outright (higher fee; no contested bid)',draft.pitchApproach==='buyout')+
         '</select></label><p>Script rights cost: '+money(pv.scriptFee||0)+'. Included in cash requirements.</p>':
-        '<p>Original commission: no external script rights fee. Genre/topic and talent will still determine craft and appeal.</p>')+
+        '<p>Original commission: no external rights fee and full creative control. Writer, craft and production choices can still match or beat paid scripts.</p>')+
       '</div>';
     h += '</div><h2>3. Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
       Engine.SLOTS.map(castPicker).join('') + '</div>';
@@ -1943,7 +1944,7 @@ var UI = (function () {
         (q.ensemble!=null?'<p>Supporting cast and expanded crew: <strong>+'+q.ensemble+' quality</strong> (with diminishing returns)</p>':'') +
         '<dl>'+Object.keys(roles).map(k=>dl(esc(k)+' skill contribution',Math.round(roles[k]*10)/10)).join('')+
         dl('Production resources',q.production)+dl('Genre / topic match',q.story)+dl('Creative team / traits',q.creative)+dl('Department skill',q.staff)+
-        dl('Era',q.era)+dl('Your decisions',q.decisions)+dl('Uncertainty',q.variance)+'</dl>';
+        dl('Era',q.era)+dl('Your decisions',q.decisions)+(q.scriptReadiness?dl('Paid screenplay readiness',q.scriptReadiness):'')+dl('Uncertainty',q.variance)+'</dl>';
     }
     if (hype) h+='<p>Public awareness: <strong>'+hype.result+'/100</strong> (studio '+hype.studio+', creative publicity '+hype.publicity+', decisions '+hype.decisions+').</p>';
     return h+'</details>';
