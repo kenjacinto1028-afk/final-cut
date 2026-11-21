@@ -1174,6 +1174,8 @@ var Engine = (function () {
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
     }
+    p.filmDNA=initialFilmDNA(p,parent);
+    recordFilmStory(p,'greenlight','Greenlit '+p.format+' production with '+(parent?'a returning franchise':'an original story')+'.');
     state.cash -= pv.fees;
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
     state.projects.push(p);
@@ -1232,6 +1234,7 @@ var Engine = (function () {
     p.stageWeeksLeft = f.stages[p.stage] + (p.stage === 'post' ? postWeeksAdj(p) + eraMods().postWeeks : 0);
     if (p.stageWeeksLeft < 1) p.stageWeeksLeft = 1;
     addLog('"' + p.title + '" moved to ' + CONTENT.STAGE_LABELS[p.stage] + '.', 'project');
+    recordFilmStory(p,'stage','Moved into '+CONTENT.STAGE_LABELS[p.stage]+'.');
     // Routine stage transitions are visible in the dashboard and log, not blocking interruptions.
     emit('stage', p);
     if (p.stage === 'post') raise(p, CONTENT.FIXED_DECISIONS.cut);
@@ -1452,7 +1455,14 @@ var Engine = (function () {
       applyEventEffects(pd, c.effects);
       addLog(c.result || c.label, 'event', pd.category);
     } else if (p) {
+      const beforeCash=state.cash;
       applyEffects(p, c.effects);
+      recordFilmStory(p,'decision',c.result||c.label,{
+        eventId:pd.id,choice:i,cost:Math.max(0,beforeCash-state.cash),
+        quality:c.effects&&c.effects.quality,hype:c.effects&&c.effects.hype,
+        weeks:c.effects&&c.effects.weeks
+      });
+      p.filmDNA.flags.decisions=(p.filmDNA.flags.decisions||0)+1;
       if(pd.talentId!=null) {
         const participant=getTalent(pd.talentId);
         if(participant)careerEvent(participant,pd.disaster?'controversy':'production',c.result||c.label,'player:'+p.id);
@@ -1617,6 +1627,7 @@ var Engine = (function () {
     }
     p.review = receptionText(p);
     p.stage = 'release';
+    recordFilmStory(p,'premiere','Released with quality '+p.quality+'/100, hype '+p.hype+'/100, critic score '+p.critic+'/100.');
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
     if (!Array.isArray(p.performanceHistory)) p.performanceHistory = [];
@@ -1812,6 +1823,7 @@ var Engine = (function () {
     // The completed film still stays on the calendar for future juried
     // festival selections and is eligible for optional encore/circuit actions.
     p.stage='done';
+    recordFilmStory(p,'afterlife','Main screenings completed; festivals and possible encore opportunities remain.');
     checkLegacyMilestones(p);
     if(p.result!=='Won')p.result='Screened';
     const fame=gainStudioFame(1+Math.min(.65,Math.max(0,(p.regions||[]).length-1)*.15));
@@ -1946,6 +1958,7 @@ var Engine = (function () {
     const ratio = p.gross / p.budget;
     const fame = 3 + clamp(Math.round(ratio * 4), 0, 12);
     p.result = profit < 0 ? 'Flop' : (profit >= p.budget ? 'Hit' : 'Profit');
+    recordFilmStory(p,'afterlife','Theatrical run ended: '+p.result+', gross '+fmtMoney(p.gross)+', direct profit '+fmtMoney(profit)+'.');
     if(p.result==='Hit')currentBuzz(7);
     else if(p.result==='Flop')currentBuzz(-10-(p.critic<45?3:0));
     if (p.sequelOf != null && (p.result === 'Flop' || p.audience < 48)) {
@@ -2006,6 +2019,7 @@ var Engine = (function () {
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
       estimatedHouseholdImpressions:estimatedTvHouseholds(p),
       performanceHistory:(p.performanceHistory||[]).slice(-32),
+      filmDNA:filmDNASummary(p),
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
@@ -3867,6 +3881,7 @@ var Engine = (function () {
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
+    filmDNASummary:filmDNASummary,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
     shortAudience: shortAudience, shortRunRemaining: shortRunRemaining, shortScreeningWeeks:shortScreeningWeeks,
     shortFestivalStatus:shortFestivalStatus,
