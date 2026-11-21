@@ -363,6 +363,71 @@ var Engine = (function () {
       origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',choiceFlags:[]};
   }
   function v14PitchById(id){return v14State().pitches.find(p=>p.id===String(id))||null;}
+  // Authored combinations, not incoherent free-text procedural descriptions.
+  const V14_PITCHES=[
+    {title:'The Closing Picture House',genre:'drama',topic:'smalltown',hook:'Two sisters have one summer to save their hometown cinema.',
+      strengths:['emotion','dialogue'],risk:'narrow',vision:'prestige'},
+    {title:'Three Days of Trouble',genre:'comedy',topic:'roadtrip',hook:'A reluctant driver must escort an estranged family across the country.',
+      strengths:['humor','heart'],risk:'untested',vision:'mainstream'},
+    {title:'Under the Floorboards',genre:'horror',topic:'haunted',hook:'A house renovation uncovers a voice everyone swears belongs to the missing owner.',
+      strengths:['atmosphere','mystery'],risk:'marketing',vision:'bold'},
+    {title:'The Witness Route',genre:'thriller',topic:'corruptcop',hook:'A junior clerk discovers one witness can unravel the entire city machine.',
+      strengths:['twist','dialogue'],risk:'controversial',vision:'prestige'},
+    {title:'Signal from Home',genre:'scifi',topic:'spacecolony',hook:'A remote settlement receives a distress call from its own future.',
+      strengths:['spectacle','originality'],risk:'expensive',vision:'bold'},
+    {title:'Champion of Nowhere',genre:'drama',topic:'boxing',hook:'An aging trainer backs a fighter everyone else has already forgotten.',
+      strengths:['emotion','research'],risk:'narrow',vision:'prestige'},
+    {title:'The Night Shift',genre:'comedy',topic:'nightshift',hook:'Hospital night workers cover for one another during a very long shift.',
+      strengths:['ensemble','humor'],risk:'difficult',vision:'mainstream'},
+    {title:'After the Broadcast',genre:'thriller',topic:'conspiracy',hook:'A local radio host reveals a secret live, with no way to undo it.',
+      strengths:['twist','originality'],risk:'controversial',vision:'bold'},
+    {title:'A Family of Strangers',genre:'romance',topic:'firstlove',hook:'Two strangers discover an unexpected connection in a handwritten will.',
+      strengths:['heart','dialogue'],risk:'narrow',vision:'mainstream'},
+    {title:'The Great Divide',genre:'western',topic:'frontier',hook:'A border town must decide which side of a new railway it belongs to.',
+      strengths:['atmosphere','research'],risk:'difficult',vision:'prestige'},
+    {title:'The Invisible Encore',genre:'documentary',topic:'rockband',hook:'A forgotten touring band reunites to confront its lost recording.',
+      strengths:['research','emotion'],risk:'marketing',vision:'prestige'},
+    {title:'The Machine Next Door',genre:'scifi',topic:'robots',hook:'An ordinary family discovers the neighbor has built a curious machine.',
+      strengths:['spectacle','heart'],risk:'expensive',vision:'mainstream'}
+  ];
+  function v14Hash(key){
+    let x=2166136261;for(const c of String(key)){x=Math.imul(x^c.charCodeAt(0),16777619)>>>0;}
+    return x>>>0;
+  }
+  function v14Pitches(){
+    const v=v14State(),quarter=Math.floor(state.week/13);
+    if(v.pitchQuarter===quarter&&v.pitches.length===3)return v.pitches;
+    const offers=['safe','prestige','risk'];
+    const unlocked=state.studio.tier>0&&state.studio.fame>=TUNING.formats.feature.unlockFame;
+    v.pitches=offers.map((lane,i)=>{
+      const templates=V14_PITCHES.filter(t=>i===1?t.vision==='prestige':i===2?t.vision==='bold':t.vision==='mainstream');
+      const d=templates[v14Hash(state.campaignId+':'+quarter+':'+i)%templates.length];
+      const format=unlocked?(i===1?'short':'feature'):'short';
+      const budget=TUNING.formats[format].tiers[0].budget;
+      const fee=(!unlocked&&i===0)?0:round50(budget*(i===2?.12:i===1?.07:.045));
+      const rival=activeRivals().filter(r=>r.status==='active'&&r.cash>=Math.max(300,fee*3))
+        .sort((a,b)=>v14Hash(a.id+':'+quarter+i)-v14Hash(b.id+':'+quarter+i))[0];
+      return {id:'q'+quarter+'-'+i,quarter,lane,format,title:d.title,genre:d.genre,topic:d.topic,
+        hook:d.hook,strengths:d.strengths.slice(),risk:d.risk,vision:d.vision,fee,
+        contested:i===2&&unlocked&&!!rival,rivalId:i===2&&unlocked&&rival?rival.id:null,
+        claimedBy:null, expiresWeek:(quarter+1)*13};
+    });
+    v.pitchQuarter=quarter;
+    return v.pitches;
+  }
+  function v14ScriptQuote(o){
+    if(o.pitchId==null)return {ok:true,fee:0,pitch:null};
+    const pitch=v14Pitches().find(p=>p.id===String(o.pitchId));
+    if(!pitch)return {ok:false,reason:'This script pitch is no longer available. A new slate arrives next quarter.'};
+    if(pitch.claimedBy)return {ok:false,reason:'This script has already been acquired.'};
+    if(o.format!==pitch.format||o.genre!==pitch.genre||o.topic!==pitch.topic)
+      return {ok:false,reason:'The pitch format, genre and topic must match the original script.'};
+    const approach=['standard','partner','buyout'].includes(o.pitchApproach)?o.pitchApproach:'standard';
+    const fee=Math.round(pitch.fee*(approach==='buyout'?1.5:approach==='partner'?.65:1));
+    return {ok:true,fee,pitch,approach,contested:pitch.contested};
+  }
+  function v14MarketInfo(){return {quarter:Math.floor(state.week/13),pitches:v14Pitches().map(p=>Object.assign({},p)),nextRefreshWeek:(Math.floor(state.week/13)+1)*13};}
+
   function v14Dna(p){return p&&p.dna||null;}
   function v14Storyboard(p){return p&&Array.isArray(p.story)?p.story.slice(-12):[];}
 
@@ -414,6 +479,7 @@ var Engine = (function () {
     seedTalent();
     initRivals();
     v14State();
+    v14Pitches();
     addLog(state.founder.name + ' founds ' + state.studio.name + ' with ' + fmtMoney(state.cash) + '. Rivals: ' + activeRivals().map(r => r.name).join(', ') + '.', 'studio');
     save();
     emit('newgame');
@@ -1105,6 +1171,7 @@ var Engine = (function () {
     const cast = normalizeCast(o.cast);
     const cc = castCheck(cast, o.format, o);
     const weeks = plannedWeeks(o.format);
+    const script=v14ScriptQuote(o);
     const backgroundCrew=Number(o.backgroundCrew)||0;
     const crewPackageCost=Math.round(tier.budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
     const fees = cc.fees + crewPackageCost;
@@ -1121,11 +1188,13 @@ var Engine = (function () {
     else if (o.sequelOf != null && (o.format!=='feature' || !sequelEligibility(o.sequelOf).ok)) reason = 'This sequel needs a completed, profitable hit feature as its source.';
     else if (!byId(CONTENT.GENRES, o.genre)) reason = 'Pick a genre.';
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
+    else if (!script.ok) reason=script.reason;
     else if (cc.reason) reason = cc.reason;
     else if (fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
-    else if (state.cash < fees + weekly * 2) reason = 'Not enough cash for the fees plus the first two weeks.';
+    else if (state.cash < fees + weekly * 2 + script.fee) reason = 'Not enough cash for script, talent and the first two weeks.';
     return { ok: !reason, reason: reason, budget: tier.budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
-      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget,
+      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget - script.fee,
+      scriptFee:script.fee||0,scriptPitch:script.pitch||null,
       continuity: o.sequelOf == null ? null : sequelContinuity(getProject(o.sequelOf),cast,o.supporting),
       extraFees:cc.fees, crewPackageCost };
   }
@@ -1180,7 +1249,15 @@ var Engine = (function () {
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
     }
-    state.cash -= pv.fees;
+    if(pv.scriptPitch){
+      pv.scriptPitch.claimedBy='you';p.spent+=pv.scriptFee;p.scriptFee=pv.scriptFee;
+      if(pv.scriptPitch.contested && pv.scriptPitch.rivalId){
+        const rival=getRival(pv.scriptPitch.rivalId);
+        if(rival)filmStory(p,'rival','Acquired a contested screenplay before '+rival.name+'.');
+      }
+      filmStory(p,'script','Acquired '+pv.scriptPitch.title+' for '+fmtMoney(pv.scriptFee)+'; story: '+pv.scriptPitch.hook);
+    }
+    state.cash -= pv.fees + (pv.scriptFee||0);
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
     state.projects.push(p);
     const hires = castTalent(p).map(t => t.name);
@@ -3895,6 +3972,7 @@ var Engine = (function () {
     save: save, load: load, hasSave: hasSave, clearSave: clearSave,
     inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
     v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
-    v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS
+    v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
+    v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote
   };
 })();
