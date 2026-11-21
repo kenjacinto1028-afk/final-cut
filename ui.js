@@ -268,7 +268,7 @@ var UI = (function () {
         '" onclick="UI.toggleFilmMonitor()">' + (isFilmMonitorOpen()?'Hide':'Show') + ' project monitor</button>' +
       (typeof SaveSlots!=='undefined' ? '<button class="tb-save-slot" onclick="UI.go(&quot;saves&quot;)" title="Manage saved studios">' + esc(SaveSlots.activeName()||'Saved Games') + '</button>' : '') +
       '<span class="spacer"></span>' +
-      '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
+      '<button data-guide="week" ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
       '<button data-guide="advance" class="primary" ' + (blocked ? 'disabled' : '') + ' onclick="UI.advance()">Advance to next decision</button>';
   }
 
@@ -1599,9 +1599,17 @@ var UI = (function () {
 // ===== SECTION: DRAWER =====
   let drawer = null;     // { kind: 'project' | 'talent', id } or null
   let drawerMsg = '';
-  function openProject(id) { drawer = { kind: 'project', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
+  function openProject(id) {
+    drawer = { kind:'project',id:Number(id) };drawerMsg='';
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='hub'&&tutorialTargetId==null)
+      tutorialTargetId=Number(id);
+    renderDrawer();renderTutorial(false);
+  }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
-  function openFilm(id) { drawer = { kind: 'film', id: id }; drawerMsg = ''; renderDrawer(); }
+  function openFilm(id) {
+    drawer={kind:'film',id};drawerMsg='';
+    renderDrawer();renderTutorial(false);
+  }
   function filmDrawer(f) {
     let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
     h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
@@ -2755,8 +2763,21 @@ var UI = (function () {
     }catch(err){setFlash('Could not finish saving: '+err.message);render();}
     finally{saveBusy=false;}
   }
-  function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
-  function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }
+  function nextWeek(){
+    if(currentYearEndReport())return;
+    const old=Engine.state?.week,advanced=Engine.nextTurn();
+    if(advanced&&Engine.state.week>old&&tutorialStep>=0&&
+      ['week','releaseWeek'].includes(TUTORIAL_STEPS[tutorialStep].goal))
+      tutorialUsedNextWeek=true;
+    render();
+  }
+  function advance(){
+    if(currentYearEndReport())return;
+    const n=Engine.advance();
+    if(n>0&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='advance')
+      tutorialUsedAdvance=true;
+    render();
+  }
   function choose(i) { Engine.choose(i); render(); }
   function beginSequel(id) {
     const q=Engine.sequelEligibility(id);
@@ -2775,7 +2796,8 @@ var UI = (function () {
   function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
+      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -2951,7 +2973,9 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates,
+    tutorialRestartGuided:tutorialRestartGuided,tutorialFollowExistingFilm:tutorialFollowExistingFilm,
+    tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,

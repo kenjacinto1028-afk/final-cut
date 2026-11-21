@@ -884,3 +884,10 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .fc-action-footer button{min-height:44px;white-space:normal}
 @media(max-width:410px){.fc-action-card{padding:17px}.fc-action-footer button{flex:1 1 100%}}
 @media(prefers-reduced-motion:reduce){.fc-action-card *{transition:none!important;animation:none!important}}
+
+/* v14.3d — guided first-film tour: visible action gates, game remains clickable. */
+.tutorial-live{padding:8px 10px;margin:9px 0!important;border-left:3px solid #aa9157;background:#f1e5cd;color:#473b29;font-size:12px;line-height:1.5}
+.tutorial-live.is-ready{border-left-color:#4f835f;background:#e2efdc;color:#263d2e}
+.tutorial-note button{font-size:12px;min-height:32px;padding:5px 9px}
+.tutorial-actions button:disabled{opacity:.52;cursor:not-allowed}
+@media(max-width:480px){.tutorial-actions button{min-height:44px}}
