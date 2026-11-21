@@ -64,7 +64,7 @@ try:
    assert page.evaluate('Engine.state.cash')==original-press['cost']
    assert not page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press').ok",result['id'])
   page.evaluate('UI.closeDrawer();UI.go("archive")')
-  assert 'Studio receipts' in page.locator('#main .fc-finance-table table thead').first.inner_text()
+  assert 'Studio receipts' in page.locator('#main .fc-finance-table table thead').first.evaluate('el=>el.textContent')
   row=page.locator('#main .fc-finance-table tbody tr',has_text='The Little Film')
   assert row.count()==1
   assert row.locator('td').nth(5).inner_text().strip()=='—','Short must not be shown as a $0 theatrical film'
