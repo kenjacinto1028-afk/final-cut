@@ -2045,7 +2045,7 @@ var UI = (function () {
       h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
-        h+=filmTimeline(original)+filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
+        h+=filmTimeline(original)+filmPostmortem(original)+filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
       h+='</section>';
     } else if(filmHubTab==='reviews'){
       h+='<section class="fc-hub-panel"><h3>Critical reception</h3>'+filmCriticsPanel(f)+
