@@ -26,7 +26,10 @@ var Engine = (function () {
     eventChanceShoot: 0.5,
     eventCooldownWeeks: 3,
     advanceMaxWeeks: 26,
-    festivalWaitWeeks: 3,
+    festivalWaitWeeks: 3, // retained for compatibility with old v13 saves
+    shortScreening: { minWeeks:3, maxWeeks:12, decayBase:0.73,
+      netRevenuePerViewer1970:0.75, annualGrowth:0.031, encoreWeeks:4,
+      encoreRevenueShare:0.20, festivalPressScore:4 },
     studioShare: 0.5,
     boxOfficeBase: 0.5,
     boxOfficeRefBudget: 350000,
@@ -1109,7 +1112,8 @@ var Engine = (function () {
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
-      estimatedAdmissions: 0, performanceHistory: [], lastWeekRevenue: 0
+      estimatedAdmissions: 0, estimatedScreeningViewers:null, estimatedHouseholdImpressions:null,
+      performanceHistory: [], lastWeekRevenue: 0
     };
     if (parent) {
       // Put the originating film into the same permanent franchise history.
@@ -1601,6 +1605,12 @@ var Engine = (function () {
       const f = festivalDefinition(p.festivalPlan[0]) || CONTENT.AWARDS.circuit[0];
       p.festival = f.name; p.festivalTier = f.level; p.festivalTierId = f.id;
       p.festResults = [];
+      // Duration depends on reception and regional reach; the old one-time
+      // screening receipt is distributed across a longer real release.
+      p.shortRunWeeks=shortScreeningWeeks(p);
+      p.shortRunTarget=shortBaseReceipts(p);
+      p.shortRunCollected=0;
+      p.estimatedScreeningViewers=0;
       addLog('"' + p.title + '" completes production. Critics: ' + p.critic + '/100. Submitted to ' + p.festivalPlan.length + ' scheduled festival(s), first: ' + f.name + '.', 'release');
     } else if (p.format === 'pilot') {
       pilotResult(p);
@@ -1691,11 +1701,64 @@ var Engine = (function () {
     addLog('Post-opening publicity push for "'+p.title+'" cost '+fmtMoney(q.cost)+'. Future ticket demand may improve.','release');
     save();emit('promotion',p);return {ok:true,cost:q.cost};
   }
+  // The former three-week short run booked one final lump-sum payment.
+  // v13.9 retains approximately the SAME baseline receipts and spreads them
+  // across a reception-driven screening circuit instead of minting extra income.
+  function shortBaseReceipts(p){
+    return Math.max(0,Math.round((p.quality<40?p.budget*.15:p.budget*(.5+p.quality/70))*
+      eraMods().festival*(1+(p.shortCircuitReach||0))));
+  }
+  function shortScreeningWeeks(p){
+    const score=3+(Number(p.quality||0)-35)/12+(Number(p.audience||0)-50)/25+
+      (Number(p.hype||0)-30)/38+Math.max(0,(p.regions||[]).length-1)*.3;
+    return clamp(Math.round(score),TUNING.shortScreening.minWeeks,TUNING.shortScreening.maxWeeks);
+  }
+  function shortNetPerViewer(week){
+    const yrs=Math.floor((Math.max(0,week||0))/TUNING.weeksPerYear);
+    return TUNING.shortScreening.netRevenuePerViewer1970*Math.pow(1+TUNING.shortScreening.annualGrowth,yrs);
+  }
+  function shortAudience(p){
+    return p&&p.format==='short'&&Number.isFinite(p.estimatedScreeningViewers)
+      ?p.estimatedScreeningViewers:null;
+  }
+  function shortRunRemaining(p){
+    const weeks=p.shortRunWeeks||shortScreeningWeeks(p);
+    return Math.max(0,weeks-(p.weeksInRelease||0));
+  }
+  function shortWeeklyScreenings(p){
+    if(!Number.isFinite(p.shortRunWeeks))p.shortRunWeeks=shortScreeningWeeks(p);
+    if(!Number.isFinite(p.shortRunTarget))p.shortRunTarget=shortBaseReceipts(p);
+    if(!Number.isFinite(p.shortRunCollected))p.shortRunCollected=0;
+    if(!Number.isFinite(p.estimatedScreeningViewers))p.estimatedScreeningViewers=0;
+    const n=p.weeksInRelease,term=p.shortRunWeeks,remaining=Math.max(0,p.shortRunTarget-p.shortRunCollected);
+    const decay=clamp(TUNING.shortScreening.decayBase+(p.quality-50)*.0018+(p.audience-50)*.0007,.64,.90);
+    let weight=0;for(let i=n-1;i<term;i++)weight+=Math.pow(decay,i);
+    const pay=n>=term?remaining:Math.min(remaining,Math.max(0,Math.round(remaining*Math.pow(decay,n-1)/Math.max(.001,weight))));
+    p.shortRunCollected+=pay;p.revenue+=pay;
+    p.estimatedScreeningViewers+=Math.max(0,Math.round(pay/shortNetPerViewer(state.week)));
+    p.shortCircuitIncome=Math.max(0,Math.round(p.shortRunCollected*(p.shortCircuitReach||0)/(1+(p.shortCircuitReach||0))));
+    if(n===1||n===term||n===Math.ceil(term/2))
+      addLog('"'+p.title+'" screening week '+n+'/'+term+': '+fmtMoney(pay)+
+        ' receipts · approx. '+p.estimatedScreeningViewers.toLocaleString('en-US')+' cumulative screening admissions.','release');
+    if(n>=term)finishShort(p);
+    return pay;
+  }
+  function finishShort(p) {
+    // The completed film still stays on the calendar for future juried
+    // festival selections and is eligible for optional encore/circuit actions.
+    p.stage='done';
+    checkLegacyMilestones(p);
+    if(p.result!=='Won')p.result='Screened';
+    const fame=gainStudioFame(1+Math.min(.65,Math.max(0,(p.regions||[]).length-1)*.15));
+    growStat('business',0,1);addTalentFame(p);
+    addLog('"'+p.title+'" finishes '+p.shortRunWeeks+' weeks of short-film screenings: '+
+      fmtMoney(p.shortRunCollected)+' receipts, fame +'+fame+
+      '. Its festival circuit can continue after this release.','release');
+    emit('finished',p);
+  }
   function releaseIncome(p) {
     p.weeksInRelease++;
-    if (p.format === 'short') {
-      return p.weeksInRelease < TUNING.festivalWaitWeeks ? 0 : festivalResult(p);
-    }
+    if (p.format === 'short') return shortWeeklyScreenings(p);
     // Niche independent films with strong audience response gain longer legs;
     // poorly received microbudget productions get no subsidy.
     const indieBonus=p.budget<=120000 && p.audience!=null ?
@@ -1731,22 +1794,6 @@ var Engine = (function () {
     if (p.weeksInRelease === 1) addLog('"' + p.title + '" opening week: ' + fmtMoney(gross) + ' gross.', 'release');
     if (gross < p.opening * 0.025 || p.weeksInRelease >= TUNING.maxReleaseWeeks) finishFeature(p);
     return income;
-  }
-  function festivalResult(p) {
-    // Shorts complete their independent screenings after three weeks. Festival results
-    // are determined *only* by the real festival calendar, not this payout date.
-    const revenue = Math.round((p.quality < 40 ? p.budget * 0.15 : p.budget * (0.5 + p.quality / 70)) * eraMods().festival * (1 + (p.shortCircuitReach || 0)));
-    p.shortCircuitIncome = Math.max(0, revenue - Math.round(revenue / (1 + (p.shortCircuitReach || 0))));
-    p.revenue += revenue;
-    p.stage = 'done';
-    checkLegacyMilestones(p);
-    if (p.result !== 'Won') p.result = 'Screened';
-    const fame = gainStudioFame(1 + Math.min(.65, Math.max(0,(p.regions || []).length - 1) * .15));
-    growStat('business', 0, 1);
-    addTalentFame(p);
-    addLog('"' + p.title + '" finishes its short-film screening run: ' + fmtMoney(revenue) + ' revenue, fame +' + fame + '. Festival entries will be judged on their scheduled dates.', 'release');
-    emit('finished', p);
-    return revenue;
   }
   function finishFeature(p) {
     p.stage = 'done';
