@@ -212,3 +212,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] Add keyboard/mobile and visual regression tests; run existing CI suites and fix issues.
   - [x] Added `tests/v14_7_design_browser.py` covering live palette persistence, cash runway, filtered feed, monitor and 320/390px mobile layouts; added `.github/workflows/v14_7.yml` with Node and Chromium checks plus screenshots.
 - [ ] Merge verified update to main and confirm GitHub Pages deployment.
+  - [x] Fixed legacy headless tests that instantiate `ui.js` without browser-only palette module (`ui.js`, f4a9f78); relaxed visual test cash-runway label to respect uppercase styling (`tests/v14_7_design_browser.py`, 8455990).
