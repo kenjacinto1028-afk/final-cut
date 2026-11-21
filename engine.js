@@ -2834,6 +2834,7 @@ var Engine = (function () {
       earn(devFee);
       addLog('The networks passed on "' + p.title + '" (development fee ' + fmtMoney(devFee) + ').', 'tv');
     }
+    recordFilmStory(p,'afterlife',p.result==='Picked up'?'Network ordered a series based on the pilot.':'Network declined the pilot; development fee recorded.');
     emit('tv', p);
   }
   function tvTick() {
