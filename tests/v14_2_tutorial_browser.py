@@ -28,7 +28,9 @@ try:
    assert title.inner_text()==name,(n,title.inner_text(),name)
    assert '%d / 23'%n in page.locator('.tutorial-kicker').inner_text()
   def sidebar(section):
-   page.locator('#nav [data-view="%s"]'%section).click()
+   # The five-section navigation uses contextual subtabs; traverse the same
+   # public route as the clicked subtab rather than assuming 20 sidebar links.
+   page.evaluate("(s)=>UI.go(s)",section)
   # Title preview can be skipped and does not start a campaign.
   page.get_by_role('button',name='How to play').click()
   step(1,'Welcome to your studio')
@@ -100,6 +102,7 @@ try:
   next_step();step(13,'Open release performance')
   page.evaluate('UI.go("projects")')
   page.locator('.fc-center').get_by_role('button',name='Open project details').click()
+  page.evaluate("UI.filmHubSelect('performance')")
   assert page.locator('#drawer .fc-performance-board').count()>=1
   next_step();step(14,'Advance another screening week')
   page.evaluate('UI.closeDrawer()')
@@ -108,6 +111,7 @@ try:
    page.locator('#topbar [data-guide="week"]').click()
   next_step();step(15,'Read direct profit or loss')
   page.locator('.fc-center').get_by_role('button',name='Open project details').click()
+  page.evaluate("UI.filmHubSelect('performance')")
   assert 'Direct P/L' in page.locator('#drawer .fc-performance-board').inner_text()
   next_step();step(16,'Visit My Filmography')
   sidebar('filmography');step(17,'Open your released film')
@@ -117,7 +121,7 @@ try:
   assert 'normally quality 60+' in page.locator('#tutorial-description').inner_text()
   next_step();step(19,'Explore World Film Archive')
   sidebar('archive');step(20,'Compare rival release dates')
-  sidebar('rivals');step(21,'Review studio identity')
+  sidebar('calendar');step(21,'Review studio identity')
   sidebar('studio_profile');step(22,'Save your career')
   sidebar('saves');step(23,'Start your next picture')
   page.locator('#tutorial').get_by_role('button',name='Finish guide').click()
