@@ -2131,7 +2131,7 @@ var UI = (function () {
     else if (view === 'log') h = viewLog();
     else h = viewDashboard();
     if (s && view !== 'dashboard' && view !== 'projects') h = screenPrelude(view) + h;
-    if (flash) h = '<div class="alert">' + esc(flash) + '</div>' + h;
+    if (flash) h = '<div class="alert" role="status" aria-live="polite" aria-atomic="true">' + esc(flash) + '</div>' + h;
     $('main').innerHTML = h;
     if (viewTransitionPending && hasMedia() && Media.motionOK()) {
       $('main').classList.remove('fc-view-enter');
@@ -2178,14 +2178,15 @@ var UI = (function () {
   }
   async function saveNow(){
     if(saveBusy)return;
-    if(typeof SaveSlots==='undefined'){
-      setFlash(Engine.save()?'Campaign saved.':'Save failed: browser storage is full.');render();return;
-    }
+    saveBusy=true;setFlash('Saving campaign…');render();
     try{
-      const result=SaveSlots.manualSave();
-      setFlash(result.ok?'Campaign saved to the active slot.':result.reason);
+      const result=typeof SaveSlots==='undefined'
+        ?{ok:await Engine.saveAsync()}
+        :await SaveSlots.manualSaveAsync();
+      setFlash(result.ok?'Campaign saved. Your latest progress is safe.':
+        result.reason||'Save failed: browser storage is full.');
     }catch(err){setFlash('Save failed: '+err.message);}
-    render();
+    finally{saveBusy=false;render();}
   }
   async function openSave(slotId){
     if(saveBusy)return;
@@ -2235,17 +2236,23 @@ var UI = (function () {
     }catch(err){setFlash('Could not delete save: '+err.message);}
     finally{saveBusy=false;render();}
   }
-  function quit(){
+  async function quit(){
+    if(saveBusy)return;
     if(typeof SaveSlots==='undefined'){
       if(Engine.state&&!Engine.state.gameOver&&!confirm('Start a new game? Your current save will be replaced when you start.'))return;
       Engine.clearSave();location.reload();return;
     }
     if(Engine.state&&!confirm('Return to title? The current studio will remain saved in its own slot.'))return;
-    if(Engine.state){
-      const result=SaveSlots.manualSave();
-      if(!result.ok){setFlash(result.reason);render();return;}
-    }
-    Engine.closeSession();clearForSaveTransition();render();
+    saveBusy=true;
+    try{
+      if(Engine.state){
+        setFlash('Saving before returning to title…');render();
+        const result=await SaveSlots.manualSaveAsync();
+        if(!result.ok){setFlash(result.reason);render();return;}
+      }
+      Engine.closeSession();clearForSaveTransition();render();
+    }catch(err){setFlash('Could not finish saving: '+err.message);render();}
+    finally{saveBusy=false;}
   }
   function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
   function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }

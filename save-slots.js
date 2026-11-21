@@ -115,9 +115,9 @@ var SaveSlots=(function(){
     const x=index||ensure();
     if(!x.activeId)return;
     if(Engine.state){
-      if(!Engine.save())fail('The current campaign could not be saved. Switching was cancelled.');
+      if(!await Engine.saveAsync())fail('The current campaign could not be saved. Switching was cancelled.');
     }
-    const raw=currentRaw(),info=raw&&summary(raw);
+    const raw=currentRaw(),info=Engine.state?summaryFromState():raw&&summary(raw);
     if(!info)fail('The active campaign cannot be archived because its save is missing or damaged.');
     await put(x.activeId,raw);
     refreshEntry(x,info);
@@ -129,10 +129,19 @@ var SaveSlots=(function(){
     refreshEntry(x,summaryFromState());writeIndex(x);
     return {ok:true};
   }
+  async function manualSaveAsync(){
+    if(!Engine.state)return {ok:false,reason:'No campaign is running.'};
+    const x=ensure();
+    if(!await Engine.saveAsync())
+      return {ok:false,reason:'Saving was interrupted or browser storage is full. Try Save Now again or export a backup.'};
+    refreshEntry(x,summaryFromState());writeIndex(x);
+    return {ok:true};
+  }
   async function beginNew(opts){
-    const x=ensure(),before=currentRaw(),beforeId=x.activeId;
+    const x=ensure(),beforeId=x.activeId;
     if(beforeId)await archiveActive(x);
-    const newId=id();
+    // Keep the newly flushed archive as the rollback point.
+    const before=currentRaw(),newId=id();
     try{
       const state=Engine.newGame(opts||{});
       if(!Engine.save())fail('Could not save the new game.');
@@ -156,8 +165,9 @@ var SaveSlots=(function(){
     }
     const raw=await get(slotId);
     if(!raw||!summary(raw))fail('This save is missing or damaged. The current campaign is unchanged.');
-    const old=currentRaw(),oldId=x.activeId;
+    const oldId=x.activeId;
     if(oldId)await archiveActive(x);
+    const old=currentRaw();
     try{
       setCurrent(raw);
       const result=Engine.load();if(!result.ok)fail(result.reason);
@@ -181,19 +191,22 @@ var SaveSlots=(function(){
   async function duplicate(name){
     const x=ensure();
     if(!x.activeId||!Engine.state)fail('Load a campaign before making a copy.');
-    if(!Engine.save())fail('The active game could not be saved.');
-    const clone=JSON.parse(JSON.stringify(Engine.state));
-    const oldCampaign=clone.campaignId;
-    clone.campaignId='branch-'+id();
+    if(!await Engine.saveAsync())fail('The active game could not be saved.');
+    const source=Engine.state,oldCampaign=source.campaignId;
+    // The worker copies the payload at dispatch time; do not stringify a
+    // multi-decade archive on the main thread just to change campaign ID.
+    const clone={...source,campaignId:'branch-'+id()};
     const slotId=id(),posterIds=clone.projects.filter(p=>p.posterCustom).map(p=>p.id);
-    const raw=Engine.encodeSavePayload(clone);
+    const info={...summaryFromState(),campaignId:clone.campaignId};
+    const raw=await Engine.encodeSavePayloadAsync(clone);
+    if(Engine.state!==source)fail('Campaign changed during copying. Try again.');
     try{
       if(posterIds.length){
         if(typeof PosterStore==='undefined'||!PosterStore.copyCampaign)fail('Custom posters could not be copied. Update the game.');
         await PosterStore.copyCampaign(oldCampaign,clone.campaignId,posterIds);
       }
       await put(slotId,raw);
-      x.slots.push(entry(slotId,summary(raw),name||clone.studio.name+' (copy)'));
+      x.slots.push(entry(slotId,info,name||clone.studio.name+' (copy)'));
       writeIndex(x);
       return {ok:true,slotId};
     }catch(err){
@@ -240,11 +253,11 @@ var SaveSlots=(function(){
   async function importCampaign(game){
     if(!game||!Array.isArray(game.projects)||!Number.isInteger(game.version)||game.version>13||game.version<8)
       fail('This is not a supported FinalCut campaign.');
-    const x=ensure(),before=currentRaw(),beforeId=x.activeId;
+    const x=ensure(),beforeId=x.activeId;
     if(beforeId)await archiveActive(x);
-    const clone=JSON.parse(JSON.stringify(game));
-    clone.campaignId='import-'+id();
-    const raw=Engine.encodeSavePayload(clone),slotId=id();
+    const before=currentRaw();
+    const clone={...game,campaignId:'import-'+id()};
+    const raw=await Engine.encodeSavePayloadAsync(clone),slotId=id();
     try{
       setCurrent(raw);
       const result=Engine.load();if(!result.ok)fail(result.reason);
@@ -260,6 +273,6 @@ var SaveSlots=(function(){
   function activeName(){
     const x=ensure();return x.slots.find(s=>s.id===x.activeId)?.name||null;
   }
-  return {list,manualSave,beginNew,activate,rename,duplicate,remove,
+  return {list,manualSave,manualSaveAsync,beginNew,activate,rename,duplicate,remove,
     importCampaign,activeName,archiveActive};
 })();
