@@ -608,6 +608,7 @@ var Engine = (function () {
       annualReviews: [],
       yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
       premierePresented: [], // Release reports are presentation only, one per film with saved dismissal.
+      endRunPresented: [], // Distinct final screening reports, dismissed once per project.
       reputation: { buzz: 5, currentPrestige: 0, lifetimeLegacy: 0, prestigeEvents: [] },
       world: { yearbook: [], decadeChampions: [], leadershipEvents: [] },
       legacyPlay: { milestones: [], initiative: null, nextInitiativeWeek: 0, reissues: [], lastReissueWeek: -999, industryShift: null, shiftHistory: [] },
@@ -5274,6 +5275,9 @@ var Engine = (function () {
     // Legacy studios already saw their historical releases. Do not replay all premieres after upgrade.
     state.premierePresented = Array.isArray(state.premierePresented) ? state.premierePresented :
       state.projects.filter(p => p.releaseWeek != null).map(p => p.id);
+    // Existing players should not receive a backlog of old wrap-up popups.
+    state.endRunPresented = Array.isArray(state.endRunPresented) ? state.endRunPresented :
+      state.projects.filter(p => p.stage === 'done').map(p => p.id);
     state.reputation = state.reputation || migrateReputation(state);
     state.world = state.world || {yearbook:[],decadeChampions:[],leadershipEvents:[]};
     state.legacyPlay = state.legacyPlay || {milestones:[],initiative:null,nextInitiativeWeek:0,reissues:[],lastReissueWeek:-999,industryShift:null,shiftHistory:[]};
