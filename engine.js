@@ -37,6 +37,8 @@ var Engine = (function () {
     legs: { base: 0.6, perQuality: 0.0028, max: 0.85 }, // v13.5 stronger, bounded word of mouth
     softCap: { quality: 70, hype: 65, room: 30 },
     maxReleaseWeeks: 20, // v13.5: longer theatrical tail for successful films
+    estimatedTicketPrice1970: 1.50, // assumption for modeled admissions, not a historical series
+    estimatedTicketInflation: 0.031, // never changes revenues or theatrical demand
     formats: {
       short: {
         name: 'Short film', unlockFame: 0, minTier: 0,
@@ -1106,7 +1108,8 @@ var Engine = (function () {
       sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
-      opening: 0, gross: 0, revenue: 0, festival: null, result: null
+      opening: 0, gross: 0, revenue: 0, festival: null, result: null,
+      estimatedAdmissions: 0, performanceHistory: [], lastWeekRevenue: 0
     };
     if (parent) {
       // Put the originating film into the same permanent franchise history.
@@ -1564,6 +1567,7 @@ var Engine = (function () {
     p.stage = 'release';
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
+    if (!Array.isArray(p.performanceHistory)) p.performanceHistory = [];
     st.criticsRep = st.releases ? Math.round(st.criticsRep * 0.7 + p.critic * 0.3) : p.critic;
     p.studioReleasesAtRelease = st.releases;
     st.releases++;
@@ -1631,6 +1635,62 @@ var Engine = (function () {
   function qualityFactor(q) { return Math.pow(q / 60, TUNING.boxOfficeQualityExp); }
   function luck() { return rnd(TUNING.boxOfficeLuck[0], TUNING.boxOfficeLuck[1]); }
   function legsDecay(q) { const L = TUNING.legs; return clamp(L.base + q * L.perQuality, L.base, L.max); }
+  // Reach is inferred from booked simulated gross and explicit assumed ticket
+  // prices. A viewer estimate is never represented as actual measured attendance.
+  function estimatedTicketPrice(week) {
+    const year=TUNING.startYear+Math.floor(Math.max(0,week||0)/TUNING.weeksPerYear);
+    return TUNING.estimatedTicketPrice1970*Math.pow(1+TUNING.estimatedTicketInflation,year-TUNING.startYear);
+  }
+  function admissionsFromGross(gross,week){
+    return Math.max(0,Math.round((Number(gross)||0)/estimatedTicketPrice(week)));
+  }
+  function filmAdmissions(p){
+    if(!p||p.format!=='feature')return null;
+    if(Number.isFinite(p.estimatedAdmissions))return p.estimatedAdmissions;
+    // A pre-v13.8 feature carries no recorded admissions, so reconstruct
+    // transparently from its recorded gross and modeled opening-week price.
+    return admissionsFromGross(p.gross||0,p.releaseWeek||0);
+  }
+  function recordProjectPulse(p,week,gross,revenue,spent,stage,admissions){
+    if(!Array.isArray(p.performanceHistory))p.performanceHistory=[];
+    const row=p.performanceHistory.find(x=>x.week===week);
+    if(row){
+      row.gross+=gross;row.revenue+=revenue;row.spent+=spent;row.admissions+=admissions;row.stage=stage;
+    }else{
+      p.performanceHistory.push({week,stage,gross,revenue,spent,admissions});
+      if(p.performanceHistory.length>32)p.performanceHistory.splice(0,p.performanceHistory.length-32);
+    }
+    p.lastWeekRevenue=revenue;
+  }
+  function projectPulse(p){
+    const history=(p.performanceHistory||[]).slice(-32),last=history.length?history[history.length-1]:null;
+    return {history:history.slice(),thisWeekGross:last&&last.week===state.week?last.gross:0,
+      thisWeekRevenue:last&&last.week===state.week?last.revenue:0,
+      thisWeekSpent:last&&last.week===state.week?last.spent:0,
+      thisWeekAdmissions:last&&last.week===state.week?last.admissions:0,
+      estimatedAdmissions:filmAdmissions(p),
+      ticketPrice:p.format==='feature'?estimatedTicketPrice(state.week):null,
+      trackedSince:history.length?history[0].week:null,legacy:!history.length&&p.releaseWeek!=null};
+  }
+  function releasePushQuote(id){
+    const p=getProject(Number(id));
+    if(!p||p.format!=='feature'||p.stage!=='release'||p.weeksInRelease>=6)
+      return {ok:false,reason:'Only feature films in their first six theatrical weeks can get a release push.'};
+    if(p.releasePush)return {ok:false,reason:'This film has already had its release publicity push.'};
+    if(p.weeksInRelease<1)return {ok:false,reason:'Wait for the first box-office report.'};
+    const cost=Math.max(350,Math.round(Math.min(p.budget*0.045,Math.max(700,p.opening*.08))/50)*50);
+    if(state.cash<cost)return {ok:false,reason:'You need '+fmtMoney(cost)+' available for a release push.',cost};
+    return {ok:true,cost,description:'One-time publicity; up to 12% more ticket demand in the next four weeks, fading each week. Not guaranteed to break even.'};
+  }
+  function pushRelease(id){
+    const q=releasePushQuote(id);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    state.cash-=q.cost;p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+    p.releasePush={week:state.week,cost:q.cost};
+    recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
+    addLog('Post-opening publicity push for "'+p.title+'" cost '+fmtMoney(q.cost)+'. Future ticket demand may improve.','release');
+    save();emit('promotion',p);return {ok:true,cost:q.cost};
+  }
   function releaseIncome(p) {
     p.weeksInRelease++;
     if (p.format === 'short') {
@@ -1643,6 +1703,8 @@ var Engine = (function () {
     const decay = legsDecay(p.quality)+indieBonus;
     let gross = p.opening * Math.pow(decay, p.weeksInRelease - 1);
     if (p.weeksInRelease > 1) gross /= 1 + TUNING.rivals.holdPenalty * rivalPressure(state.week, p.genre, null, true).weight;
+    if(p.releasePush && state.week>p.releasePush.week && state.week-p.releasePush.week<=4)
+      gross*=1+(0.12*(1-(state.week-p.releasePush.week-1)*.18));
     gross = Math.round(gross);
     // Reconcile local and international receipts to total theatrical gross every week.
     const quote = regionQuote(p, p.regions || [homeRegion()]);
@@ -1660,6 +1722,8 @@ var Engine = (function () {
       p.regionalRevenue[id] = (p.regionalRevenue[id] || 0) + localIncome;
       income += localIncome;
     });
+    if(!Number.isFinite(p.estimatedAdmissions))p.estimatedAdmissions=admissionsFromGross(p.gross||0,p.releaseWeek||state.week);
+    p.estimatedAdmissions+=admissionsFromGross(gross,state.week);
     p.gross += gross;
     p.lastWeekGross = gross; // recorded box office for Production Center, old saves may omit it
     p.revenue += income;
@@ -1747,6 +1811,7 @@ var Engine = (function () {
       releaseWeek: p.releaseWeek, year: dateOf(p.releaseWeek).year,
       budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
+      estimatedAdmissions:filmAdmissions(p), performanceHistory:(p.performanceHistory||[]).slice(-32),
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
@@ -3586,6 +3651,8 @@ var Engine = (function () {
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
+    projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
+    estimatedTicketPrice: estimatedTicketPrice, releasePushQuote: releasePushQuote, pushRelease: pushRelease,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
