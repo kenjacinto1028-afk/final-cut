@@ -51,7 +51,7 @@ try:
         page.reload(wait_until='domcontentloaded')
         assert page.evaluate('DesignTheme.current()')=='terracotta'
         assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--ds-accent').trim()")=='#E07A5F'
-        page.evaluate("UI.go('dashboard')")
+        page.evaluate("Engine.newGame({studioName:'Palette QA Reloaded',founderName:'Designer'});UI.go('dashboard')")
         for width in (390,320):
             page.set_viewport_size({'width':width,'height':780})
             page.evaluate('UI.render()')
