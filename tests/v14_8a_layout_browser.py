@@ -28,6 +28,11 @@ try:
         assert page.locator('.fc-dashboard-identity-card details').count()==0
         assert page.locator('.fc-dashboard-identity-link').count()==1
         assert page.locator('.studio-wire .fc-wire-tabs button').count()==3
+        # The redesigned card must use the same palette tokens as the rest of the game.
+        for color in ('sage','cyan','gold'):
+            page.evaluate('(color)=>DesignTheme.set(color)',color)
+            assert page.evaluate('DesignTheme.current()')==color
+            assert page.locator('.fc-dashboard-identity-card').count()==1
         def check_identity(max_height=114):
             card=page.locator('.fc-dashboard-identity-card').bounding_box()
             btn=page.locator('.fc-dashboard-identity-link').bounding_box()
@@ -50,7 +55,7 @@ try:
         page.locator('.fc-dashboard-identity-link').click()
         assert page.locator('#main .fc-v14-identity details').count()==1
         assert 'What earned this classification?' in page.locator('#main').inner_text()
-        page.evaluate("UI.go('dashboard')")
+        page.evaluate("UI.go('dashboard');document.getElementById('content').scrollTop=0;window.scrollTo(0,0)")
         check_identity()
         page.set_viewport_size({'width':1200,'height':880})
         check_side()
