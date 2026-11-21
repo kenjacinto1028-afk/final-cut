@@ -205,7 +205,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Aligned end-to-end tutorial expected step labels with renamed My Releases / Film Archive (`tests/v14_2_tutorial_browser.py`, a71d834).
 
 ## v14.7: adapt six-palette studio design prototype (branch `feature/v14-7-prototype-design-system`)
-- [ ] Audit current shell, core components, responsive behavior and attached HTML reference; define compatibility-safe design tokens.
+- [x] Audited current shell, cards, live studio wire, responsive monitor and attached prototype; documented production-safe design requirements in `docs/DESIGN_V14_7_PROTOTYPE_ADAPTATION.md`.
 - [ ] Implement six persisted theme palettes and accessible palette selector.
 - [ ] Adopt compact four-zone dark shell (topbar, left nav, central stepped cards, optional monitor) and typography/card/button hierarchy.
 - [ ] Improve dashboard KPI/feed/monitor scanability without duplicated counters or altering gameplay.
