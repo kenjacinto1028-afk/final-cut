@@ -532,6 +532,51 @@ var UI = (function () {
   }
   function centerFocus(id) { centerProjectId=Number(id); render(); }
   function centerShowMore(){centerShowOlder=!centerShowOlder;render();}
+  function compactCount(n){
+    if(n==null||!Number.isFinite(n))return '—';
+    return Number(n).toLocaleString('en-US',{notation:n>=10000?'compact':'standard',maximumFractionDigits:1});
+  }
+  function filmPulseChart(p,metric,limit){
+    const pulse=Engine.projectPulse(p);
+    const rows=pulse.history.slice(-(limit||10));
+    const peak=Math.max(1,...rows.map(x=>Math.max(0,x[metric]||0)));
+    if(!rows.length)return '<p class="fc-chart-empty">Weekly tracking begins with the next game week. Lifetime totals above are still accurate.</p>';
+    return '<div class="fc-pulse-chart" role="img" aria-label="'+esc('Actual weekly '+(metric==='gross'?'box office':'studio receipts')+' for '+p.title)+'">'+
+      rows.map(x=>{
+        const v=Math.max(0,x[metric]||0),height=v?Math.max(4,Math.round(v/peak*100)):2;
+        return '<span class="fc-pulse-column" title="'+esc(dateLabel(x.week)+' · '+money(v))+'"><i style="height:'+height+'%"></i></span>';
+      }).join('')+'</div>'+
+      '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+esc(dateLabel(rows[rows.length-1].week))+'</span></div>';
+  }
+  function projectPerformanceBoard(p){
+    const pulse=Engine.projectPulse(p),net=(p.revenue||0)-(p.spent||0),feature=p.format==='feature';
+    const watchers=feature?'<div><small>Est. admissions</small><strong>'+compactCount(pulse.estimatedAdmissions)+'</strong><em>Modeled from ticket gross, not measured viewers</em></div>':
+      '<div><small>Audience measure</small><strong>'+esc(p.format==='short'?'Festival circuit':'Network ratings')+'</strong><em>'+esc(p.format==='short'?'Exact screening attendance is not tracked':'Pilot audience headcount not recorded')+'</em></div>';
+    return '<section class="fc-performance-board"><div class="fc-performance-heading"><h2>Performance & earnings</h2><span>'+esc(p.stage==='release'?'Now in release':p.stage==='done'?'Completed / earning rights':'Production in progress')+'</span></div>'+
+      '<div class="fc-performance-metrics"><div><small>This week · receipts</small><strong>'+money(pulse.thisWeekRevenue)+'</strong><em>Money booked to your studio</em></div>'+
+      '<div><small>All-time receipts</small><strong>'+money(p.revenue||0)+'</strong><em>Includes later rights payments</em></div>'+
+      watchers+
+      '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less production & release expenses</em></div></div>'+
+      '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
+      (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':'')+'</div>'+
+      (feature?'<p class="fc-performance-caveat">Ticket admission estimates use a simulated annual ticket-price assumption; they are not real attendance measurements. Original theatrical gross excludes later rentals and rights revenue.</p>':
+         '<p class="fc-performance-caveat">This format does not have tracked theatrical tickets. '+(p.format==='short'?'Festival/screening receipts':'Pilot deals and series income')+' appear under studio receipts.</p>')+
+      (feature&&p.stage==='release'?releasePushAction(p):'')+
+      '</section>';
+  }
+  function releasePushAction(p){
+    const quote=Engine.releasePushQuote(p.id);
+    if(p.releasePush)return '<p class="fc-performance-caveat">Publicity push completed · '+money(p.releasePush.cost)+' invested.</p>';
+    if(!quote.ok)return '';
+    return '<div class="fc-release-action"><div><strong>Optional: Post-opening publicity</strong><p>'+esc(quote.description)+'</p></div>'+
+      '<button type="button" onclick="UI.promoteFilm('+p.id+')">Invest '+money(quote.cost)+'</button></div>';
+  }
+  function promoteFilm(id){
+    const q=Engine.releasePushQuote(id);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
+    const result=Engine.pushRelease(id);setFlash(result.ok?'Publicity campaign started for '+(Engine.getProject(id)||{}).title+'.':result.reason);render();
+  }
   function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
     const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature');
