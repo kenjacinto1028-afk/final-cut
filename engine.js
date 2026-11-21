@@ -3594,10 +3594,13 @@ var Engine = (function () {
     const score = pilotScore(p);
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
     const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
+    // Web commissions have their own era-appropriate audience access, while
+    // retaining the established bounded pilot-pickup outcome rules.
+    const isWeb=p.mediaVariant==='web';
     const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift + bonus, T.pickupFloor, T.pickupCeil);
     p.stage = 'done';
     if (Math.random() < chance) {
-      p.estimatedHouseholdImpressions=0;
+      if(isWeb)p.estimatedOnlineViews=0;else p.estimatedHouseholdImpressions=0;
       const epCost = p.budgetPlan?Math.round(p.budget*(p.mediaVariant==='web'?.63:.73)):
         Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
@@ -3617,14 +3620,15 @@ var Engine = (function () {
         renewalChance:null,ratingsTrend:0,showMomentum:0 };
       state.series.push(s);
       state.studio.fame = clamp(state.studio.fame + 2, 0, 100);
-      addLog('The network picked up "' + p.title + '": ' + s.episodes + ' episodes at ' + fmtMoney(fee) + ' each (cost ' + fmtMoney(epCost) + '). Pilot fee ' + fmtMoney(pilotFee) + '.', 'tv');
+      addLog((isWeb?'The online platform commissioned ':'The network picked up ')+'"'+p.title+'": '+
+        s.episodes+' episodes at '+fmtMoney(fee)+' each (cost '+fmtMoney(epCost)+'). Initial fee '+fmtMoney(pilotFee)+'.','tv');
     } else {
       const devFee = Math.round(p.budget * T.passFeeShare);
       p.result = 'Passed';
       p.revenue += devFee;
-      p.estimatedHouseholdImpressions=null; // network declined: no airing household data
+      if(isWeb)p.estimatedOnlineViews=null;else p.estimatedHouseholdImpressions=null;
       earn(devFee);
-      addLog('The networks passed on "' + p.title + '" (development fee ' + fmtMoney(devFee) + ').', 'tv');
+      addLog((isWeb?'Online platforms':'Networks')+' passed on "'+p.title+'" (development fee '+fmtMoney(devFee)+').','tv');
     }
     emit('tv', p);
   }
@@ -3696,7 +3700,9 @@ var Engine = (function () {
       const p = getProject(s.projectId);
       if (p) {
         p.revenue += s.fee + bonus+sponsorPay; p.spent += s.epCost;
-        p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
+        if(s.mediaVariant==='web')p.estimatedOnlineViews=(p.estimatedOnlineViews||0)+
+          Math.round(Math.max(0,r)*1250*Math.pow(1.033,Math.max(0,dateOf().year-1995)));
+        else p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
       }
       if (s.aired >= s.episodes) endSeason(s);
     });
