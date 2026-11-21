@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.5)
+# Final Cut — Current Handoff (v13.6)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -50,3 +50,9 @@ The fullscreen v13.2 tutorial dialog was replaced by a **nonmodal 13-step guide*
 
 ## v13.5 — Film Production Center
 Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Syndicate/Entertainment Tycoon repository is not a source for this application. `ui.js` adds the Projects-page center and retained detailed archive; `style.css` adds scoped cinematic styling; `engine.js` extends both player and AI theatrical hold and records optional `lastWeekGross`. Save v13, poster storage, tutorial, year-end honors and sound stay compatible. Run `node tests/v13_5_production_center.js` and the suites in `docs/CHANGELOG_V13_5.md`.
+
+## v13.6 — Sitewide cinematic A+B presentation
+- `theme-ab.css` adds the restrained charcoal/teal/brass theme, loaded **after** `style.css` from `index.html`. Change it instead of mixing new inline styles into engine code.
+- `ui.js`: dashboard management masthead/shortcuts, screen preludes, numbered sidebar groups and keyboard-friendly slate rows. Awards information is available in expandable reference panels; ongoing campaigns and trophies are shown first.
+- The original `style.css`, `engine.js`, `media.js`, poster store, save data (v13), tutorial and sounds are preserved. Do not change game rules to adjust a visual theme.
+- Browser checks/screenshots: `python tests/v13_6_sitewide_browser.py`, GitHub Actions `ab-sitewide-ui.yml`; see `docs/CHANGELOG_V13_6.md`.

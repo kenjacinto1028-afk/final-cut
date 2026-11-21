@@ -1,0 +1,41 @@
+name: FinalCut A+B sitewide UI verification
+on:
+  push:
+    branches: [feature/ab-studio-ui-v13-6]
+  pull_request:
+    branches: [main]
+jobs:
+  sitewide-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify game script syntax and original regression suites
+        run: |
+          node --check content.js
+          node --check engine.js
+          node --check media.js
+          node --check ui.js
+          node tests/v13_smoke.js
+          node tests/v13_4_honors.js
+          node tests/v13_5_production_center.js
+          node tests/v13_compat_regression.js
+          node tests/v13_1_balance.js
+      - name: Install headless Chromium test tools
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Check 18 screen styles, responsiveness and navigation
+        run: python tests/v13_6_sitewide_browser.py
+      - name: Attach real browser screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalcut-v13-6-ui-screenshots
+          path: /tmp/finalcut-ab-ui-screenshots
+          if-no-files-found: ignore

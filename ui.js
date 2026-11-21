@@ -220,7 +220,7 @@ var UI = (function () {
     if (!Engine.state) { $('nav').innerHTML = ''; return; }
     const expiring = Engine.expiringContracts().length;
     $('nav').innerHTML = '<div class="brand">Final Cut<small>STUDIO TYCOON</small></div>' +
-      GROUPS.map(g => '<div class="nav-group"><div class="nav-label">' + g[0] + '</div>' +
+      GROUPS.map((g,idx) => '<div class="nav-group"><div class="nav-label">' + String(idx+1).padStart(2,'0') + '  /  ' + esc(g[0]) + '</div>' +
         g[1].map(v => v[2]
           ? '<button class="navbtn" disabled>' + esc(v[1]) + '<span class="soon">Soon</span></button>'
           : '<button data-view="' + v[0] + '" class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
@@ -285,7 +285,11 @@ var UI = (function () {
     const s = Engine.state;
     const d = Engine.dateOf();
     const era = Engine.eraOf(d.year);
-    let h = '<div class="dashboard-layout"><section class="dashboard-primary">' + eraBanner(era.id) + '<h1>' + dateLabel() + '</h1><p class="era-name">' + esc(era.name) + ' era</p>';
+    let h = '<div class="dashboard-layout"><section class="dashboard-primary">' + eraBanner(era.id) +
+      '<div class="fc-dashboard-head"><div><div class="fc-page-id">THE STUDIO / WEEKLY OPERATIONS</div><h1>' + dateLabel() + '</h1>' +
+      '<p>' + esc(s.studio.name) + ' · ' + esc(era.name) + ' era · Your productions, finances and industry pulse in one place.</p></div>' +
+      '<div class="fc-dashboard-actions"><button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
+      '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>';
     if (s.warning.stage) {
       h += '<div class="alert">' + (s.warning.stage === 1 ? 'Missed payroll.' : 'Creditor deadline.') +
         ' Get cash above $0 by ' + dateLabel(s.warning.deadline) + (s.warning.stage === 2 ? ' or the studio goes bankrupt.' : '.') + '</div>';
@@ -316,7 +320,7 @@ var UI = (function () {
         const info = p.stage === 'release'
           ? (p.format === 'feature' ? 'In theaters · week ' + p.weeksInRelease + ' · gross ' + cu('gross-' + p.id, p.gross) : 'Awaiting ' + esc(p.festival))
           : CONTENT.STAGE_LABELS[p.stage] + ' · ' + Math.max(p.stageWeeksLeft, 0) + ' wk left · ' + money(p.spent) + ' of ' + money(p.budget);
-        return '<div class="row" onclick="UI.openProject(' + p.id + ')"><strong>' + esc(p.title) + '</strong><span class="muted">' + info + '</span></div>';
+        return '<button type="button" class="row" onclick="UI.openProject(' + p.id + ')"><strong>' + esc(p.title) + '</strong><span class="muted">' + info + '</span></button>';
       }).join('') + '</div>';
     }
     if (act < cap) {
@@ -981,10 +985,6 @@ var UI = (function () {
       '. Nominations and major wins support current prestige; lifetime trophies remain permanent. Campaigns add a small edge but cannot guarantee a win.</p>';
     const lastYear = (Engine.state.annualReviews || []).slice(-1)[0];
     if (lastYear) h += '<button type="button" onclick="UI.replayYearEnd(' + lastYear.year + ')">Replay ' + lastYear.year + ' Year-End Honors</button>';
-    h += '<h2>Annual awards ceremonies</h2><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
-      a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul>';
-    h += '<h2>Festival circuit</h2><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
-      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + (f.focus ? ' · focus: ' + esc(f.focus) : '') + '</span></li>').join('') + '</ul>';
     h += '<h2>Films in the running</h2>';
     h += a.eligible.length
       ? '<div class="tbl-wrap"><table><thead><tr><th>Film</th><th>Ceremony</th><th class="num">Score</th><th class="num">Buzz</th><th>Campaign</th><th></th></tr></thead><tbody>' +
@@ -996,8 +996,14 @@ var UI = (function () {
     h += '<h2>Trophy case</h2>' + (a.trophies.length
       ? '<ul class="trophy-list">' + a.trophies.slice().reverse().map(t => '<li>' + trophyIcon(true, isPicture(t.cat)) + '<span><a href="#" onclick="UI.openProject(' + t.projectId + ');return false">' + esc(t.title) + '</a> <span class="muted">· ' + esc(t.cat) + ' · ' + t.year + '</span></span></li>').join('') + '</ul>'
       : '<p class="muted">None yet.</p>');
+    h += '<div class="fc-awards-reference"><h2>Schedule & eligibility</h2><p class="muted">Reference information is available below when you need it.</p>';
+    h += '<details class="fc-reference"><summary>Annual ceremonies · schedule and categories</summary><p class="muted">Major ceremonies arrive over the decades. A film can earn nominations in several ceremonies based on its format and eligibility.</p><ul class="plain">' +
+      a.ceremonies.map(c => '<li><strong>' + esc(c.name) + '</strong> <span class="muted">· week ' + c.week + ' · since ' + c.startYear + ' · ' + esc(c.categories.join(', ')) + '</span></li>').join('') + '</ul></details>';
+    h += '<details class="fc-reference"><summary>Festival circuit · schedule and rules</summary><p class="muted">Local → World, plus up to two new specialist festivals per decade. Submissions are automatic; selections and trophies are judged on each festival’s scheduled week. Runner-ups receive Jury Special Mentions. Excellent small studios remain eligible. Shorts and features can attend multiple events.</p><ul class="plain">' +
+      a.circuit.map(f => '<li><strong>' + esc(f.level) + '</strong> — ' + esc(f.name) + ' <span class="muted">· week ' + f.week + ' · ' + esc(f.prize) + (f.focus ? ' · focus: ' + esc(f.focus) : '') + '</span></li>').join('') + '</ul></details>';
+    h += '</div>';
     h += '<h2>Past ceremonies</h2>' + (a.history.length ? a.history.map((rec, i) =>
-      '<details' + (i === 0 ? ' open' : '') + '><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
+      '<details><summary><strong>' + rec.year + '</strong> <span class="muted">· ' + rec.covered + ' films</span></summary>' +
       rec.cats.map(c => '<p><strong>' + esc(c.name) + '</strong>'+(c.unawarded?' · No qualifying winner':'')+'</p><ul class="plain">' + c.nominees.map(n =>
         '<li>' + (n.winner ? '🏆 <strong>' : '') + (n.filmId ? '<a href="#" onclick="UI.openFilm(\'' + esc(n.filmId) + '\');return false">' + esc(n.title) + '</a>' : esc(n.title)) + (n.winner ? '</strong>' : '') + ' <span class="muted">· ' + (n.projectId != null ? '<strong>' + esc(n.studio) + '</strong>' : esc(n.studio)) + '</span></li>').join('') + '</ul>').join('') +
       '</details>').join('') : '<p class="muted">The first ceremony is in ' + a.next.year + '.</p>');
@@ -1553,6 +1559,30 @@ var UI = (function () {
   }
 
 // ===== SECTION: RENDER =====
+  // A+B editorial screen navigation: concise context, no new game state.
+  const PAGE_CONTEXT = {
+    newproject:['GREENLIGHT DESK','Plan cast, budget, creative direction and distribution'],
+    filmography:['YOUR CATALOG','Released pictures, awards and permanent studio history'],
+    talent:['CASTING OFFICE','Scout talent by skill, recognition, reliability and fee'],
+    roster:['CONTRACT DESK','Manage active contracts and long-term collaborators'],
+    staff:['STUDIO OPERATIONS','Department leadership, staffing and morale'],
+    founder:['EXECUTIVE OFFICE','Career development, personal choices and studio growth'],
+    finance:['FINANCIAL OFFICE','Cash flow, quarterly results and financing'],
+    market:['MARKET INTELLIGENCE','Audience tastes, economic climate and competition'],
+    rivals:['THE COMPETITION','Other studios, market position and strategic rivals'],
+    tv:['TELEVISION DIVISION','Programs, renewals, ratings and ongoing seasons'],
+    archive:['WORLD ARCHIVE','A permanent record of films across the industry'],
+    rankings:['BOX-OFFICE & CRITICS','Compare film performance throughout the world'],
+    awards:['AWARDS OFFICE','Ceremonies, nominations and lifetime honors'],
+    score:['LEGACY REPORT','Your studio achievements across the decades'],
+    news:['THE INDUSTRY WIRE','Headlines and market events'],
+    log:['STUDIO JOURNAL','A chronological record of decisions and events']
+  };
+  function screenPrelude(screen){
+    const item=PAGE_CONTEXT[screen];
+    return item ? '<div class="fc-page-prelude"><span class="fc-page-id">' + esc(item[0]) +
+      '</span><span class="fc-page-context">' + esc(item[1]) + '</span></div>' : '';
+  }
   function render() {
     renderTop();
     renderNav();
@@ -1578,6 +1608,7 @@ var UI = (function () {
     else if (view === 'news') h = viewNews();
     else if (view === 'log') h = viewLog();
     else h = viewDashboard();
+    if (s && view !== 'dashboard' && view !== 'projects') h = screenPrelude(view) + h;
     if (flash) h = '<div class="alert">' + esc(flash) + '</div>' + h;
     $('main').innerHTML = h;
     if (viewTransitionPending && hasMedia() && Media.motionOK()) {
