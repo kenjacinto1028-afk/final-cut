@@ -1559,9 +1559,9 @@ var Engine = (function () {
     const staff = deptBonus('development'), era = eraQuality(p.genre),
       // Authored paid scripts have modest readiness (+1; +2 when the creative
       // vision stays aligned). The outcome is still driven by craft and luck.
-      scriptReadiness = p.dna?.origin==='marketplace' ? (p.dna.scriptVision===p.dna.vision?2:1) : 0,
-      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+scriptReadiness+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
-    const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
+      scriptReadiness = p.scriptFee>0&&p.dna?.origin==='marketplace' ? (p.dna.scriptVision===p.dna.vision?2:1) : 0,
+      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
+    const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + scriptReadiness + variance;
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
     p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, scriptReadiness, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
     return result;
