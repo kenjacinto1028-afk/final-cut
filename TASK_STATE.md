@@ -49,6 +49,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] `engine.js`: 3–12 week quality/audience-based screening run, baseline short receipts spread weekly and reconciled, modeled screening visits, tracked festival exposure and TV household impressions; original feature economy preserved.
 - [x] `engine.js`: one-time festival press kit (+4 jury merit, cost booked) and four-week capped encore (real receipts/costs), continued calendar award eligibility and legacy short compatibility.
 - [x] `ui.js`: release quality/hype, preview ranges before release, modeled theatrical/screening visits, TV household impressions, studio receipts, festival selections, actions and earnings charts in live monitor, Production Center, Filmography and drawers.
-- [ ] Style new screen elements and keep save format v13 compatible; update documentation.
+- [x] Styled compact A+B quality/hype and festival engagement panels responsively in `theme-ab.css`; updated `docs/CHANGELOG_V13_9.md`, README and HANDOFF. Save v13 preserved and old completed shorts are not repaid.
 - [ ] Test player + rival balance, week-by-week receipts, legacy saves, browser and mobile views.
 - [ ] Merge only after passing checks and verify GitHub Pages.
