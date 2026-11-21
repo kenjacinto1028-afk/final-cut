@@ -2396,8 +2396,8 @@ var UI = (function () {
     "title": "Pick format, cast and budget",
     "view": "newproject",
     "target": "#main .form",
-    "location": "New project → Film form",
-    "text": "Keep the budget affordable. Shorts cost less than full features; choose cast, writer, director and creative vision. Marketing and sponsors will become available in the Film Hub after greenlighting."
+    "location": "New project → Format, budget cap, cast and stage allocations",
+    "text": "Set an exact spending cap and suitable media/scope, then choose your creative vision and hire cast/crew. Their fees reduce the remaining funds. Use the six allocation sliders or a preset; Production Feasibility explains quality and delay risk. Sponsor and promotion options depend on future results."
   },
   {
     "section": "Plan a film",
@@ -2405,7 +2405,7 @@ var UI = (function () {
     "view": "newproject",
     "target": "#main .form",
     "location": "New project → Start project",
-    "text": "Click Greenlight. Any real upfront fees are charged now; production expenses continue week by week. If this campaign already has a film, choose Follow my latest existing film instead.",
+    "text": "Click Greenlight. Only hired talent and screenplay rights are charged immediately. Your chosen production allocations are spent as work progresses through each stage. Keep cash for weekly studio overhead. Existing campaigns may follow their active film instead.",
     "goal": "project"
   },
   {
