@@ -57,8 +57,8 @@ with sync_playwright() as p:
     page.evaluate("UI.go('dashboard')")
     assert page.locator(".fc-dashboard-head").count()==1
     assert page.locator(".fc-dashboard-actions button").count()==4
-  assert page.locator(".fc-dashboard-actions button",has_text="Next Action").count()==1
-  assert page.locator(".fc-dashboard-actions button",has_text="Skip Quiet Weeks").count()==1
+    assert page.locator(".fc-dashboard-actions button",has_text="Next Action").count()==1
+    assert page.locator(".fc-dashboard-actions button",has_text="Skip Quiet Weeks").count()==1
     page.locator(".fc-dashboard-actions").get_by_role("button",name="Production Center").click()
     assert page.locator(".fc-center").count()==1
     page.evaluate("UI.go('awards')")
