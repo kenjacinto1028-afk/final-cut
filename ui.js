@@ -2559,12 +2559,18 @@ var UI = (function () {
   function tutorialMove(delta) {
     if(tutorialStep<0)return;
     if(delta>0&&!tutorialGoalStatus(TUTORIAL_STEPS[tutorialStep]).ok)return;
+    const next=TUTORIAL_STEPS[Math.max(0,Math.min(TUTORIAL_STEPS.length-1,tutorialStep+delta))];
+    // Release the scrim from Film Hub before teaching navigation or a real
+    // top-bar action; otherwise users cannot click the highlighted control.
+    if(drawer&&(next.visit||['week','releaseWeek','advance','release'].includes(next.goal)))
+      closeDrawer();
     tutorialStartStep(tutorialStep+delta);
     renderTutorial(true);
   }
   function tutorialOpenSection() {
     if (tutorialStep < 0 || !Engine.state) return;
     const item = TUTORIAL_STEPS[tutorialStep];
+    if(item.view&&drawer)closeDrawer();
     if (item.view) go(item.view);
   }
   function tutorialMinimize() {
