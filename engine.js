@@ -3757,7 +3757,10 @@ var Engine = (function () {
       if(s.sponsorOffer&&s.aired>s.sponsorOffer.expiresEpisode)s.sponsorOffer=null;
       const p = getProject(s.projectId);
       if (p) {
-        p.revenue += s.fee + bonus+sponsorPay; p.spent += s.epCost;
+        if(s.flexibleSeries){
+          p.seriesRevenue=(p.seriesRevenue||0)+s.fee+bonus+sponsorPay;
+          p.seriesSpend=(p.seriesSpend||0)+s.epCost;
+        }else{p.revenue += s.fee + bonus+sponsorPay; p.spent += s.epCost;}
         if(s.mediaVariant==='web')p.estimatedOnlineViews=(p.estimatedOnlineViews||0)+
           Math.round(Math.max(0,r)*1250*Math.pow(1.033,Math.max(0,dateOf().year-1995)));
         else p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
