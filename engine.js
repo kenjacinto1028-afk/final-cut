@@ -442,7 +442,8 @@ var Engine = (function () {
     const vision=V14_VISIONS[o.vision]?o.vision:(pitch?pitch.vision:'mainstream');
     return {pitchId:pitch?pitch.id:null,hook:pitch?pitch.hook:('An original '+o.genre+' story about '+o.topic+'.'),
       strengths,risk,vision,lane:vision==='prestige'?'arthouse':vision==='bold'?'genre':'mainstream',
-      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',choiceFlags:[]};
+      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',
+      scriptVision:pitch?pitch.vision:null,choiceFlags:[]};
   }
   function v14PitchById(id){return v14State().pitches.find(p=>p.id===String(id))||null;}
   // Authored combinations, not incoherent free-text procedural descriptions.
@@ -1556,10 +1557,13 @@ var Engine = (function () {
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
     const staff = deptBonus('development'), era = eraQuality(p.genre),
-      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
+      // Authored paid scripts have modest readiness (+1; +2 when the creative
+      // vision stays aligned). The outcome is still driven by craft and luck.
+      scriptReadiness = p.dna?.origin==='marketplace' ? (p.dna.scriptVision===p.dna.vision?2:1) : 0,
+      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+scriptReadiness+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
     const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
-    p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
+    p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, scriptReadiness, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
     return result;
   }
   function castFame(p, slot) { const v = p.cast[slot]; const t = typeof v === 'number' ? getTalent(v) : null; return t ? t.fame : 0; }
