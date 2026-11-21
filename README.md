@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v13.9 — A longer life for short films
+The **Project Monitor** and Production Center now show film quality, opening hype, real weekly receipts, and transparently estimated reach: feature ticket admissions, short-film screening visits, or TV household impressions (not unique people). Shorts earn screening receipts each week across a **3–12 week** quality-sensitive circuit rather than a one-off lump sum, while the original overall screening-revenue target is preserved. Even after screenings finish, you can follow the festival calendar and optionally fund one festival press kit or one four-week encore screening run. These limited choices have real expenses; awards and profits are not guaranteed. Old v13 save slots stay compatible. See `docs/CHANGELOG_V13_9.md`.
+
 ## v13.8 — Film performance, admissions and profitability
 **My Filmography** now shows studio receipts and direct project profit/loss alongside feature-film theatrical gross. Shorts and pilots no longer misleadingly show `$0` as their only financial number. Feature admissions are **modeled estimates** from ticket gross, not measured viewers. A collapsible **Project Monitor** docks to the right on wide screens and tracks active stages, earnings, audience and weekly performance, with mobile access via the top bar. Production Center and project details include charts, and features may invest in one optional post-opening publicity push. Campaign autosaves and original save format v13 remain compatible. See `docs/CHANGELOG_V13_8.md`.
 
