@@ -174,3 +174,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 - [x] Planned full v14.5 tutorial navigation/breadcrumb/target audit and missing completed-film My Filmography regression in `docs/NEXT_UI_POLISH_PLAN.md`.
 - [ ] Future implementation: reproduce and fix completed film visibility for all media/save paths; repair every tutorial link; run end-to-end film tutorial and desktop/mobile/save regressions.
+
+- [x] Planned film-specific active/core followers, cult status, natural decay, occasional resurgence and bounded sequel audience advantages in `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
+- [ ] Future gameplay implementation: add follower/retention state, Film Hub/monitor visibility, sequel continuity effects and long-career regression tests after Filmography visibility repair.
