@@ -1468,10 +1468,29 @@ var Engine = (function () {
     if(!Number.isInteger(styleId)||styleId<0||styleId>7)return {ok:false,reason:'Invalid design.'};
     p.posterStyleId=styleId;save();emit('poster',p);return {ok:true};
   }
-  function randomTitle() {
-    const t = CONTENT.TITLES;
-    return pick(t.patterns).replace('{adj}', pick(t.adjectives)).replace('{noun2}', pick(t.nouns))
-      .replace('{noun}', pick(t.nouns)).replace('{place}', pick(t.places));
+  function randomTitle(genre, topic) {
+    const t=CONTENT.TITLES, used=new Set();
+    const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    if(state){
+      (state.projects||[]).forEach(p=>used.add(normalize(p.title)));
+      ((state.filmArchive&&state.filmArchive.rivals)||[]).forEach(f=>used.add(normalize(f.title)));
+      ((state.v14&&state.v14.pitches)||[]).forEach(p=>used.add(normalize(p.title)));
+      ((state.rivals&&state.rivals.list)||[]).forEach(s=>(s.films||[]).forEach(f=>used.add(normalize(f.title))));
+    }
+    const preferred=genre==='horror'?['Dark','Hollow','Hidden','Last','Strange','Midnight','Bitter','Silent']:
+      genre==='comedy'?['Familiar','Second','Ordinary','Wild','Borrowed','Golden']:
+      genre==='drama'?['Unfinished','Tender','Forgotten','Quiet','Distant','Last']:
+      genre==='scifi'?['Electric','Glass','Neon','Silver','Endless','Distant']:null;
+    const generate=()=>pick(t.patterns).replace(/\{(adj|noun2|noun|place)\}/g,(_,tag)=>
+      tag==='adj'?pick(preferred&&Math.random()<.6?preferred:t.adjectives):
+      tag==='place'?pick(t.places):pick(t.nouns));
+    let candidate='';
+    for(let attempt=0;attempt<80;attempt++){
+      candidate=generate();
+      if(!used.has(normalize(candidate)))return candidate;
+    }
+    // Fallback remains original rather than modifying user-entered titles.
+    return candidate+' '+(state?state.week+1:Math.ceil(Math.random()*999));
   }
   function advanceProject(p) {
     p.stageWeeksLeft--;
