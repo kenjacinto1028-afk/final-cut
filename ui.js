@@ -288,7 +288,7 @@ var UI = (function () {
         '" aria-current="'+(active===g?'page':'false')+'" onclick="UI.go(\''+g[1][0][0]+'\')"><span>'+String(idx+1).padStart(2,'0')+' · '+esc(g[0])+
         '</span><span aria-hidden="true">›</span></button>').join('')+'</div>'+
       '<button type="button" class="navbtn fc-nav-create" data-view="newproject" onclick="UI.go(\'newproject\')">+ New Project</button>'+
-      DesignTheme.picker()+
+      (typeof DesignTheme !== 'undefined' ? DesignTheme.picker() : '')+
       '<div class="nav-foot"><details class="fc-nav-tools"><summary>Settings & saves</summary><div class="fc-nav-tool-content">'+
       '<button class="navbtn" data-view="saves" onclick="UI.go(\'saves\')">Saved Games</button>'+
       '<button class="navbtn" onclick="UI.saveNow()">Save now</button>'+
@@ -3109,7 +3109,7 @@ var UI = (function () {
   function render() {
     renderTop();
     renderNav();
-    DesignTheme.apply();
+    if(typeof DesignTheme !== 'undefined')DesignTheme.apply();
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
     $('app').classList.toggle('save-manager', view==='saves');
