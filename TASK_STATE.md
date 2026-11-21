@@ -227,7 +227,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase B: implemented News, Rival Releases and Market Trends tabs with actual calendar clashes, separate genre/topic top 3 movements, authentic 8-week demand snapshots and old-save baselines (`engine.js`, `ui.js`, `design-v14_7.css`).
   - [x] Implemented real 20-week genre/topic demand snapshots and 8-week movers with old-save baseline (`engine.js`, ffbe5d1).
 - [x] Phase C: added Next Action routing, prioritized Action Inbox, and bounded eight-week Skip Quiet Weeks with stop conditions for decisions, reports, stage changes, cash risks, major news and contracts (`ui.js`, `design-v14_7.css`).
-- [ ] Phase D: film timeline, rival release collision warnings and safer timing.
+- [x] Phase D: added Film Timeline in active/released Film Hub and release conflict insight in New Project, comparing existing rival calendar by genre/topic and showing lowest-conflict nearby weeks as informational only (`ui.js`, `design-v14_7.css`).
 - [ ] Phase E: remember tabs/filters, film postmortem and financial language/tooltip clarity.
 - [ ] Phase F: dedicated tests, all existing CI and long-career balancing; fix regressions.
 - [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
