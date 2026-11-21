@@ -327,3 +327,18 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 .fc-wire-more{border-top:1px solid var(--ds-border);margin-top:13px;padding-top:11px}
 .fc-wire-more button{width:100%;min-height:35px;font-size:11px;color:var(--ds-accent);background:var(--ds-raised);border:1px solid var(--ds-border);border-radius:7px}
 .fc-wire-more button:hover{background:var(--ds-hover)}
+
+/* v14.8 quick decisions and prioritized notifications */
+.fc-qol-notifications{background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;padding:11px 13px;margin:13px 0}
+.fc-qol-notice-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:7px}
+.fc-qol-notice-head strong{font-size:12px;color:var(--ds-text)}
+.fc-qol-notice-head small{font-size:10px;color:var(--ds-muted);font-variant-numeric:tabular-nums}
+#main .fc-qol-notice{display:flex;gap:10px;align-items:center;justify-content:space-between;text-align:left;width:100%;min-height:40px;margin:4px 0;padding:8px 10px;
+  background:var(--ds-panel);border:1px solid var(--ds-border);border-left:3px solid var(--ds-accent);border-radius:7px;color:var(--ds-text);font-size:11px}
+#main .fc-qol-notice.fc-qol-urgent{border-left-color:var(--ds-negative)}
+#main .fc-qol-notice.fc-qol-warning{border-left-color:var(--ds-warning)}
+.fc-qol-notice span{flex:1}
+.fc-qol-notice small{font-size:9px;color:var(--ds-muted);white-space:nowrap;font-weight:700}
+.fc-qol-notifications details{margin-top:5px;font-size:10px;color:var(--ds-secondary)}
+.fc-qol-notifications summary{cursor:pointer}
+.fc-dashboard-actions{align-items:center}
