@@ -221,3 +221,19 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Revised the proposed separate Dashboard Market Trends panel into **Studio Wire tabs**: News, upcoming Rival Releases, and Market Trends (genre/topic top 3 rise and bottom 3 fall). Updated `docs/NEXT_UI_POLISH_PLAN.md` with relevant schedule/demand sources, responsive states and tests.
 - [x] Added optional quality-of-life improvement candidates to `docs/NEXT_UI_POLISH_PLAN.md` for review (not approved or implemented).
 - [ ] Implement Studio Wire tabs, rivalry scheduling, trend history if needed, and regression tests in next update.
+
+## v14.8 — Studio Wire and full quality-of-life pass (active branch `feature/v14-8-studio-wire-qol`)
+- [x] Phase A: audited current release calendar, market quarters, history/load, film hub, production center and navigation; using existing APIs and bounded real demand snapshots.
+- [x] Phase B: implemented News, Rival Releases and Market Trends tabs with actual calendar clashes, separate genre/topic top 3 movements, authentic 8-week demand snapshots and old-save baselines (`engine.js`, `ui.js`, `design-v14_7.css`).
+  - [x] Implemented real 20-week genre/topic demand snapshots and 8-week movers with old-save baseline (`engine.js`, ffbe5d1).
+- [x] Phase C: added Next Action routing, prioritized Action Inbox, and bounded eight-week Skip Quiet Weeks with stop conditions for decisions, reports, stage changes, cash risks, major news and contracts (`ui.js`, `design-v14_7.css`).
+- [x] Phase D: added Film Timeline in active/released Film Hub and release conflict insight in New Project, comparing existing rival calendar by genre/topic and showing lowest-conflict nearby weeks as informational only (`ui.js`, `design-v14_7.css`).
+- [x] Phase E: added per-studio session-scoped Filmography/Archive/Rankings filters, completed-film postmortem from recorded actuals, and reusable definitions for gross/receipts/P&L/overhead/reach/followers (`ui.js`, `design-v14_7.css`). Studio Wire tab and genre/topic subtab selections already persist within session.
+- [x] Phase F: all 13 workflows passed on final executable-code commit `938b73d`, including v14.8 Node/Chromium, film monitoring, saves, mobile, tutorial, filmmaking and 12 full-career balance simulations. Later commits only updated plan/checkpoint documentation.
+  - [x] Added Node demand-history/save compatibility suite (`tests/v14_8_regression.js`), Chromium Studio Wire/film/QoL/mobile suite (`tests/v14_8_browser.py`) and `.github/workflows/v14_8.yml`.
+- [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
+  - [x] First regression sweep identified obsolete two-button dashboard test and a postmortem hidden on Film Hub Performance only; updated sitewide test for four real controls and surfaced postmortem in Film Hub Overview (`tests/v13_6_sitewide_browser.py`, `ui.js`).
+  - [x] Studio Wire tab, trend kind and per-film Film Hub subtab now persist in session storage (while per-studio filter state remains isolated); fallback safe when browser storage unavailable (`ui.js`, 882c099).
+  - [x] Timeline now projects rough premiere milestones beyond the 12-week calendar; New Project release comparison explicitly says no rival forecast is available beyond that horizon, instead of claiming no competition (`ui.js`, f4d0dce).
+  - [x] v14.8 Node and Playwright suites passed after first fixes; corrected Python indentation of the updated four-control legacy dashboard assertion (`tests/v13_6_sitewide_browser.py`, 938b73d).
+  - [x] Updated `docs/NEXT_UI_POLISH_PLAN.md` from proposed work to accurate v14.8 feature inventory with explicit saved-forecast and legacy-data limits (`8b57c41`).

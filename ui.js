@@ -252,11 +252,8 @@ var UI = (function () {
   let viewTransitionPending = false;
   function go(v) {
     closeMobileNav();
-    // Filmography should always open on a complete, unfiltered studio catalog.
-    // Do not carry restrictive Industry Rankings/Archive filters across sections.
-    if (v === 'filmography' && view !== 'filmography') {
-      Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
-    }
+    // Every archive view keeps its own filters instead of leaking other pages' selections.
+    if(v!==view) { saveBrowseFor(view); restoreBrowseFor(v); }
     if (v !== view) {
       viewTransitionPending = true;
       if (hasMedia()) Media.uiSound('navigate');
@@ -269,8 +266,8 @@ var UI = (function () {
     setFlash('');
     render();
   }
-  function back() { if (hpos > 0) { hpos--; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
-  function forward() { if (hpos < hist.length - 1) { hpos++; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
+  function back() { if (hpos > 0) { saveBrowseFor(view); hpos--; view = hist[hpos]; restoreBrowseFor(view); viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
+  function forward() { if (hpos < hist.length - 1) { saveBrowseFor(view); hpos++; view = hist[hpos]; restoreBrowseFor(view); viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
   function resetHistory() { hist = ['dashboard']; hpos = 0; view = 'dashboard'; }
   function crumb() {
     for (const g of GROUPS) {
@@ -398,6 +395,70 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_DASHBOARD =====
   // 8.3: era backdrop banner on top. 8.5: gross of films in theaters counts up (cu).
+  let wireTab='news',wireTrendKind='genres';
+  try{
+    const saved=sessionStorage.getItem('finalcut-wire-tab');
+    const kind=sessionStorage.getItem('finalcut-wire-trend-kind');
+    if(['news','rivals','trends'].includes(saved))wireTab=saved;
+    if(['genres','topics'].includes(kind))wireTrendKind=kind;
+  }catch(_){}
+  function setWireTab(tab){
+    if(!['news','rivals','trends'].includes(tab))return;
+    wireTab=tab;try{sessionStorage.setItem('finalcut-wire-tab',tab);}catch(_){}
+    render();
+  }
+  function setWireTrendKind(kind){
+    if(!['genres','topics'].includes(kind))return;
+    wireTrendKind=kind;try{sessionStorage.setItem('finalcut-wire-trend-kind',kind);}catch(_){}
+    render();
+  }
+  function wireRivalReleases(){
+    const upcoming=Engine.v14ReleaseCalendar().flatMap(w=>w.rivals.map(f=>({...f,week:w.week}))).slice(0,8);
+    if(!upcoming.length)return '<p class="fc-wire-empty">No announced rival films in the next 12 weeks.</p>';
+    return '<div class="fc-wire-release-list">'+upcoming.map(f=>{
+      const clash=!!((f.sameWeek||[]).length||(f.genreMatches||[]).length||(f.topicMatches||[]).length);
+      return '<article class="fc-wire-release'+(clash?' fc-wire-clash':'')+'"><small>'+esc(dateLabel(f.week))+' · Feature film</small>'+
+        '<strong>'+esc(f.title)+'</strong><span>'+esc(f.studio)+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+
+        (f.topic?' / '+esc(nameOf(CONTENT.TOPICS,f.topic)):'')+'</span>'+
+        (clash?'<em>Potential clash'+(f.sameWeek?.length?' · Same release week':'')+
+          (f.genreMatches?.length?' · Genre overlap':'')+(f.topicMatches?.length?' · Topic overlap':'')+'</em>':'')+
+        '</article>';
+    }).join('')+'</div>';
+  }
+  function wireMarketTrends(){
+    const m=Engine.demandMovers(wireTrendKind);
+    let h='<div class="fc-wire-filters fc-wire-trend-kind" role="group" aria-label="Trend category">'+
+      [['genres','Genres'],['topics','Topics']].map(([id,name])=>
+        '<button type="button" class="'+(wireTrendKind===id?'is-active':'')+'" aria-pressed="'+(wireTrendKind===id)+
+        '" onclick="UI.setWireTrendKind(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</div>';
+    if(!m.valid)return h+'<p class="fc-wire-empty">Insufficient trend history. Demand changes appear after eight played weeks.</p>';
+    const group=(items,rising)=>'<div class="fc-wire-movers"><small>'+(rising?'TOP RISING':'TOP FALLING')+'</small>'+
+      (items.length?items.map(x=>'<div class="fc-wire-mover"><span>'+esc(x.name)+'</span><strong class="'+
+        (rising?'fc-positive':'neg')+'">'+(rising?'▲ +':'▼ ')+x.delta+' pts</strong></div>').join(''):
+        '<p class="muted">No '+(rising?'rising':'falling')+' demand this period.</p>')+'</div>';
+    return h+'<p class="fc-wire-interval">Demand change · last '+m.weeks+' weeks</p>'+
+      group(m.risers,true)+group(m.fallers,false);
+  }
+  function studioWire(){
+    let h='<aside class="studio-wire"><div class="fc-wire-header"><h2>The Studio Wire</h2></div>'+
+      '<div class="fc-wire-tabs" role="group" aria-label="Studio Wire sections">'+
+      [['news','News'],['rivals','Rival Releases'],['trends','Market Trends']].map(([id,name])=>
+        '<button type="button" class="'+(wireTab===id?'is-active':'')+'" aria-pressed="'+(wireTab===id)+
+        '" onclick="UI.setWireTab(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</div>';
+    if(wireTab==='news'){
+      h+='<div class="fc-wire-filters" role="group" aria-label="Filter studio news">'+
+        [['all','All'],['release','Release'],['economy','Economy'],['market','Market']].map(([id,label])=>
+        '<button type="button" class="'+(wireFilter===id?'is-active':'')+'" aria-pressed="'+(wireFilter===id)+
+        '" onclick="UI.setWireFilter(&quot;'+id+'&quot;)">'+label+'</button>').join('')+
+        '</div>'+newsList(wireNews(Engine.news(null,Engine.TUNING.news.headlines)))+
+        '<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;news&quot;)">Full News Feed</button></div>';
+    }else if(wireTab==='rivals'){
+      h+=wireRivalReleases()+'<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;calendar&quot;)">Full Rivals Calendar</button></div>';
+    }else{
+      h+=wireMarketTrends()+'<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;market&quot;)">Full Market Details</button></div>';
+    }
+    return h+'</aside>';
+  }
   let wireFilter='all';
   function wireNews(items) {
     if(wireFilter==='all')return items;
@@ -413,6 +474,72 @@ var UI = (function () {
     wireFilter=next;
     if(view==='dashboard')render();
   }
+  // Actionable messages first; informational events stay in the Studio Wire.
+  function actionInbox(){
+    const s=Engine.state;if(!s)return [];
+    const notes=[];
+    if(s.pending)notes.push({level:'urgent',text:'Creative decision waiting'+(s.queue.length?' · '+s.queue.length+' more queued':''),action:'decisions'});
+    if(s.warning?.stage||s.cash<0)notes.push({level:'urgent',text:'Studio cash warning · review financing',action:'finance'});
+    const ending=Engine.expiringContracts().slice(0,2);
+    ending.forEach(t=>notes.push({level:'warning',text:t.name+' · contract ending in '+Engine.weeksLeft(t)+' weeks',action:'roster'}));
+    const active=(s.projects||[]).filter(p=>p.stage==='release'&&p.format==='feature'&&p.weeksInRelease>=1&&p.weeksInRelease<=6);
+    active.slice(0,2).forEach(p=>notes.push({level:'info',text:p.title+' · review theatrical performance and release strategy',action:'project',id:p.id}));
+    return notes.slice(0,5);
+  }
+  function nextAction(){
+    const s=Engine.state;if(!s)return;
+    if(s.pending){renderModal();const first=$('modal')?.querySelector('button.choice');if(first)first.focus();return;}
+    if(s.warning?.stage||s.cash<0){go('finance');return;}
+    const ending=Engine.expiringContracts();if(ending.length){go('roster');return;}
+    const latest=s.projects.find(p=>p.stage==='release'&&p.format==='feature')||
+      s.projects.find(p=>p.stage!=='done');
+    if(latest){openProject(latest.id);return;}
+    go('newproject');
+  }
+  function gotoAlert(action,id){
+    if(action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
+    else if(action==='project')openProject(id);
+    else go(action);
+  }
+  function notificationPanel(){
+    const notes=actionInbox();
+    if(!notes.length)return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>All clear</small></div><p class="muted">No urgent studio issues this week.</p></section>';
+    return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>'+notes.length+' to review</small></div>'+
+      notes.map(x=>'<button type="button" class="fc-qol-notice fc-qol-'+x.level+'" onclick="UI.gotoAlert(&quot;'+x.action+'&quot;'+(x.id!=null?','+x.id:'')+')">'+
+        '<span>'+esc(x.text)+'</span><small>'+(x.level==='urgent'?'ACTION NEEDED':x.level==='warning'?'UPCOMING':'REVIEW')+'</small></button>').join('')+
+      '<details><summary>About notifications</summary><p>Important decisions and risks appear first; routine stories stay in the Studio Wire. Nothing is dismissed automatically.</p></details></section>';
+  }
+  // Stop before anything important can be skipped. Max eight weeks, no action costs.
+  function skipQuietWeeks(){
+    const s=Engine.state;
+    if(!s||s.gameOver||s.pending||currentPremiereReport()||currentEndRunReport()||currentYearEndReport()){
+      setFlash('Resolve the current decision or report first.');render();return;
+    }
+    let weeks=0,reason='Eight quiet weeks advanced';
+    while(weeks<8){
+      const prevProjects=new Map(s.projects.map(p=>[p.id,p.stage]));
+      const prevLog=s.log?.length||0,prevCash=s.cash,prevRelease=s.projects.filter(p=>p.releaseWeek!=null).length;
+      const nextYearEnd=Engine.dateOf().week===Engine.TUNING.weeksPerYear-1;
+      if(nextYearEnd){reason='Year-end awards approaching';break;}
+      if(!Engine.nextTurn()){reason='A decision is waiting';break;}
+      weeks++;
+      const changed=s.projects.some(p=>prevProjects.has(p.id)&&prevProjects.get(p.id)!==p.stage);
+      const newReleases=s.projects.filter(p=>p.releaseWeek!=null).length>prevRelease;
+      const logEntries=(s.log||[]).slice(prevLog);
+      const majorNews=logEntries.some(x=>/award|festival|market|crisis|bankrupt|studio|reputation|rival/i.test(String(x.type||'')));
+      if(s.pending||s.gameOver||s.stopFlag||s.warning?.stage||s.cash<0||
+        currentPremiereReport()||currentEndRunReport()||currentYearEndReport()||
+        changed||newReleases||majorNews||Engine.expiringContracts().length){
+        reason=s.pending?'Decision ready':newReleases?'Film premiered':
+          changed?'Film reached a new production milestone':
+          s.warning?.stage||s.cash<0?'Financial warning':
+          currentEndRunReport()?'Screening run ended':majorNews?'Industry news update':'Important event';break;
+      }
+      if(s.cash<prevCash- Math.max(2000,Math.abs(prevCash)*.25)){reason='Large weekly cash change';break;}
+    }
+    setFlash('Advanced '+weeks+' week'+(weeks===1?'':'s')+' · '+reason+'.');
+    render();
+  }
   function viewDashboard() {
     const s = Engine.state;
     const d = Engine.dateOf();
@@ -420,8 +547,10 @@ var UI = (function () {
     let h = '<div class="dashboard-layout"><section class="dashboard-primary">' + eraBanner(era.id) +
       '<div class="fc-dashboard-head"><div><div class="fc-page-id">THE STUDIO / WEEKLY OPERATIONS</div><h1>' + dateLabel() + '</h1>' +
       '<p>' + esc(s.studio.name) + ' · ' + esc(era.name) + ' era · Your productions, finances and industry pulse in one place.</p></div>' +
-      '<div class="fc-dashboard-actions"><button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
-      '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>';
+      '<div class="fc-dashboard-actions"><button type="button" onclick="UI.nextAction()">Next Action</button>'+
+      '<button type="button" onclick="UI.skipQuietWeeks()" title="Advance up to 8 weeks, stopping at decisions, premieres and milestones">Skip Quiet Weeks</button>'+
+      '<button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
+      '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>'+notificationPanel();
     if (s.warning.stage) {
       h += '<div class="alert">' + (s.warning.stage === 1 ? 'Missed payroll.' : 'Creditor deadline.') +
         ' Get cash above $0 by ' + dateLabel(s.warning.deadline) + (s.warning.stage === 2 ? ' or the studio goes bankrupt.' : '.') + '</div>';
@@ -469,12 +598,7 @@ var UI = (function () {
         '<button onclick="UI.go(\'filmography\')">Browse film history</button></div>';
     }
     h += viewLegacyActions(legacy);
-    h += '</section><aside class="studio-wire"><div class="fc-wire-header"><h2>The Studio Wire</h2>'+
-      '<div class="fc-wire-filters" role="group" aria-label="Filter studio news">'+
-      [['all','All'],['release','Release'],['economy','Economy'],['market','Market']].map(([id,label])=>
-      '<button type="button" class="'+(wireFilter===id?'is-active':'')+'" aria-pressed="'+(wireFilter===id)+'" onclick="UI.setWireFilter(&quot;'+id+'&quot;)">'+label+'</button>').join('')+
-      '</div></div>'+newsList(wireNews(Engine.news(null, Engine.TUNING.news.headlines)))+
-      '<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;news&quot;)">Browse all studio news</button></div></aside></div>';
+    h += '</section>'+studioWire()+'</div>';
     return h;
   }
   function viewLegacyActions(l) {
@@ -739,6 +863,7 @@ var UI = (function () {
       CONTENT.GENRES.map(g => opt(g.id, g.name, g.id === draft.genre)).join('') + '</select></label>';
     h += '<label>Topic <select onchange="UI.setDraft(\'topic\', this.value)">' +
       CONTENT.TOPICS.map(t => opt(t.id, t.name, t.id === draft.topic)).join('') + '</select></label>';
+    h+=releaseConflictPanel(draft.genre,draft.topic,Engine.state.week+(pv.weeks||0));
     h += '<section class="fc-budget-step"><h2>1. Choose your spending limit</h2>'+
       '<p class="muted">Your cap is a plan, not an upfront payment. The '+esc(FinalCutBudget.budgetClass(draft.format,draft.budgetCap))+
       ' budget label is descriptive; artistic viability depends on scope, cast and allocations.</p>'+
@@ -1207,15 +1332,31 @@ var UI = (function () {
 
 // ===== SECTION: FILM_ARCHIVES =====
   const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', reach:'', period:'all', format: 'all', query: '', page: 0 };
+  const browseSaved={};
+  const browseViews=['filmography','rankings','archive'];
+  function browseKey(v){return 'finalcut-browse-'+(Engine.state?.campaignId||'legacy')+'-'+v;}
+  function saveBrowseFor(v){
+    if(!browseViews.includes(v))return;
+    const data={...filmBrowse};browseSaved[v]=data;
+    try{sessionStorage.setItem(browseKey(v),JSON.stringify(data));}catch(_){}
+  }
+  function restoreBrowseFor(v){
+    if(!browseViews.includes(v))return;
+    let data=browseSaved[v];
+    if(!data)try{data=JSON.parse(sessionStorage.getItem(browseKey(v))||'null');}catch(_){}
+    const defaults={tab:'all',criterion:'overall',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:v==='rankings'?'feature':'all',query:'',page:0};
+    Object.assign(filmBrowse,defaults,data&&typeof data==='object'?data:{});
+  }
+
   const rankTypes = [['overall','Best Overall'],['genre','Best by Genre'],['topic','Best by Topic'],
     ['gross','Top Grossing'],['critics','Critics’ Favorites'],['audience','Audience Favorites'],['reach','Most Viewed'],['awards','Award Leaders']];
   function setFilmFilter(field, value) {
     if (Object.prototype.hasOwnProperty.call(filmBrowse, field)) filmBrowse[field] = value;
     if (field === 'criterion' && value === 'genre' && !filmBrowse.genre) filmBrowse.genre = CONTENT.GENRES[0].id;
     if (field === 'criterion' && value === 'topic' && !filmBrowse.topic) filmBrowse.topic = CONTENT.TOPICS[0].id;
-    filmBrowse.page = 0; render();
+    filmBrowse.page = 0; saveBrowseFor(view); render();
   }
-  function filmPage(offset) { filmBrowse.page = Math.max(0, filmBrowse.page + offset); render(); }
+  function filmPage(offset) { filmBrowse.page = Math.max(0, filmBrowse.page + offset); saveBrowseFor(view);render(); }
   function filmFilters(includeRank) {
     const select = (key, options) => '<label>' + esc(key === 'criterion' ? 'Ranking' : key.charAt(0).toUpperCase() + key.slice(1)) + ' <select onchange="UI.setFilmFilter(\'' + key + '\',this.value)">' +
       options.map(o => '<option value="' + esc(o[0]) + '"' + (String(filmBrowse[key]) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>';
@@ -1311,7 +1452,7 @@ var UI = (function () {
   function setFilmQuery(value) {
     filmBrowse.query = value;
     filmBrowse.page = 0;
-    render();
+    saveBrowseFor(view);render();
   }
   function filmResultsMarkup() {
     const my = view === 'filmography', ranked = view === 'rankings' || (my && filmBrowse.tab === 'ranks');
@@ -1332,7 +1473,7 @@ var UI = (function () {
   }
   function resetMyFilmographyFilters(){
     Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
-    render();
+    saveBrowseFor('filmography');render();
   }
   function viewFilmography() {
     const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
@@ -1345,7 +1486,7 @@ var UI = (function () {
       '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
       '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
-    return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
+    return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+financeGlossary()+
 
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.resetMyFilmographyFilters()">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
@@ -1470,6 +1611,7 @@ var UI = (function () {
     let h = '<h1>Finance</h1><div class="strip">' + stat('Cash', '<span class="' + (s.cash < 0 ? 'neg' : '') + '">' + money(s.cash) + '</span>') +
       stat('Weekly profit', '<span class="' + (wp < 0 ? 'neg' : '') + '">' + money(wp) + '</span>') +
       stat('Quarter so far', '<span class="' + (qtd.profit < 0 ? 'neg' : '') + '">' + money(qtd.profit) + '</span>') + stat('Debt', money(s.debt)) + '</div>';
+    h+=financeGlossary();
     h += '<p><button onclick="UI.loan(true)">Borrow ' + money(Engine.TUNING.loanStep) + '</button> <button onclick="UI.loan(false)">Repay ' + money(Engine.TUNING.loanStep) + '</button> ' +
       '<span class="muted">Limit ' + money(Engine.loanCap()) + ' (rises with fame) · about ' + Math.round(Engine.TUNING.weeklyInterest * 52 * 100) + '% a year.</span></p>';
     h += '<details open><summary><strong>Quarterly summary</strong></summary>' + quarterTable(s.finance.history.slice(-4), qtd) +
@@ -1834,15 +1976,28 @@ var UI = (function () {
 // ===== SECTION: DRAWER =====
   let drawer = null;     // { kind: 'project' | 'talent', id } or null
   let drawerMsg = '';
+  const hubTabCache={};
+  function hubKey(id){return 'finalcut-hub-'+(Engine.state?.campaignId||'legacy')+'-'+id;}
+  function rememberHubTab(){
+    if(!drawer||drawer.kind==='talent')return;
+    const id=drawer.kind==='project'?'player:'+drawer.id:String(drawer.id);
+    hubTabCache[id]=filmHubTab;
+    try{sessionStorage.setItem(hubKey(id),filmHubTab);}catch(_){}
+  }
+  function restoreHubTab(id){
+    let tab=hubTabCache[id];
+    if(!tab)try{tab=sessionStorage.getItem(hubKey(id));}catch(_){}
+    return ['overview','reviews','reach','performance','legacy','production'].includes(tab)?tab:'overview';
+  }
   function openProject(id) {
-    drawer = { kind:'project',id:Number(id) };drawerMsg='';filmHubTab='overview';
+    drawer = { kind:'project',id:Number(id) };drawerMsg='';filmHubTab=restoreHubTab('player:'+Number(id));
     if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='hub'&&tutorialTargetId==null)
       tutorialTargetId=Number(id);
     renderDrawer();renderTutorial(false);
   }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
   function openFilm(id) {
-    drawer={kind:'film',id};drawerMsg='';filmHubTab='overview';
+    drawer={kind:'film',id};drawerMsg='';filmHubTab=restoreHubTab(String(id));
     renderDrawer();renderTutorial(false);
   }
 
@@ -1855,11 +2010,42 @@ var UI = (function () {
   ];
   function filmHubSelect(tab){
     if(!FILM_HUB_TABS.some(x=>x[0]===tab))return;
-    filmHubTab=tab;renderDrawer();
+    filmHubTab=tab;rememberHubTab();renderDrawer();
     const el=$('drawer');if(el)el.scrollTop=0;
   }
   function criticReachName(tier){
     return {1:'City / Local Critic',2:'Regional Critic',3:'National Critic',4:'International Critic'}[Number(tier)]||'Film Critic';
+  }
+  // Film postmortem only compares available recorded outcomes. No historical forecast invented.
+  function filmPostmortem(p){
+    if(!p||p.stage!=='done')return '';
+    const rows=Engine.projectPulse(p).history||[];
+    const releaseRows=rows.filter(r=>p.releaseWeek!=null&&r.week>=p.releaseWeek);
+    const opening=releaseRows[0],following=Engine.filmFollowing(p);
+    const amount=Number(p.spent)||0,budget=Number(p.budget)||0,diff=amount-budget;
+    const openingRevenue=opening&&Number.isFinite(opening.revenue)?opening.revenue:null;
+    return '<section class="fc-qol-postmortem"><h3>Release Postmortem</h3>'+
+      '<p class="muted">Recorded outcomes compared with your spending plan and opening week, not invented pre-release forecasts.</p>'+
+      '<dl>'+dl('Planned budget',money(budget))+dl('Recorded direct costs',money(amount))+
+      dl('Versus spending plan',(diff>0?'+':'')+money(diff)+' ('+(diff>0?'over plan':'under or on plan')+')')+
+      dl('Opening-week studio receipts',openingRevenue==null?'Historical weekly record unavailable':money(openingRevenue))+
+      dl('Total studio receipts',money(p.revenue||0))+
+      dl('Direct P/L',money((p.revenue||0)-amount))+
+      dl('Final quality',Number.isFinite(p.quality)?p.quality+'/100':'Not recorded')+
+      dl('Audience rating',Number.isFinite(p.audience)?p.audience+'/100':'Not recorded')+
+      dl('Active / loyal film followers',following.active.toLocaleString('en-US')+' / '+following.loyal.toLocaleString('en-US'))+'</dl>'+
+      '<small>Shared studio payroll and overhead remain separate from direct project P/L. Rights and festivals may continue after screening.</small></section>';
+  }
+  function financeGlossary(){
+    return '<details class="fc-qol-finance-glossary"><summary>Understanding the numbers · Gross, receipts, profit and reach</summary>'+
+      '<dl>'+dl('Box office gross','Total simulated theatrical ticket sales before the studio share and distribution costs; feature films only.')+
+      dl('Studio receipts','Money actually credited to the studio from ticket shares, short screenings, TV, sponsors and later rights.')+
+      dl('Direct film P/L','Film receipts minus directly booked production, talent and promotional costs; excludes general studio overhead.')+
+      dl('Studio operating profit','Actual income minus operating and project costs in the accounting period; may differ from film P/L.')+
+      dl('Overhead','Shared administrative and studio-running expenses, deducted from company finances rather than individual film P/L.')+
+      dl('Audience estimates','Ticket visits, screening visits and household impressions are modeled exposure, not audited unique people.')+
+      dl('Followers','Estimated interested and loyal audiences; not verified unique viewers or ticket purchases.')+
+      '</dl></details>';
   }
   function v145FilmHub(f){
     const original=f.projectId!=null?Engine.getProject(f.projectId):null;
@@ -1886,7 +2072,7 @@ var UI = (function () {
       h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
-        h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
+        h+=filmTimeline(original)+filmPostmortem(original)+filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
       h+='</section>';
     } else if(filmHubTab==='reviews'){
       h+='<section class="fc-hub-panel"><h3>Critical reception</h3>'+filmCriticsPanel(f)+
@@ -1905,7 +2091,7 @@ var UI = (function () {
         dl('Estimated audience',f.format==='feature'?compactCount(f.estimatedAdmissions)+' ticket visits':
            f.format==='short'?compactCount(f.estimatedScreeningViewers)+' screening visits':
            compactCount(f.estimatedHouseholdImpressions)+' household impressions')+'</dl>';
-      if(original)h+=projectPerformanceBoard(original);
+      if(original)h+=financeGlossary()+filmPostmortem(original)+projectPerformanceBoard(original);
       h+='</section>';
     } else if(filmHubTab==='legacy'){
       h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3>'+fanSummary+'<dl>'+
@@ -2072,6 +2258,58 @@ var UI = (function () {
   }
   // v14.3a: every Film Hub always explains the current stage and the
   // eligibility of future options. The engine quote remains authoritative.
+  // Simple estimated/recorded milestones. Estimates may move after decisions.
+  function filmTimeline(p){
+    if(!p)return '';
+    const history=[];
+    if(p.startWeek!=null)history.push(['Greenlit',dateLabel(p.startWeek),true]);
+    if(p.stage!=='done'&&p.stage!=='release'){
+      history.push([CONTENT.STAGE_LABELS[p.stage]||p.stage,
+        (p.stageWeeksLeft||0)+' wk remaining in current stage (estimate)',false]);
+    }
+    if(p.releaseWeek!=null)history.push(['Premiere',dateLabel(p.releaseWeek),true]);
+    else{
+      const scheduled=Engine.v14ReleaseCalendar().flatMap(w=>w.mine.map(f=>({...f,week:w.week}))).find(f=>f.id===p.id);
+      const fmt=Engine.TUNING.formats[p.format], order=['development','preproduction','shoot','post'];
+      const stageIndex=order.indexOf(p.stage);
+      const fallback=fmt&&stageIndex>=0?Engine.state.week+(p.stageWeeksLeft||0)+
+        order.slice(stageIndex+1).reduce((n,k)=>n+Math.max(0,fmt.stages?.[k]||0),0):null;
+      history.push(['Expected premiere',scheduled?
+        dateLabel(scheduled.week)+(scheduled.estimate?' · estimated':' · scheduled'):
+        fallback!=null?'Around '+dateLabel(fallback)+' · rough forecast':'Date to be determined',false]);
+    }
+    if(p.stage==='release')history.push(['Screenings',Math.max(1,p.weeksInRelease||1)+' weeks into release',true]);
+    if(p.stage==='done'&&p.releaseWeek!=null)history.push(['Screening run','Completed',true]);
+    if(p.format==='short'&&p.releaseWeek!=null){
+      const next=Engine.shortFestivalStatus(p)?.next;
+      history.push(['Festival eligibility',next?esc(next.name)+' · '+dateLabel(next.week)+' (selection not guaranteed)':
+        'No future jury currently eligible',false]);
+    }
+    return '<section class="fc-qol-timeline"><h3>Film Timeline</h3><ol>'+
+      history.map(([label,detail,known])=>'<li class="'+(known?'is-known':'')+'"><strong>'+esc(label)+'</strong><span>'+detail+'</span></li>').join('')+
+      '</ol><small>Forecast milestones are approximate and may change with production and release decisions.</small></section>';
+  }
+  function releaseConflictPanel(genre,topic,releaseWeek){
+    if(!Number.isFinite(releaseWeek))return '';
+    const weeks=Engine.v14ReleaseCalendar();
+    if(weeks.length&&releaseWeek>weeks[weeks.length-1].week){
+      return '<section class="fc-qol-release-clashes"><h3>Release Conflict Check</h3><p class="muted">Estimated premiere '+
+        dateLabel(releaseWeek)+' is beyond the available 12-week rival schedule. No conflict prediction is possible yet.</p>'+
+        '<button type="button" onclick="UI.go(&quot;calendar&quot;)">View announced releases</button></section>';
+    }
+    const clashes=weeks.filter(w=>Math.abs(w.week-releaseWeek)<=2).flatMap(w=>w.rivals
+      .filter(f=>f.genre===genre||(topic&&f.topic===topic)).map(f=>({...f,week:w.week}))).slice(0,4);
+    const options=weeks.map(w=>({week:w.week,penalty:w.rivals.filter(f=>f.genre===genre||(topic&&f.topic===topic)).length}))
+      .filter(w=>w.week>=releaseWeek-1&&w.week<=releaseWeek+4).sort((a,b)=>a.penalty-b.penalty||Math.abs(a.week-releaseWeek)-Math.abs(b.week-releaseWeek));
+    return '<section class="fc-qol-release-clashes"><h3>Release Conflict Check</h3><p class="muted">Estimated premiere '+dateLabel(releaseWeek)+
+      ' · competitor dates and production timing can change.</p>'+
+      (clashes.length?clashes.map(f=>'<p class="fc-qol-clash"><strong>'+esc(f.title)+'</strong> · '+dateLabel(f.week)+
+        ' · '+esc(f.studio)+(f.genre===genre?' · Same genre':'')+(topic&&f.topic===topic?' · Same story topic':'')+'</p>').join(''):
+        '<p class="fc-qol-clear">No closely overlapping rival genres or topics announced within two weeks.</p>')+
+      (options.length?'<p class="muted">Lower-conflict week in the current 12-week calendar: <strong>'+
+        dateLabel(options[0].week)+'</strong> ('+options[0].penalty+' known matches). Informational only; scheduling is not changed.</p>':'')+
+      '<button type="button" onclick="UI.go(&quot;calendar&quot;)">Compare full release calendar</button></section>';
+  }
   function filmLifecycleGuide(p){
     if(!p)return '';
     const released=p.releaseWeek!=null,short=p.format==='short',
@@ -2274,7 +2512,7 @@ var UI = (function () {
     if(Engine.sequelEligibility(p.id).ok)
       h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Continue this story in any media</button>';
     h += awardIcons(p);   // 8.3
-    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
+    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmTimeline(p)+filmPostmortem(p)+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
       v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
@@ -3520,7 +3758,8 @@ var UI = (function () {
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
-    toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter, promoteFilm: promoteFilm,
+    nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
+    toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,

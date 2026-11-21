@@ -304,3 +304,63 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
   #mobile-nav-toggle{position:relative;z-index:12}
   #app.menu-open #nav{position:relative;z-index:13}
 }
+
+/* v14.8 Studio Wire: compact real releases and real demand movers */
+.fc-wire-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:6px 0 13px;padding:4px;background:var(--ds-canvas);border:1px solid var(--ds-border);border-radius:8px}
+.fc-wire-tabs button{min-width:0;min-height:36px;padding:5px 3px;font-size:10px;font-weight:750;color:var(--ds-secondary);background:transparent;border:1px solid transparent;border-radius:6px;line-height:1.3}
+.fc-wire-tabs button.is-active{color:var(--ds-on-accent);background:var(--ds-accent);border-color:var(--ds-accent)}
+.fc-wire-tabs button:not(.is-active):hover{background:var(--ds-hover);color:var(--ds-text)}
+.fc-wire-release-list{display:grid;gap:8px}
+.fc-wire-release{display:grid;gap:3px;padding:11px;background:var(--ds-panel);border:1px solid var(--ds-border);border-radius:8px;border-left:2px solid var(--ds-border)}
+.fc-wire-release.fc-wire-clash{border-left-color:var(--ds-warning)}
+.fc-wire-release small{font-size:10px;color:var(--ds-muted)}
+.fc-wire-release strong{font-size:12px;color:var(--ds-text)}
+.fc-wire-release span{font-size:11px;color:var(--ds-secondary)}
+.fc-wire-release em{font-size:10px;color:var(--ds-warning);font-style:normal;font-weight:700}
+.fc-wire-trend-kind{margin:2px 0 10px}
+.fc-wire-interval,.fc-wire-empty{font-size:11px;color:var(--ds-secondary);margin:12px 0}
+.fc-wire-movers{border-top:1px solid var(--ds-border);padding:11px 0}
+.fc-wire-movers>small{display:block;font-size:10px;color:var(--ds-muted);font-weight:750;letter-spacing:.11em;margin-bottom:9px}
+.fc-wire-mover{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:11px;font-variant-numeric:tabular-nums}
+.fc-wire-mover strong{white-space:nowrap;font-size:10px}
+.fc-wire-mover .fc-positive{color:var(--ds-positive)}
+.fc-wire-more{border-top:1px solid var(--ds-border);margin-top:13px;padding-top:11px}
+.fc-wire-more button{width:100%;min-height:35px;font-size:11px;color:var(--ds-accent);background:var(--ds-raised);border:1px solid var(--ds-border);border-radius:7px}
+.fc-wire-more button:hover{background:var(--ds-hover)}
+
+/* v14.8 quick decisions and prioritized notifications */
+.fc-qol-notifications{background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;padding:11px 13px;margin:13px 0}
+.fc-qol-notice-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:7px}
+.fc-qol-notice-head strong{font-size:12px;color:var(--ds-text)}
+.fc-qol-notice-head small{font-size:10px;color:var(--ds-muted);font-variant-numeric:tabular-nums}
+#main .fc-qol-notice{display:flex;gap:10px;align-items:center;justify-content:space-between;text-align:left;width:100%;min-height:40px;margin:4px 0;padding:8px 10px;
+  background:var(--ds-panel);border:1px solid var(--ds-border);border-left:3px solid var(--ds-accent);border-radius:7px;color:var(--ds-text);font-size:11px}
+#main .fc-qol-notice.fc-qol-urgent{border-left-color:var(--ds-negative)}
+#main .fc-qol-notice.fc-qol-warning{border-left-color:var(--ds-warning)}
+.fc-qol-notice span{flex:1}
+.fc-qol-notice small{font-size:9px;color:var(--ds-muted);white-space:nowrap;font-weight:700}
+.fc-qol-notifications details{margin-top:5px;font-size:10px;color:var(--ds-secondary)}
+.fc-qol-notifications summary{cursor:pointer}
+.fc-dashboard-actions{align-items:center}
+
+/* v14.8 milestone and rivalry insight cards */
+.fc-qol-timeline,.fc-qol-release-clashes{background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;margin:14px 0;padding:14px}
+.fc-qol-timeline h3,.fc-qol-release-clashes h3{font-size:14px;margin:0 0 10px}
+.fc-qol-timeline ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--ds-border)}
+.fc-qol-timeline li{position:relative;display:grid;gap:3px;margin-left:11px;padding:5px 0 13px 12px;font-size:11px}
+.fc-qol-timeline li:before{position:absolute;content:'';width:8px;height:8px;border-radius:50%;left:-16px;top:9px;background:var(--ds-accent);border:1px solid var(--ds-panel)}
+.fc-qol-timeline li.is-known:before{background:var(--ds-positive)}
+.fc-qol-timeline li strong{color:var(--ds-text)}
+.fc-qol-timeline li span,.fc-qol-timeline>small{color:var(--ds-muted);font-size:10px}
+.fc-qol-release-clashes{border-left:3px solid var(--ds-accent)}
+.fc-qol-clash{padding:9px;background:var(--ds-panel);border:1px solid var(--ds-border);border-left:2px solid var(--ds-warning);border-radius:7px;font-size:11px}
+.fc-qol-clear{font-size:11px;color:var(--ds-positive)}
+
+/* v14.8 concise finance glossary and completed-film postmortems */
+.fc-qol-finance-glossary,.fc-qol-postmortem{margin:15px 0;padding:13px 15px;background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;color:var(--ds-secondary)}
+.fc-qol-finance-glossary summary{cursor:pointer;font-size:12px;color:var(--ds-accent);font-weight:750}
+.fc-qol-finance-glossary dl,.fc-qol-postmortem dl{margin:10px 0;font-size:11px}
+.fc-qol-finance-glossary dt,.fc-qol-postmortem dt{font-weight:750;color:var(--ds-text)}
+.fc-qol-finance-glossary dd,.fc-qol-postmortem dd{color:var(--ds-secondary);margin:2px 0 11px}
+.fc-qol-postmortem h3{margin:0 0 8px;font-size:14px}
+.fc-qol-postmortem>small{color:var(--ds-muted);font-size:10px}
