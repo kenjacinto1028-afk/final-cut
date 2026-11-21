@@ -88,3 +88,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Mobile queue safety: bound large snapshots to one in-flight Worker job with coalesced dirty state, flush pending or active compression on tab hide; added rapid-turn consistency acceptance on Chromium.
 
 - [x] Stage 1b evidence-led revision after first 12-career run: large-budget cash was lower, but careful studio flops only 0–2 and rivals still averaged ~65 craft vs player ~90. Added funded studio-experience quality uplift (max 12), 26-week mid/high-budget portfolio crowding, and modest elite-award thresholds (+2/+3). Kept indie films exempt from slate pressure. Seed matrix now shares North America/Europe starting seeds with previous v14 baseline for stronger comparison. Pending CI acceptance.
+
+- [x] Rejected stage 1b overcorrection: 12×61y tests showed blockbuster only ~$16m average cash and ~158 flops; rivals became too dominant (~75 quality and 250 awards/year-long totals). Reduced earned rival craft cap 12 → 6 and high-budget six-month slate penalty 20% → 8%; retain modest elite-award floors. Rechecking before merge.

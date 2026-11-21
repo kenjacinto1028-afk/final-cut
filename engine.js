@@ -2023,7 +2023,7 @@ var Engine = (function () {
       const recentStudioFeatures=state.projects.filter(x=>x!==p&&x.format==='feature'&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
       const slateAttention=p.budget>=TUNING.boxOfficeRefBudget?
-        Math.max(.80,1-Math.min(5,recentStudioFeatures)*.04):1;
+        Math.max(.92,1-Math.min(4,recentStudioFeatures)*.02):1;
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
         m.mult * rollout.openingMult * budgetAttention * genreAttention * slateAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
@@ -2926,8 +2926,8 @@ var Engine = (function () {
     const skillCraft=(craft('director')-50)*.17+(craft('writer')-50)*.13+(craft('actor')-50)*.10+(craft('crew')-50)*.045;
     // v14.1: only studios that have actually grown, delivered pictures and
     // invested in productions acquire sustained craft infrastructure.
-    const earnedCraft=Math.min(12,Math.max(0,r.tier-1)*1.8+
-      Math.min(4,Math.floor((r.releases||0)/16))+(r.industryLeader?2:0));
+    const earnedCraft=Math.min(6,Math.max(0,r.tier-1)*1.0+
+      Math.min(2,Math.floor((r.releases||0)/25))+(r.industryLeader?1:0));
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
     const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
     const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);
