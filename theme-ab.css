@@ -525,3 +525,108 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 @media(max-width:900px){.fc-save-footer{flex-direction:column;align-items:flex-start}.fc-save-header{align-items:flex-start;flex-direction:column}.fc-save-header-actions{justify-content:flex-start}}
 @media(max-width:710px){.fc-save-list{grid-template-columns:1fr}.start.save-manager #main{margin:5px auto;padding:14px 12px 38px}.fc-save-header{padding:19px}.fc-save-card{padding:17px}.fc-save-footer{padding:16px}}
 @media(max-width:410px){.fc-save-details span{flex:1 1 75px}.fc-save-actions button{flex:1 1 auto}.fc-save-actions .fc-delete-save{margin-left:0}}
+
+
+/* FinalCut v13.8 — understated Software Inc-inspired project monitor and ledgers. */
+.fc-film-financial-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 22px}
+.fc-film-financial-strip>div{display:grid;gap:4px;background:#283337;border:1px solid var(--fc-edge);border-radius:8px;padding:15px 17px;min-width:0}
+.fc-film-financial-strip small,.fc-performance-metrics small{font-size:11px;color:var(--fc-secondary)}
+.fc-film-financial-strip strong,.fc-performance-metrics strong{font-size:clamp(17px,1.6vw,22px);font-weight:800;color:var(--fc-text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fc-film-financial-strip em,.fc-performance-metrics em{font-size:10px;color:#9caaa4;font-style:normal;line-height:1.45}
+.fc-positive{color:#afd5bf!important}
+.fc-finance-table{max-width:100%}
+.fc-finance-table th{white-space:normal;line-height:1.3}
+.fc-finance-table td.num{white-space:nowrap}
+.fc-performance-board{background:#253032;color:var(--fc-text);border:1px solid #4e615b;border-radius:9px;padding:19px 20px;margin:13px 0;min-width:0}
+.fc-performance-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:15px}
+.fc-performance-heading h2{font:normal 21px Georgia,Cambria,serif;color:var(--fc-text);margin:0!important}
+.fc-performance-heading>span{font-size:10px;color:#c6b092;letter-spacing:.05em}
+.fc-performance-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fc-performance-metrics>div{min-width:0;display:grid;align-content:start;gap:5px;padding:11px;border:1px solid #495856;background:#303c3e;border-radius:6px}
+.fc-performance-metrics strong{font-size:17px;line-height:1.25}
+.fc-earnings-visuals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:16px 0 8px}
+.fc-earnings-visuals>div{min-width:0;border:1px solid #465753;border-radius:7px;background:#202a2c;padding:13px 14px}
+.fc-earnings-visuals>div>small{font-size:10px;color:#bed0c6;display:block;letter-spacing:.03em}
+.fc-pulse-chart{height:77px;display:flex;align-items:flex-end;gap:4px;justify-content:stretch;padding:7px 0 0;border-bottom:1px solid #5a6a65;overflow:hidden}
+.fc-pulse-column{display:flex;align-items:flex-end;justify-content:center;flex:1 1 8px;height:100%;min-width:3px;max-width:28px}
+.fc-pulse-column i{display:block;width:100%;max-width:22px;min-height:2px;background:#90b2a0;border-radius:2px 2px 0 0}
+.fc-pulse-column:nth-child(even) i{background:#759e90}
+.fc-chart-caption{display:flex;justify-content:space-between;font-size:10px;color:#aebeb5;gap:8px;margin-top:6px}
+.fc-chart-empty{font-size:11px;color:var(--fc-secondary);margin:9px 0 0}
+.fc-performance-caveat{font-size:11px;color:var(--fc-secondary);line-height:1.5;margin:12px 0 0}
+.fc-release-action{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#353b37;border:1px solid #766a54;border-left:3px solid #bda581;border-radius:6px;margin-top:14px}
+.fc-release-action strong{color:#eee5d6;font-size:12px}
+.fc-release-action p{color:#c5c9bc;margin:3px 0 0;font-size:11px}
+.fc-release-action button{flex:none;background:#4b594c;color:#eaf3e9;border:1px solid #849584;font-size:11px;padding:8px 10px}
+.fc-film-expanded{border:1px solid #53635c;border-radius:7px;padding:12px;margin:16px 0}
+.fc-film-expanded>summary{cursor:pointer;color:#c8ddcf;font-weight:700}
+#drawer .fc-performance-board{padding:14px;margin:9px 0}
+#drawer .fc-performance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+#drawer .fc-earnings-visuals{grid-template-columns:1fr}
+#drawer .fc-release-action{flex-wrap:wrap}
+#drawer .fc-performance-heading h2{font-size:18px}
+#drawer .fc-performance-metrics strong{font-size:16px}
+.fc-center .fc-performance-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+#app .tb-monitor-switch{font-size:11px;color:#d5e2d8;border-color:#61786d;background:#2b3e3b;padding:8px 12px;max-width:160px;white-space:nowrap}
+#app .tb-monitor-switch:hover{background:#3a544a;color:#fff}
+#film-monitor[hidden]{display:none!important}
+#film-monitor{
+  position:fixed;right:0;top:0;bottom:0;width:300px;max-width:100vw;z-index:8;
+  background:#1f282b;color:#f0ede6;border-left:1px solid #52625d;
+  box-shadow:-9px 0 29px #050a0b36;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-color:#5b7169 transparent
+}
+.fc-monitor-head{position:sticky;top:0;z-index:1;display:flex;gap:8px;align-items:start;justify-content:space-between;
+  padding:18px 16px 14px;background:#273234;border-bottom:1px solid #485953}
+.fc-monitor-head small{font-size:9px;color:#c1ad87;letter-spacing:.13em;font-weight:800}
+.fc-monitor-head h2{font:normal 22px Georgia,Cambria,serif;color:#eee8db;margin:4px 0 3px}
+.fc-monitor-head span{color:#a7b9ad;font-size:10px}
+#film-monitor .fc-monitor-close{background:#303d3f;border:1px solid #718076;color:#e4eee6;font-size:13px;padding:4px 9px}
+.fc-monitor-list{padding:9px 10px 10px;display:grid;gap:10px}
+.fc-monitor-card{border:1px solid #4a5c56;border-radius:8px;background:#293537;padding:12px}
+.fc-monitor-card-head{display:flex;align-items:start;gap:8px;min-width:0}
+.fc-monitor-symbol{flex:none;border:1px solid #7b887b;border-radius:4px;color:#d0c4ad;background:#333d3b;padding:3px 5px;font-size:9px;letter-spacing:.03em}
+#film-monitor .fc-monitor-card-head button{padding:0;border:0;background:none;text-align:left;color:#f0f1e9;font-size:13px;font-weight:750;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+#film-monitor .fc-monitor-card-head button:hover{text-decoration:underline;color:#c7e4d6}
+.fc-monitor-status{display:flex;justify-content:space-between;gap:12px;color:#c3d2c7;font-size:10px;margin:9px 0 5px}
+.fc-monitor-status strong{color:#d1b88e}
+.fc-monitor-track{height:4px;border-radius:5px;background:#485752;overflow:hidden}
+.fc-monitor-track i{display:block;height:100%;background:#a1bcaa;border-radius:5px}
+.fc-monitor-money{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:11px}
+.fc-monitor-money>div{min-width:0}
+.fc-monitor-money small{color:#b5c5bd;display:block;font-size:9px}
+.fc-monitor-money strong{display:block;margin-top:4px;color:#f3f1e9;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fc-monitor-audience{display:flex;gap:7px;justify-content:space-between;flex-wrap:wrap;margin:9px 0 3px;font-size:10px;color:#c2d3c9}
+#film-monitor .fc-pulse-chart{height:43px;padding-top:2px;gap:3px}
+#film-monitor .fc-pulse-column i{background:#90ad9c}
+#film-monitor .fc-chart-caption{font-size:9px}
+#film-monitor .fc-release-action{display:grid;gap:7px;padding:9px;margin-top:10px}
+#film-monitor .fc-release-action button{font-size:10px}
+#film-monitor .fc-performance-caveat{font-size:9px}
+.fc-monitor-none{font-size:12px;color:#c8d1cc;text-align:center;padding:16px 11px}
+.fc-monitor-footer{padding:17px 16px 25px;border-top:1px solid #43534e;background:#263134}
+.fc-monitor-footer button{width:100%;text-align:center;font-size:12px;border-color:#789185;background:#3a4c43;color:#e9f2e9}
+.fc-monitor-footer small{display:block;margin-top:10px;color:#aabcb2;font-size:10px;line-height:1.5}
+@media(min-width:1350px){
+  #app.monitor-open #content{padding-right:300px;box-sizing:border-box}
+  #app.monitor-open #main{max-width:1300px}
+}
+@media(max-width:1349px){
+  #film-monitor{z-index:8;box-shadow:-20px 0 60px #070c0ec0;width:min(335px,100vw)}
+}
+@media(max-width:1020px){
+  .fc-film-financial-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fc-center .fc-performance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fc-earnings-visuals{grid-template-columns:1fr}
+}
+@media(max-width:540px){
+  .fc-film-financial-strip{gap:7px}
+  .fc-film-financial-strip>div{padding:11px}
+  .fc-film-financial-strip strong{font-size:17px}
+  .fc-performance-board{padding:14px 12px}
+  .fc-performance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #app .tb-monitor-switch{font-size:10px;max-width:none}
+}
+@media(prefers-reduced-motion:reduce){
+ #film-monitor *, .fc-pulse-chart *{transition:none!important;animation:none!important}
+}

@@ -32,3 +32,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Styled save cards and mobile manager in `theme-ab.css`; documented in `docs/CHANGELOG_V13_7.md`, README and HANDOFF.
 - [x] Chromium IndexedDB test passed end-to-end: legacy migration, 4 slots, custom poster copies, switch/rename/delete, browser reload, full backup import and 390px screen; old gameplay/save tests passed. Actions #44843102726 and #44843131913 succeeded.
 - [x] PR #3 merged into `main` (`d4fa3ac17803f8b218e52e638aff450ca905dbe7`), all UI, original engine and multiple-save tests passed (Actions #44843252775/#44843252730/#44843252640), GitHub Pages deployment #44843365483 succeeded.
+
+## v13.8 — Film performance, Filmography finances, persistent project monitor
+- [x] Checked FinalCut main and preserved the v13.7 multiple-save baseline; confirmed user examples of zero-gross Filmography and Software Inc monitoring reference.
+- [x] Verified shorts/pilots have revenue without theatrical gross; Filmography listed box office only. Feature admissions will be explicitly labeled modeled estimates from booked gross; shorts/pilots never get invented counts.
+- [x] Added bounded 32-week `performanceHistory`, per-project revenue/cost/gross deltas, optional publicity push and modeled admissions in `engine.js`; v13 format preserved.
+- [x] Updated `ui.js` Filmography with feature-only box office, real studio receipts, per-film direct P/L, estimated tickets and studio finance summary.
+- [x] Added Software Inc-inspired collapsible right dock via `index.html`, `ui.js`, `theme-ab.css`: live stage/earnings/admissions, bars, project click-through, mobile overlay.
+- [x] Extended Production Center, film and project drawers with 12-week income/gross charts and modeled admissions; one-time post-opening publicity option with real cost.
+- [x] Film finance, real Chromium live monitor, mobile, poster/save v13.7, v13.6 styling, v13.5 cinematic and v13.4 honors regressions passed (GitHub Actions #44848418818); screenshots artifact #14683817710. README, HANDOFF and `docs/CHANGELOG_V13_8.md` updated.
+- [ ] Merge validated update to main and check live Pages deployment.

@@ -1,0 +1,44 @@
+name: FinalCut v13.8 film performance, admissions and UI checks
+on:
+  push:
+    branches: [feature/film-performance-console-v13-8]
+  pull_request:
+    branches: [main]
+jobs:
+  cinema-performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check source scripts and film financial accounting
+        run: |
+          node --check engine.js
+          node --check ui.js
+          node --check save-slots.js
+          node tests/v13_8_film_finance.js
+          node tests/v13_smoke.js
+          node tests/v13_5_production_center.js
+          node tests/v13_4_honors.js
+          node tests/v13_compat_regression.js
+          node tests/v13_1_balance.js
+      - name: Setup Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test live performance and save compatibility in browser
+        run: |
+          python tests/v13_8_film_monitor_browser.py
+          python tests/v13_6_sitewide_browser.py
+          python tests/v13_7_multi_save_browser.py
+      - name: Upload real film performance screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalcut-v13-8-real-ui
+          path: /tmp/finalcut-v13_8-*.png
+          if-no-files-found: ignore

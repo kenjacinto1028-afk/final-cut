@@ -45,6 +45,6 @@ while(feature.stage!=='release'&&weeks<120&&!E.state.gameOver){
 A.equal(feature.stage,'release');
 for(let i=0;i<5;i++){if(E.state.pending)E.choose(E.state.pending.choices.length-1);E.nextTurn();}
 A(feature.gross>=0);A(Number.isFinite(feature.lastWeekGross));
-UI.go('projects');h=screen.get('main');A(h.includes('Autumn of Cinema'));A(h.includes('In theaters'));A(h.includes('Recorded box office'));
+UI.go('projects');h=screen.get('main');A(h.includes('Autumn of Cinema'));A(h.includes('In theaters'));A(h.includes('Theatrical gross'));
 pass('Feature theatrical run and reported weekly gross from real engine');
 console.log('PASS Final Cut v13.5 integration; save v'+E.state.version+', feature gross '+feature.gross);

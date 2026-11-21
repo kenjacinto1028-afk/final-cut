@@ -260,6 +260,8 @@ var UI = (function () {
       '<span class="tb-date">' + dateLabel() + ' <span class="muted">· ' + esc(era.name) + ' · ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span></span>' +
       '<span class="tb-cash ' + (s.cash < 0 ? 'neg' : '') + '"><small>Cash</small> ' + money(s.cash) + '</span>' +
       '<span class="tb-score"><a href="#" onclick="UI.go(\'score\');return false">Score ' + sc.value + '</a>' + (sc.locked ? ' <span class="muted">final</span>' : '') + '</span>' +
+      '<button type="button" class="tb-monitor-switch" aria-expanded="' + (isFilmMonitorOpen()?'true':'false') +
+        '" onclick="UI.toggleFilmMonitor()">' + (isFilmMonitorOpen()?'Hide':'Show') + ' project monitor</button>' +
       (typeof SaveSlots!=='undefined' ? '<button class="tb-save-slot" onclick="UI.go(&quot;saves&quot;)" title="Manage saved studios">' + esc(SaveSlots.activeName()||'Saved Games') + '</button>' : '') +
       '<span class="spacer"></span>' +
       '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
@@ -532,6 +534,118 @@ var UI = (function () {
   }
   function centerFocus(id) { centerProjectId=Number(id); render(); }
   function centerShowMore(){centerShowOlder=!centerShowOlder;render();}
+  function compactCount(n){
+    if(n==null||!Number.isFinite(n))return '—';
+    return Number(n).toLocaleString('en-US',{notation:n>=10000?'compact':'standard',maximumFractionDigits:1});
+  }
+  function filmPulseChart(p,metric,limit){
+    const pulse=Engine.projectPulse(p);
+    const rows=pulse.history.slice(-(limit||10));
+    const peak=Math.max(1,...rows.map(x=>Math.max(0,x[metric]||0)));
+    if(!rows.length)return '<p class="fc-chart-empty">Weekly tracking begins with the next game week. Lifetime totals above are still accurate.</p>';
+    return '<div class="fc-pulse-chart" role="img" aria-label="'+esc('Actual weekly '+(metric==='gross'?'box office':'studio receipts')+' for '+p.title)+'">'+
+      rows.map(x=>{
+        const v=Math.max(0,x[metric]||0),height=v?Math.max(4,Math.round(v/peak*100)):2;
+        return '<span class="fc-pulse-column" title="'+esc(dateLabel(x.week)+' · '+money(v))+'"><i style="height:'+height+'%"></i></span>';
+      }).join('')+'</div>'+
+      '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+esc(dateLabel(rows[rows.length-1].week))+'</span></div>';
+  }
+  function projectPerformanceBoard(p){
+    const pulse=Engine.projectPulse(p),net=(p.revenue||0)-(p.spent||0),feature=p.format==='feature';
+    const watchers=feature?'<div><small>Est. admissions</small><strong>'+compactCount(pulse.estimatedAdmissions)+'</strong><em>Modeled from ticket gross, not measured viewers</em></div>':
+      '<div><small>Audience measure</small><strong>'+esc(p.format==='short'?'Festival circuit':'Network ratings')+'</strong><em>'+esc(p.format==='short'?'Exact screening attendance is not tracked':'Pilot audience headcount not recorded')+'</em></div>';
+    return '<section class="fc-performance-board"><div class="fc-performance-heading"><h2>Performance & earnings</h2><span>'+esc(p.stage==='release'?'Now in release':p.stage==='done'?'Completed / earning rights':'Production in progress')+'</span></div>'+
+      '<div class="fc-performance-metrics"><div><small>This week · receipts</small><strong>'+money(pulse.thisWeekRevenue)+'</strong><em>Money booked to your studio</em></div>'+
+      '<div><small>All-time receipts</small><strong>'+money(p.revenue||0)+'</strong><em>Includes later rights payments</em></div>'+
+      watchers+
+      '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less production & release expenses</em></div></div>'+
+      '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
+      (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':'')+'</div>'+
+      (feature?'<p class="fc-performance-caveat">Ticket admission estimates use a simulated annual ticket-price assumption; they are not real attendance measurements. Original theatrical gross excludes later rentals and rights revenue.</p>':
+         '<p class="fc-performance-caveat">This format does not have tracked theatrical tickets. '+(p.format==='short'?'Festival/screening receipts':'Pilot deals and series income')+' appear under studio receipts.</p>')+
+      (feature&&p.stage==='release'?releasePushAction(p):'')+
+      '</section>';
+  }
+  function releasePushAction(p){
+    const quote=Engine.releasePushQuote(p.id);
+    if(p.releasePush)return '<p class="fc-performance-caveat">Publicity push completed · '+money(p.releasePush.cost)+' invested.</p>';
+    if(!quote.ok)return '';
+    return '<div class="fc-release-action"><div><strong>Optional: Post-opening publicity</strong><p>'+esc(quote.description)+'</p></div>'+
+      '<button type="button" onclick="UI.promoteFilm('+p.id+')">Invest '+money(quote.cost)+'</button></div>';
+  }
+  function promoteFilm(id){
+    const q=Engine.releasePushQuote(id);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
+    const result=Engine.pushRelease(id);setFlash(result.ok?'Publicity campaign started for '+(Engine.getProject(id)||{}).title+'.':result.reason);render();
+  }
+  // Dock is a compact, always-available software-studio-style release monitor,
+  // with readable status cards and actual engine-backed weekly financials.
+  let filmMonitorOpen=null;
+  function isFilmMonitorOpen(){
+    if(filmMonitorOpen==null){
+      let setting=null;
+      try{setting=localStorage.getItem('finalcut-film-monitor-open');}catch(_){}
+      filmMonitorOpen=setting==='yes'?true:setting==='no'?false:
+        (typeof window!=='undefined'&&Number(window.innerWidth)>=1450);
+    }
+    return filmMonitorOpen;
+  }
+  function toggleFilmMonitor(){
+    filmMonitorOpen=!isFilmMonitorOpen();
+    try{localStorage.setItem('finalcut-film-monitor-open',filmMonitorOpen?'yes':'no');}catch(_){}
+    render();
+  }
+  function projectPhasePercent(p){
+    if(p.stage==='release')return Math.min(100,Math.round(p.weeksInRelease/Engine.TUNING.maxReleaseWeeks*100));
+    if(p.stage==='done')return 100;
+    const stages=Engine.TUNING.formats[p.format]?.stages||{};
+    const total=stages[p.stage]||1;
+    return Math.max(0,Math.min(100,Math.round((total-(p.stageWeeksLeft||0))/total*100)));
+  }
+  function renderFilmMonitor(){
+    const dock=$('film-monitor'),app=$('app');
+    if(!dock||!app)return;
+    const s=Engine.state,show=!!s&&view!=='saves'&&isFilmMonitorOpen();
+    dock.hidden=!show;app.classList.toggle('monitor-open',show);
+    if(!show){dock.innerHTML='';return;}
+    const active=s.projects.filter(p=>p.stage!=='done');
+    const residual=s.projects.filter(p=>p.stage==='done'&&(p.windows||[]).some(w=>w.paid<w.total));
+    const recent=s.projects.filter(p=>p.stage==='done').slice(-3);
+    const all=[...active,...residual,...recent].filter((p,i,a)=>a.findIndex(x=>x.id===p.id)===i);
+    all.sort((a,b)=>{
+      const score=p=>p.stage==='release'?4: p.stage!=='done'?3:(p.windows||[]).some(w=>w.paid<w.total)?2:1;
+      return score(b)-score(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
+    });
+    const selected=all.slice(0,6);
+    const cards=selected.map(p=>{
+      const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature';
+      const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
+      const metric=live&&feature?'gross':'revenue';
+      const current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue;
+      const viewer=feature?'<span>'+compactCount(pulse.estimatedAdmissions)+' est. admissions</span>':
+        '<span>'+(p.format==='short'?'Festival / screening release':'TV / network deal')+'</span>';
+      return '<article class="fc-monitor-card">'+
+        '<div class="fc-monitor-card-head"><span class="fc-monitor-symbol">'+esc(feature?'FILM':p.format==='short'?'SHORT':'TV')+'</span>'+
+        '<button type="button" onclick="UI.openProject('+p.id+')" title="Open '+esc(p.title)+'">'+esc(p.title)+'</button></div>'+
+        '<div class="fc-monitor-status"><span>'+esc(phase)+(live?' · wk '+p.weeksInRelease:'')+'</span>'+
+        '<strong>'+Math.round(projectPhasePercent(p))+'%</strong></div>'+
+        '<div class="fc-monitor-track"><i style="width:'+projectPhasePercent(p)+'%"></i></div>'+
+        '<div class="fc-monitor-money"><div><small>'+(metric==='gross'?'This week · box office':'This week · receipts')+'</small><strong>'+money(current)+'</strong></div>'+
+        '<div><small>Studio receipts · total</small><strong>'+money(p.revenue||0)+'</strong></div></div>'+
+        '<div class="fc-monitor-audience">'+viewer+
+        '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
+        filmPulseChart(p,metric,7)+
+        (live&&feature?releasePushAction(p):'')+
+        '</article>';
+    }).join('');
+    dock.innerHTML='<header class="fc-monitor-head"><div><small>LIVE STUDIO FEED</small><h2>Project monitor</h2>'+
+      '<span>'+active.length+' active · '+s.projects.length+' lifetime projects</span></div>'+
+      '<button class="fc-monitor-close" type="button" onclick="UI.toggleFilmMonitor()" aria-label="Collapse project monitor">✕</button></header>'+
+      '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">Greenlight a film to follow weekly production and earnings.</p>')+'</div>'+
+      '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Full Production Center</button>'+
+      '<small>Weekly earnings are booked by the game engine. Ticket reach is modeled, not measured.</small></footer>';
+  }
   function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
     const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature');
@@ -549,7 +663,7 @@ var UI = (function () {
       '<div><small>Budget / spent</small><strong>'+money(chosen.budget)+' / '+money(chosen.spent)+'</strong><em>Actual cash outflow, no new costs</em></div>'+
       '<div><small>'+ (chosen.critic!=null?'Critic reception':'Early quality range') +'</small><strong>'+esc(estimate.value)+'</strong><em>'+esc(estimate.note)+'</em></div>'+
       '<div><small>Release timing</small><strong>'+esc(estRelease)+'</strong><em>Dates move with setbacks or decisions</em></div>'+
-      '<div><small>Recorded box office</small><strong>'+money(chosen.gross||0)+'</strong><em>'+(chosen.stage==='release'?'Last week '+money(chosen.lastWeekGross||0):chosen.stage==='done'?'Theatrical run recorded':'Not yet released')+'</em></div></div>';
+      '<div><small>'+(chosen.format==='feature'?'Theatrical gross':'Studio receipts')+'</small><strong>'+money(chosen.format==='feature'?(chosen.gross||0):(chosen.revenue||0))+'</strong><em>'+(chosen.format==='feature'?'Last week '+money(Engine.projectPulse(chosen).thisWeekGross):'Festival / network receipts')+'</em></div></div>';
     const current=s.pending&&s.pending.projectId===chosen.id;
     const decision='<div class="fc-decision"><small>STUDIO DECISIONS</small><h3>'+(current?'A decision needs your attention':'Routine work is delegated')+'</h3><p>'+(current?'A production decision is waiting. Open it to review the choices before continuing.':'Work, production costs and scheduled event decisions are processed each week. You may inspect the project or advance to the next decision at any time.')+'</p><div class="fc-actions"><button onclick="UI.openProject('+chosen.id+')">Open project details</button><button onclick="'+(s.pending?'UI.render()':'UI.advance()')+'" '+(s.pending?'disabled':'')+'>'+(s.pending?'Resolve pending decision':'Advance to next decision')+'</button></div></div>';
     const stageDetails='<section class="fc-stage-detail"><h2>Production milestones</h2><div class="fc-milestones">'+mark+'</div><div class="fc-notes"><div><small>Timeline</small><strong>'+esc(st.status)+'</strong><p>'+(chosen.stage==='release'?'Theatrical gross is booked automatically each week; stronger films can stay in theaters for up to '+Engine.TUNING.maxReleaseWeeks+' weeks.':chosen.stage==='done'?'This title is finished. Its financial and awards history stays in Filmography.':'The studio completes each phase and triggers choices at its scheduled milestones.')+'</p></div>'+decision+'</div></section>';
@@ -560,7 +674,7 @@ var UI = (function () {
     const old=list.length>7?'<button class="fc-more" onclick="UI.centerShowMore()">'+(centerShowOlder?'Show fewer':'Show '+(list.length-7)+' more')+'</button>':'';
     const recent=theaters.slice(0,3).map(p=>'<div class="fc-week-film"><span>'+esc(p.title)+'</span><strong>'+money(p.lastWeekGross||0)+'</strong><small>Week '+p.weeksInRelease+' · total '+money(p.gross||0)+'</small></div>').join('');
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE</small><h2>In theaters</h2><p>Recorded ticket gross; not a forecast. Competition and word of mouth influence future weeks.</p></div><div class="fc-pulse-list">'+(recent||'<p>No feature films currently in theaters.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
@@ -644,14 +758,35 @@ var UI = (function () {
     });
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
-    h += '<div class="tbl-wrap"><table><thead><tr>' + (ranked ? '<th>World #</th>' + (mine ? '<th>Studio #</th>' : '') : '') +
-      (mine && !ranked ? '<th>Studio #</th><th>World #</th>' : '') + '<th>Film</th><th>Studio</th><th>Year</th><th>Genre / Topic</th><th class="num">Critics</th><th class="num">Gross</th><th class="num">' + (ranked ? 'Ranking score' : 'Awards') + '</th></tr></thead><tbody>' +
-      page.map(f => '<tr>' + (ranked ? '<td><strong>#' + f.worldRank + '</strong>' + rankMovement(f) + '</td>' + (mine ? '<td>#' + f.studioRank + '</td>' : '') : (mine ? '<td>' + (positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—') + '</td><td>' + (positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—') + '</td>' : '')) +
-        '<td>' + filmLabel(f) + '</td><td>' + esc(f.studio) + (f.projectId != null ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + f.year + '</td>' +
-        '<td>' + esc(nameOf(CONTENT.GENRES,f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS,f.topic || '')) + '</td><td class="num">' + (f.critic == null ? '—' : f.critic) +
-        '</td><td class="num">' + money(f.gross || 0) + '</td><td class="num">' + (ranked ? f.score : (f.awards || []).filter(a => a.won).length + (f.festResults || []).filter(a => /prize|grand|winner|won/i.test(a.result || '')).length) +
-        '</td></tr>').join('') +
-      (!page.length ? '<tr><td colspan="10" class="muted">No films match these filters yet.</td></tr>' : '') + '</tbody></table></div>';
+    const detailed=mine&&!ranked;
+    const heads=(ranked?'<th>World #</th>'+(mine?'<th>Studio #</th>':''):'')+
+      (detailed?'<th>Studio #</th><th>World #</th>':'')+
+      '<th>Film</th>'+(mine?'':'<th>Studio</th>')+'<th>Year</th><th>Format / Genre / Topic</th><th class="num">Critics</th>'+
+      (detailed
+        ? '<th class="num" title="Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.">Box office</th>'+
+          '<th class="num" title="Money retained by the studio: box-office share, screenings, pilot fees and later rights payments.">Studio receipts</th>'+
+          '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
+          '<th class="num" title="Modeled ticket admissions for theatrical features only. Not recorded actual viewers.">Tickets (est.)</th>'
+        : '<th class="num">Box office</th>')+
+      '<th class="num">'+(ranked?'Ranking score':'Awards')+'</th>';
+    h += '<div class="tbl-wrap fc-finance-table"><table><thead><tr>'+heads+'</tr></thead><tbody>'+
+      page.map(f=>{
+        const c=f.profit==null?'—':'<span class="'+(f.profit<0?'neg':'fc-positive')+'">'+money(f.profit)+'</span>';
+        const reach=f.format==='feature'&&Number.isFinite(f.estimatedAdmissions)
+          ?Number(f.estimatedAdmissions).toLocaleString('en-US'):'—';
+        const financial=detailed
+          ?'<td class="num">'+(f.format==='feature'?money(f.gross||0):'<span class="muted" title="No theatrical ticket sales for this format">—</span>')+'</td>'+
+           '<td class="num">'+money(f.revenue||0)+'</td><td class="num">'+c+'</td>'+
+           '<td class="num" title="Modeled admission count, not measured ticket sales">'+reach+'</td>'
+          :'<td class="num">'+money(f.gross||0)+'</td>';
+        return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(detailed?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
+          '<td>'+filmLabel(f)+'</td>'+(mine?'':'<td>'+esc(f.studio)+'</td>')+
+          '<td>'+f.year+'</td><td>'+esc(nameOf(Engine.formats(),f.format))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
+          '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
+          '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
+      }).join('')+
+      (!page.length?'<tr><td colspan="'+(detailed?12:(ranked?10:9))+'" class="muted">No films match these filters yet.</td></tr>':'')+
+      '</tbody></table></div>';
     if (maxPage) h += '<div class="archive-pages"><button onclick="UI.filmPage(-1)" ' + (filmBrowse.page===0?'disabled':'') + '>Previous</button>' +
       '<span>Page ' + (filmBrowse.page+1) + '/' + (maxPage+1) + '</span><button onclick="UI.filmPage(1)" ' + (filmBrowse.page===maxPage?'disabled':'') + '>Next</button></div>';
     return h;
@@ -674,7 +809,18 @@ var UI = (function () {
     return filmTable(films,false,my);
   }
   function viewFilmography() {
-    return '<h1>My Filmography</h1><p class="muted">Your studio’s complete release history, including production teams, financials and awards. Studio and world positions use the same ranking formula.</p>' +
+    const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
+    const receipts=mine.reduce((n,f)=>n+(f.revenue||0),0),
+      spent=mine.reduce((n,f)=>n+(f.spent||0),0),
+      box=mine.reduce((n,f)=>n+(f.gross||0),0);
+    const total=receipts-spent;
+    const dashboard='<div class="fc-film-financial-strip">'+
+      '<div><small>Total box office</small><strong>'+money(box)+'</strong><em>Feature tickets only</em></div>'+
+      '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
+      '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
+      '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
+    return '<h1>My Filmography</h1><p class="muted">All releases and direct film financials. Shorts earn screening income and pilots earn network income, not theatrical gross. Feature ticket counts are estimates, not actual attendance records.</p>'+dashboard+
+
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
       filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
@@ -1160,6 +1306,7 @@ var UI = (function () {
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
       (f.reissueRevenue?dl('Classic reissues',money(f.reissueRevenue)+' (separate from original theatrical gross)'):'') +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
+    if(f.projectId!=null && Engine.getProject(f.projectId))h+='<details class="fc-film-expanded"><summary>Weekly earnings & audience trends</summary>'+projectPerformanceBoard(Engine.getProject(f.projectId))+'</details>';
     h += qualityDetails(f.qualityBreakdown, f.hypeBreakdown);
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
     h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + (a.personName?' — '+esc(a.personName):'') + ' (' + a.year + ')').join('<br>') || 'None') +
@@ -1243,6 +1390,7 @@ var UI = (function () {
     const sr = Engine.series().find(x => x.projectId === p.id);
     if (sr) h += dl('Series', 'Season ' + sr.season + ' · ' + (sr.status === 'airing' ? 'episode ' + sr.aired + '/' + sr.episodes : sr.status) + (sr.seasonAvgs.length ? ' · averages ' + sr.seasonAvgs.join(', ') : ''));
     h += '</dl>';
+    h += projectPerformanceBoard(p);
     if ((p.format === 'feature' || p.format === 'short') && p.releaseWeek == null) {
       const quote = Engine.regionQuote(p, p.regions);
       h += '<h2>Distribution planning</h2><p class="muted">Choose markets before release. The home market is included. Shorts gain modest screening income; features gain potential box office. Overseas distribution has extra costs.</p>' +
@@ -1673,6 +1821,7 @@ var UI = (function () {
     renderDrawer();
     renderTutorial();
     renderYearEndHonors();
+    renderFilmMonitor();
   }
 
 // ===== SECTION: ACTIONS =====
@@ -1963,6 +2112,7 @@ var UI = (function () {
 
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
+    toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
