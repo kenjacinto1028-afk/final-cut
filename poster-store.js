@@ -86,8 +86,38 @@ var PosterStore = (function () {
       if(blob.size <= 750000) await put(Number(id), blob);
     }
   }
+  async function copyCampaign(fromCampaign,toCampaign,projectIds) {
+    if(!fromCampaign||!toCampaign||fromCampaign===toCampaign)throw new Error('Invalid poster copy destination.');
+    // Read every original before writing any copy; missing uploads must never
+    // produce a new save pointing at someone else's or nonexistent artwork.
+    const copies=[];
+    for(const id of projectIds){
+      const blob=await readByKey(fromCampaign+':player:'+Number(id));
+      if(!blob)throw new Error('Custom poster '+id+' is missing. Restore it or use a generated poster before copying.');
+      copies.push([toCampaign+':player:'+Number(id),blob]);
+    }
+    for(const [k,blob] of copies)await writeByKey(k,blob);
+  }
+  async function deleteCampaign(campaignId) {
+    if(typeof campaignId!=='string'||!campaignId)return;
+    const prefix=campaignId+':player:',d=await db();
+    await new Promise((resolve,reject)=>{
+      const tx=d.transaction(STORE,'readwrite'),req=tx.objectStore(STORE).openCursor();
+      req.onsuccess=()=>{const cur=req.result;if(!cur)return;
+        if(typeof cur.key==='string'&&cur.key.startsWith(prefix))cur.delete();
+        cur.continue();
+      };
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error||Error('Could not delete campaign artwork.'));
+    });
+    for(const k of [...cache.keys()])if(k.startsWith(prefix)){
+      URL.revokeObjectURL(cache.get(k));cache.delete(k);requested.delete(k);
+    }
+    signal();
+  }
   function resetCache() {
     cache.forEach(u=>URL.revokeObjectURL(u));cache.clear();requested.clear();
   }
-  return { url, put, remove, missing, bundle, restore, resetCache };
+  return { url, put, remove, missing, bundle, restore, resetCache,
+    copyCampaign, deleteCampaign };
 })();

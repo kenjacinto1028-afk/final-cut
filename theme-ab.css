@@ -481,3 +481,47 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
   .tutorial-card{max-height:min(48dvh,355px)}
   .year-end-intro{padding:18px 14px}
 }
+
+
+/* v13.7 — Campaign archives: same quiet A+B design as the Production Center. */
+.start.save-manager #content{display:block;padding:0;min-height:100vh}
+.start.save-manager #main{width:min(1150px,100%);max-width:1150px;margin:24px auto;padding:20px 24px 55px;border:0;background:transparent}
+.fc-save-library{display:grid;gap:20px;color:var(--fc-text)}
+.fc-save-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  background:linear-gradient(110deg,#263336,#282c2c);border:1px solid var(--fc-edge);border-radius:10px;padding:27px 30px}
+.fc-save-header small{display:block;font-size:10px;letter-spacing:.16em;font-weight:800;color:var(--fc-metal)}
+.fc-save-header h1{margin:7px 0;font-size:clamp(30px,3.5vw,40px);font-weight:400}
+.fc-save-header p{font-size:12px;color:var(--fc-secondary);margin:0;max-width:640px}
+.fc-save-header-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.fc-save-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.fc-save-card{display:grid;gap:13px;background:var(--fc-surface);border:1px solid var(--fc-edge);border-radius:10px;padding:20px 21px;min-width:0}
+.fc-save-card.fc-save-active{border-color:#81998a;background:#293633}
+.fc-save-head{display:flex;gap:15px;align-items:flex-start;justify-content:space-between}
+.fc-save-head>div{min-width:0}
+.fc-save-head small{color:var(--fc-metal);font-size:9px;letter-spacing:.13em;font-weight:750}
+.fc-save-head h2{margin:5px 0 4px!important;font:normal 23px Georgia,Cambria,serif;color:var(--fc-text);overflow-wrap:anywhere}
+.fc-save-head p{margin:0;color:var(--fc-secondary);font-size:11px}
+.fc-save-status{color:#cedfd4;background:#394940;border:1px solid #617e70;border-radius:5px;padding:4px 8px;font-size:10px;white-space:nowrap}
+.fc-save-card:not(.fc-save-active) .fc-save-status{background:#333d3e;border-color:var(--fc-edge);color:var(--fc-secondary)}
+.fc-save-details{display:flex;flex-wrap:wrap;gap:9px 17px;padding:12px 0;border-top:1px solid var(--fc-edge);border-bottom:1px solid var(--fc-edge)}
+.fc-save-details span{color:var(--fc-secondary);font-size:10px;display:grid;gap:4px;flex:1 1 90px}
+.fc-save-details strong{font-size:12px;color:var(--fc-text);font-weight:700;font-variant-numeric:tabular-nums}
+.fc-save-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.fc-save-actions button{font-size:12px;min-height:37px;padding:8px 12px}
+.fc-save-actions .fc-delete-save{margin-left:auto;color:#e2aaa3;background:#44363a;border-color:#745357}
+.fc-save-actions .fc-delete-save:hover{background:#583f42;border-color:#9c6c66}
+.fc-save-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;
+  background:#212c2e;border:1px solid var(--fc-edge);border-radius:9px;padding:18px 21px}
+.fc-save-footer h2{font:normal 21px Georgia,Cambria,serif;margin:0 0 8px!important;color:var(--fc-text)}
+.fc-save-footer p{color:var(--fc-secondary);margin:0;font-size:12px;max-width:570px}
+.fc-save-import{font-size:12px;border:1px solid #809f8c;background:#435c51;color:#e8f2e8;min-height:37px}
+.fc-save-empty{text-align:center;background:var(--fc-surface-low);border:1px solid var(--fc-edge);
+  border-radius:9px;padding:52px 24px}
+.fc-save-empty h2{font:normal 23px Georgia,Cambria,serif;margin:0 0 9px!important;color:var(--fc-text)}
+.fc-save-empty p{color:var(--fc-secondary)}
+.tb-save-slot{font-size:11px;font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#d2e2d8;background:#2c3d39;border-color:#536c60}
+.tb-save-slot:hover{background:#385148}
+@media(max-width:900px){.fc-save-footer{flex-direction:column;align-items:flex-start}.fc-save-header{align-items:flex-start;flex-direction:column}.fc-save-header-actions{justify-content:flex-start}}
+@media(max-width:710px){.fc-save-list{grid-template-columns:1fr}.start.save-manager #main{margin:5px auto;padding:14px 12px 38px}.fc-save-header{padding:19px}.fc-save-card{padding:17px}.fc-save-footer{padding:16px}}
+@media(max-width:410px){.fc-save-details span{flex:1 1 75px}.fc-save-actions button{flex:1 1 auto}.fc-save-actions .fc-delete-save{margin-left:0}}

@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.6)
+# Final Cut — Current Handoff (v13.7)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -56,3 +56,11 @@ Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Sy
 - `ui.js`: dashboard management masthead/shortcuts, screen preludes, numbered sidebar groups and keyboard-friendly slate rows. Awards information is available in expandable reference panels; ongoing campaigns and trophies are shown first.
 - The original `style.css`, `engine.js`, `media.js`, poster store, save data (v13), tutorial and sounds are preserved. Do not change game rules to adjust a visual theme.
 - Browser checks/screenshots: `python tests/v13_6_sitewide_browser.py`, GitHub Actions `ab-sitewide-ui.yml`; see `docs/CHANGELOG_V13_6.md`.
+
+## v13.7 — Multi-save architecture
+- `save-slots.js`: IndexedDB `finalcut-save-library/snapshots` archives inactive campaigns, while the active campaign stays in the legacy `localStorage['backlot_save']`. `finalcut-save-index-v1` is the lightweight slot registry.
+- `engine.js`: new read-only save summary / encoder and session-close functions; original save schema remains version 13.
+- `poster-store.js`: campaign-copy and cleanup, so duplicated campaigns never share uploaded posters. CampaignIDs differ for copies/imports.
+- `ui.js`/ `theme-ab.css`: Save Library screen and actions, safe New Game, load/save/rename/delete/copy, and new-slot full-backup imports.
+- `tests/v13_7_multi_save_browser.py` uses a real localhost Chromium origin and IndexedDB, and `.github/workflows/multi-saves.yml` verifies the old v13 regression suites too.
+- Clearing site/browser storage still deletes local slots; full backups are the transfer/recovery path. See `docs/CHANGELOG_V13_7.md`.

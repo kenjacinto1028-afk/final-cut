@@ -171,7 +171,7 @@ var UI = (function () {
 // ===== SECTION: NAV =====
   // [id, label, soon?]  soon = tab shown but disabled until that view exists.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log']]],
+    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
     ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
     ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
     ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
@@ -226,10 +226,10 @@ var UI = (function () {
           : '<button data-view="' + v[0] + '" class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
             (v[0] === 'roster' && expiring ? '<span class="badge">' + expiring + '</span>' : '') + '</button>'
         ).join('') + '</div>').join('') +
-      '<div class="nav-foot">' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
+      '<div class="nav-foot"><button class="navbtn" onclick="UI.saveNow()">Save now</button>' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
       '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '<button class="navbtn" onclick="UI.openTutorial()">? Tutorial</button>' +
-      '<button class="navbtn danger-nav" onclick="UI.quit()">New game</button></div>';
+      '<button class="navbtn danger-nav" onclick="UI.quit()">Return to title</button></div>';
   }
   // 8.1 music toggle and volume, 8.4 sound effects toggle, 8.5 reduce-motion toggle (Media keeps the settings; display only here).
   function soundControls() {
@@ -260,21 +260,69 @@ var UI = (function () {
       '<span class="tb-date">' + dateLabel() + ' <span class="muted">· ' + esc(era.name) + ' · ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span></span>' +
       '<span class="tb-cash ' + (s.cash < 0 ? 'neg' : '') + '"><small>Cash</small> ' + money(s.cash) + '</span>' +
       '<span class="tb-score"><a href="#" onclick="UI.go(\'score\');return false">Score ' + sc.value + '</a>' + (sc.locked ? ' <span class="muted">final</span>' : '') + '</span>' +
+      (typeof SaveSlots!=='undefined' ? '<button class="tb-save-slot" onclick="UI.go(&quot;saves&quot;)" title="Manage saved studios">' + esc(SaveSlots.activeName()||'Saved Games') + '</button>' : '') +
       '<span class="spacer"></span>' +
       '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
       '<button data-guide="advance" class="primary" ' + (blocked ? 'disabled' : '') + ' onclick="UI.advance()">Advance to next decision</button>';
   }
 
 // ===== SECTION: VIEW_START =====
+  // Browser-local campaign library. The current slot autosaves exactly as it did
+  // before v13.7; archived slots live in IndexedDB and are not overwritten.
+  function viewSaveLibrary() {
+    if(typeof SaveSlots==='undefined') return '<h1>Saved games</h1><p class="muted">Save slots are unavailable in this build.</p>';
+    const data=SaveSlots.list();
+    const slots=data.slots.slice().sort((a,b)=>b.updatedAt-a.updatedAt);
+    let h='<section class="fc-save-library"><div class="fc-save-header"><div><small>STUDIO ARCHIVES / CAMPAIGN MANAGEMENT</small>'+
+      '<h1>Saved games</h1><p>Run multiple independent studios. The active slot autosaves each week; other campaigns remain untouched.</p></div>'+
+      '<div class="fc-save-header-actions">'+(Engine.state
+        ? '<button class="primary" onclick="UI.saveNow()">Save current</button><button onclick="UI.copySave()">Save a copy</button>'
+        : '<button onclick="UI.go(&quot;dashboard&quot;)">Return to title</button>')+
+      '</div></div>';
+    if(!slots.length) h+='<div class="fc-save-empty"><h2>No saved studios yet</h2><p>Create a studio to begin your first campaign.</p>'+
+      '<button onclick="UI.quit()">Start a studio</button></div>';
+    else {
+      h+='<div class="fc-save-list">';
+      h+=slots.map(s=>{
+        const active=s.active;
+        const id=esc(s.id);
+        const stamp=s.updatedAt?new Date(s.updatedAt).toLocaleString():'Existing save';
+        return '<article class="fc-save-card'+(active?' fc-save-active':'')+'">'+
+          '<div class="fc-save-head"><div><small>'+(active?'ACTIVE AUTOSAVE':'ARCHIVED CAMPAIGN')+'</small>'+
+          '<h2>'+esc(s.name)+'</h2><p>'+esc(s.studio)+(s.name!==s.studio?' · studio':'')+'</p></div>'+
+          '<span class="fc-save-status">'+(active?'Playing':'Stored')+'</span></div>'+
+          '<div class="fc-save-details"><span><strong>'+esc(String(s.year))+'</strong> In-game year</span>'+
+          '<span><strong>'+esc(String(s.releases))+'</strong> Releases</span>'+
+          '<span><strong>'+esc(stamp)+'</strong> Last saved</span></div>'+
+          '<div class="fc-save-actions">'+(active
+            ? '<button class="primary" onclick="UI.saveNow()">Save now</button>'
+            : '<button class="primary" onclick="UI.openSave(&quot;'+id+'&quot;)">Load campaign</button>')+
+          '<button onclick="UI.renameSave(&quot;'+id+'&quot;)">Rename</button>'+
+          (active?'<button onclick="UI.copySave()">Make a copy</button>':'')+
+          '<button class="fc-delete-save" onclick="UI.deleteSave(&quot;'+id+'&quot;)">Delete</button>'+
+          '</div></article>';
+      }).join('');
+      h+='</div>';
+    }
+    h+='<div class="fc-save-footer"><div><h2>Backups and new campaigns</h2>'+
+      '<p>Saves are stored only in this browser on this device. Export a backup if you want to move or protect a studio, including its uploaded posters.</p></div>'+
+      '<div class="fc-save-actions">'+(Engine.state?'<button onclick="UI.exportBackup()">Export active studio + posters</button>':'')+
+      '<label class="poster-upload fc-save-import">Import backup as new save<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>'+
+      '<button onclick="UI.quit()">Return to title / New studio</button></div></div></section>';
+    return h;
+  }
   function viewStart() {
-    return '<h1>Final Cut</h1><p>1970. You have a camera, some savings and an idea.</p>' +
+    const saves=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
+    const active=saves&&saves.slots.find(s=>s.active);
+    return '<h1>Final Cut</h1><p>1970. You have a camera, some savings and an idea.</p><p class="muted">Your campaigns are saved separately on this device. Export backups to keep copies outside the browser.</p>' +
       '<div class="form">' +
       '<label>Studio name <input id="f_studio" placeholder="Untitled Pictures"></label>' +
       '<label>Founder name <input id="f_founder" placeholder="Random if empty"></label>' +
       '<label>Home region <select id="f_region">' + CONTENT.REGIONS.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('') + '</select></label>' +
       '<button class="primary" onclick="UI.startGame()">Start new game</button>' +
       ' <button onclick="UI.openTutorial()">How to play</button>' +
-      (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue saved game</button>' : '') +
+      (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue ' + esc(active?active.name:'saved game') + '</button>' : '') +
+      (saves ? ' <button onclick="UI.go(&quot;saves&quot;)">Manage saved games' + (saves.slots.length?' ('+saves.slots.length+')':'') + '</button>' : '') +
       ' <label class="poster-upload">Import save + posters <input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '</div><div class="start-sound">' + soundControls() + '</div>';
   }
@@ -1561,6 +1609,7 @@ var UI = (function () {
 // ===== SECTION: RENDER =====
   // A+B editorial screen navigation: concise context, no new game state.
   const PAGE_CONTEXT = {
+    saves:['CAMPAIGN LIBRARY','Manage independent studio careers and local save slots'],
     newproject:['GREENLIGHT DESK','Plan cast, budget, creative direction and distribution'],
     filmography:['YOUR CATALOG','Released pictures, awards and permanent studio history'],
     talent:['CASTING OFFICE','Scout talent by skill, recognition, reliability and fee'],
@@ -1588,8 +1637,11 @@ var UI = (function () {
     renderNav();
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
+    $('app').classList.toggle('save-manager', view==='saves');
     let h;
-    if (!s) h = viewStart();
+    if (!s && view === 'saves') h = viewSaveLibrary();
+    else if (!s) h = viewStart();
+    else if (view === 'saves') h = viewSaveLibrary();
     else if (view === 'newproject') h = viewNewProject();
     else if (view === 'projects') h = viewProjects();
     else if (view === 'filmography') h = viewFilmography();
@@ -1624,12 +1676,105 @@ var UI = (function () {
   }
 
 // ===== SECTION: ACTIONS =====
-  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value, homeRegion: $('f_region').value }); go('dashboard'); openTutorial(); }
-  function loadGame() { const r = Engine.load(); setFlash(r.ok ? '' : r.reason); resetHistory(); render(); }
-  function quit() {
-    if (Engine.state && !Engine.state.gameOver && !confirm('Start a new game? Your current save will be replaced when you start.')) return;
-    Engine.clearSave();
-    location.reload();
+  let saveBusy=false;
+  function clearForSaveTransition(){
+    drawer=null;drawerMsg='';centerProjectId=null;centerShowOlder=false;
+    tutorialStep=-1;tutorialMinimized=false;tutorialReturnFocus=null;
+    yearEndReplayYear=null;yearEndRendered='';yearEndStage=0;
+    yearEndReturnFocus=null;
+    if(posterEdit)closePosterEditor();
+    resetHistory();setFlash('');
+  }
+  async function startGame(){
+    if(saveBusy)return;
+    const opts={studioName:$('f_studio').value,founderName:$('f_founder').value,homeRegion:$('f_region').value};
+    saveBusy=true;
+    try{
+      if(typeof SaveSlots!=='undefined')await SaveSlots.beginNew(opts);
+      else Engine.newGame(opts);
+      clearForSaveTransition();go('dashboard');openTutorial();
+    }catch(err){setFlash('Could not start campaign: '+err.message);render();}
+    finally{saveBusy=false;}
+  }
+  async function loadGame(){
+    if(saveBusy)return;
+    if(typeof SaveSlots==='undefined'){
+      const r=Engine.load();setFlash(r.ok?'':r.reason);resetHistory();render();return;
+    }
+    const info=SaveSlots.list();
+    if(!info.activeId){go('saves');return;}
+    await openSave(info.activeId);
+  }
+  async function saveNow(){
+    if(saveBusy)return;
+    if(typeof SaveSlots==='undefined'){
+      setFlash(Engine.save()?'Campaign saved.':'Save failed: browser storage is full.');render();return;
+    }
+    try{
+      const result=SaveSlots.manualSave();
+      setFlash(result.ok?'Campaign saved to the active slot.':result.reason);
+    }catch(err){setFlash('Save failed: '+err.message);}
+    render();
+  }
+  async function openSave(slotId){
+    if(saveBusy)return;
+    const list=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
+    const target=list?.slots.find(s=>s.id===slotId);
+    if(!target){setFlash('Save slot not found.');render();return;}
+    if(Engine.state&&!target.active&&!confirm('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
+    saveBusy=true;
+    try{
+      await SaveSlots.activate(slotId);
+      clearForSaveTransition();render();
+    }catch(err){setFlash('Could not load save: '+err.message);render();}
+    finally{saveBusy=false;}
+  }
+  function renameSave(slotId){
+    if(typeof SaveSlots==='undefined')return;
+    const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
+    if(!slot)return;
+    const value=prompt('Name this save slot:',slot.name);
+    if(value==null)return;
+    try{SaveSlots.rename(slotId,value);setFlash('Save slot renamed.');}
+    catch(err){setFlash('Rename failed: '+err.message);}
+    render();
+  }
+  async function copySave(){
+    if(saveBusy||!Engine.state||typeof SaveSlots==='undefined')return;
+    const info=SaveSlots.list(),active=info.slots.find(s=>s.active);
+    const label=prompt('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
+    if(label==null)return;
+    saveBusy=true;
+    try{
+      await SaveSlots.duplicate(label);
+      setFlash('Independent copy created. Your original studio is still active.');
+    }catch(err){setFlash('Could not create copy: '+err.message);}
+    finally{saveBusy=false;render();}
+  }
+  async function deleteSave(slotId){
+    if(saveBusy||typeof SaveSlots==='undefined')return;
+    const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
+    if(!slot||!confirm('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
+    saveBusy=true;
+    try{
+      await SaveSlots.remove(slotId);
+      clearForSaveTransition();
+      view=Engine.state?'saves':'saves';
+      setFlash('Save deleted.');
+    }catch(err){setFlash('Could not delete save: '+err.message);}
+    finally{saveBusy=false;render();}
+  }
+  function quit(){
+    if(typeof SaveSlots==='undefined'){
+      if(Engine.state&&!Engine.state.gameOver&&!confirm('Start a new game? Your current save will be replaced when you start.'))return;
+      Engine.clearSave();location.reload();return;
+    }
+    if(Engine.state&&!confirm('Return to title? The current studio will remain saved in its own slot.'))return;
+    if(Engine.state){
+      const result=SaveSlots.manualSave();
+      if(!result.ok){setFlash(result.reason);render();return;}
+    }
+    Engine.closeSession();clearForSaveTransition();render();
   }
   function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
   function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }
@@ -1746,25 +1891,51 @@ var UI = (function () {
   }
   async function importBackup(input){
     const f=input.files&&input.files[0];if(!f)return;
-    if(f.size>25000000){alert('The backup exceeds 25 MB.');return;}
+    if(f.size>25000000){alert('The backup exceeds 25 MB.');input.value='';return;}
+    if(saveBusy){input.value='';return;}
+    saveBusy=true;
     try{
       const b=JSON.parse(await f.text());
-      if(!['finalcut-v11-backup','finalcut-v12-backup','finalcut-v13-backup'].includes(b.format)||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>13)throw new Error('Not a supported Final Cut backup.');
-      if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
-      const old=localStorage.getItem('backlot_save');
-      try {
-        localStorage.setItem('backlot_save',JSON.stringify(b.game));
-        const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
-        PosterStore.resetCache();
-        await PosterStore.restore(b.posters||{});
+      if(!['finalcut-v11-backup','finalcut-v12-backup','finalcut-v13-backup'].includes(b.format)||
+          !b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>13)
+        throw new Error('Not a supported FinalCut backup.');
+      if(typeof SaveSlots!=='undefined'){
+        // A backup imports as a separate campaign. Never overwrite the studio
+        // the player was running or reuse its poster namespace.
+        await SaveSlots.importCampaign(b.game);
+        let posterNote='';
+        try{await PosterStore.restore(b.posters||{});}
+        catch(err){posterNote=' Some uploaded posters could not be restored: '+err.message+'.';}
         const declared=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
-        const absent=await PosterStore.missing(declared);
-        if(absent.length) { const ids=new Set(absent); Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save(); }
-        resetHistory();closeDrawer();render();
-        alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
-      } catch(err) { if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old); if(old)Engine.load();throw err; }
+        let absent=[];
+        try{absent=await PosterStore.missing(declared);}catch(err){posterNote+=' Custom poster verification failed.';}
+        if(absent.length){
+          const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});
+          Engine.save();posterNote+=' '+absent.length+' unavailable poster(s) use generated art.';
+        }
+        clearForSaveTransition();view='saves';render();
+        alert('Backup imported into a new independent save slot.'+posterNote);
+      }else{
+        // Standalone compatibility path for older embed builds.
+        if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
+        const old=localStorage.getItem('backlot_save');
+        try{
+          localStorage.setItem('backlot_save',JSON.stringify(b.game));
+          const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
+          PosterStore.resetCache();
+          await PosterStore.restore(b.posters||{});
+          const declared=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
+          const absent=await PosterStore.missing(declared);
+          if(absent.length){const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save();}
+          resetHistory();closeDrawer();render();
+          alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
+        }catch(err){
+          if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old);
+          if(old)Engine.load();throw err;
+        }
+      }
     }catch(e){alert('Backup import failed: '+e.message);}
-    finally{input.value='';}
+    finally{saveBusy=false;input.value='';}
   }
 
 // ===== SECTION: INIT =====
@@ -1791,7 +1962,8 @@ var UI = (function () {
   document.addEventListener('DOMContentLoaded', init);
 
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
-    quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
+    quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
+    nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
