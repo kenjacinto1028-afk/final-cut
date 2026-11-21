@@ -139,6 +139,8 @@ try:
   assert page.evaluate('!document.activeElement.closest("#tutorial")')
   page.keyboard.press('Escape')
   assert page.locator('#tutorial').is_hidden()
+  # The nonmodal tutorial can finish with a legitimate new premiere report.
+  page.evaluate('UI.closePremiereReport()')
   for width in (320,390):
    page.set_viewport_size({'width':width,'height':780})
    page.evaluate('UI.go("dashboard");UI.openTutorial()')
