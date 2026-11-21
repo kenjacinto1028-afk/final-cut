@@ -1723,14 +1723,19 @@ var Engine = (function () {
     }
   }
   function raiseMarketing(p) {
+    const pool=p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget;
     raise(p, {
       id: 'marketing',
-      text: 'How much marketing for "' + p.title + '"? Spend is a share of the production budget.',
-      choices: TUNING.marketing.map(m => ({
-        label: m.name + (m.share ? ' (' + fmtMoney((p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget) * m.share) + ')' : ''),
-        effects: m.share ? { marketing: m.share, hype: m.hype } : {},
-        result: 'Marketing for "' + p.title + '": ' + m.name + '.'
-      }))
+      text: p.budgetPlan?
+        'Choose how much of your pre-approved marketing allocation to deploy for "'+p.title+'". The hype benefit depends on actual funding; reserve stays unspent.':
+        'How much marketing for "'+p.title+'"? Spend is a share of the production budget.',
+      choices: TUNING.marketing.map(m => {
+        const share=p.budgetPlan?({none:0,small:.25,medium:.55,large:1}[m.id]||0):m.share;
+        const h=p.budgetPlan?Math.round(m.hype*clamp((pool/Math.max(1,p.budget))/.25,0,1)):m.hype;
+        return {label:m.name+(share?' ('+fmtMoney(pool*share)+', hype +'+h+')':' (no spending)'),
+          effects:share?{marketing:share,hype:h}:{},
+          result:'Marketing for "'+p.title+'": '+m.name+'.'};
+      })
     });
   }
   function homeRegion() { return state && state.studio.homeRegion || 'northamerica'; }
