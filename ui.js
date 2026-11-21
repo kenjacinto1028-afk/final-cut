@@ -12,6 +12,10 @@ var UI = (function () {
   function money(n) { const s = '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); return n < 0 ? '-' + s : s; }
   function dateLabel(week) { const d = Engine.dateOf(week); return 'Wk ' + d.week + ', ' + d.year; }
   function nameOf(list, id) { const x = list.find(i => i.id === id); return x ? x.name : id; }
+  function mediaName(p){
+    return p&&p.mediaVariant&&FinalCutBudget.VARIANTS[p.mediaVariant]?
+      FinalCutBudget.variant(p.mediaVariant).name:nameOf(Engine.formats(),p&&p.format);
+  }
   function roleName(t) {
     if (t.role === 'crew') return nameOf(CONTENT.CREW_SPECIALTIES, t.specialty);
     return nameOf(CONTENT.TALENT_ROLES, t.role);
@@ -446,18 +450,61 @@ var UI = (function () {
   }
 
 // ===== SECTION: VIEW_NEW_PROJECT =====
-  const draft = { title: '', format: 'short', genre: 'drama', topic: 'smalltown', tier: 0,
+  const draft = { title: '', format: 'short', mediaVariant:'short',budgetCap:1500,
+    scope:'intimate', allocation:null,allocationPreset:'balanced',genre: 'drama', topic: 'smalltown', tier: 0,
     cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0,
     pitchId:null,pitchApproach:'standard',vision:'mainstream',releasePosition:'wide' };
+  function syncDraftTier(){
+    const f=Engine.formats().find(x=>x.id===draft.format);if(!f)return;
+    draft.tier=f.tiers.reduce((i,t,k)=>t.budget<=draft.budgetCap&&!t.locked?k:i,0);
+  }
+  function setBudgetCap(value){
+    draft.budgetCap=Math.min(50000000,Math.max(250,Math.round(Number(value)||250)));
+    syncDraftTier();draft.allocation=null;draft.allocationPreset='balanced';render();
+  }
+  function budgetCapPreview(value){
+    const el=document.getElementById('fc-cap-preview');
+    if(el)el.textContent=money(Math.round(Number(value)||0));
+  }
+  function setMediaVariant(id){
+    if(!FinalCutBudget.VARIANTS[id]||Engine.dateOf().year<FinalCutBudget.variant(id).minYear)return;
+    const previous=draft.format,format=FinalCutBudget.media(id),target={
+      micro:500,short:1500,mid:5000,feature:40000,pilot:30000,web:5000}[id];
+    draft.mediaVariant=id;draft.format=format;draft.budgetCap=target;draft.scope='intimate';
+    draft.allocation=null;draft.allocationPreset='balanced';syncDraftTier();
+    if(previous!==format){draft.pitchId=null;draft.supporting=[];draft.specialists=[];
+      draft.backgroundCrew=0;draft.cast={director:'founder',writer:'founder',lead:'',crew:''};}
+    render();
+  }
+  function setScope(value){if(!FinalCutBudget.SCOPE[value])return;draft.scope=value;render();}
+  function setAllocation(key,value){
+    if(!FinalCutBudget.KEYS.includes(key))return;
+    const quote=Engine.previewProject(Object.assign({},draft,{allocation:null}));
+    if(!quote.feasibility)return;
+    draft.allocation=draft.allocation||Object.assign({},quote.feasibility.plan);
+    draft.allocation[key]=Math.max(0,Math.round(Number(value)||0));
+    draft.allocationPreset='custom';render();
+  }
+  function budgetPreset(id){
+    if(id==='balanced'){draft.allocation=null;draft.allocationPreset=id;render();return;}
+    if(!['craft','audience','lean'].includes(id))return;
+    const q=Engine.previewProject(Object.assign({},draft,{allocation:null}));
+    if(!q.feasibility)return;
+    const remaining=Math.max(0,draft.budgetCap-q.fees-(q.scriptFee||0));
+    draft.allocation=FinalCutBudget.recommended(remaining,draft.vision,id);
+    draft.allocationPreset=id;render();
+  }
   function setDraft(key, val) {
-    if (key === 'tier') val = Number(val);
+    if (key === 'tier'||key==='episodeCount') val = Number(val);
     if(['title','format','genre','topic'].includes(key))draft.pitchId=null;
     draft[key] = val;
-    if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
+    if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;
+      draft.mediaVariant=val;draft.allocation=null; }
     if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
     if(key==='title'&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script'){
       tutorialScriptChosen=!!String(val||'').trim();renderTutorial(false);
     }
+    if (key==='vision'&&draft.allocationPreset==='balanced')draft.allocation=null;
     if (key !== 'title') render();
   }
   function setCast(slot, val) { draft.cast[slot] = val; render(); }
@@ -470,7 +517,7 @@ var UI = (function () {
   function setBackgroundCrew(value){draft.backgroundCrew=Math.max(0,Math.min(Engine.ensembleCaps(draft.format,draft.tier).backgroundCrew,Number(value)||0));render();}
   function extraPicker(kind,i){
     const slot=kind==='supporting'?'lead':'crew', ti=Engine.formats().find(f=>f.id===draft.format).tiers[draft.tier];
-    const opts=Engine.slotOptions(slot,draft.format,draft.genre,draft.topic,ti.budget);
+    const opts=Engine.slotOptions(slot,draft.format,draft.genre,draft.topic,draft.budgetCap||ti.budget);
     const selected=String(draft[kind][i]||'');
     const used=[...Object.values(draft.cast),...draft.supporting.filter((_,j)=>kind!=='supporting'||j!==i),...draft.specialists.filter((_,j)=>kind!=='specialists'||j!==i)].map(String);
     return '<label>'+(kind==='supporting'?'Supporting actor':'Specialist crew')+' '+(i+1)+' <select onchange="UI.setExtra(\''+kind+'\','+i+',this.value)">' +
@@ -482,7 +529,7 @@ var UI = (function () {
   function randomizeTitle() { draft.pitchId=null;draft.title = Engine.randomTitle(); render(); }
   function castPicker(slot) {
     const ti = Engine.formats().find(f => f.id === draft.format).tiers[draft.tier];
-    const opts = Engine.slotOptions(slot, draft.format, draft.genre, draft.topic, ti.budget);
+    const opts = Engine.slotOptions(slot, draft.format, draft.genre, draft.topic, draft.budgetCap||ti.budget);
     const cur = String(draft.cast[slot] == null ? '' : draft.cast[slot]);
     const o = ['<option value=""' + (cur === '' ? ' selected' : '') + '>Local hire (skill ' + Engine.TUNING.talent.emptySkill + ', free)</option>'];
     opts.forEach(x => {
@@ -505,7 +552,8 @@ var UI = (function () {
     if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script')tutorialScriptChosen=true;
     draft.format=p.format;draft.genre=p.genre;draft.topic=p.topic;draft.title=p.title;draft.vision=p.vision;
     draft.releasePosition=p.vision==='prestige'?'prestige':p.vision==='bold'?'targeted':'wide';
-    draft.tier=0;delete draft.sequelOf;
+    draft.mediaVariant=p.format;draft.budgetCap=p.format==='short'?1500:p.format==='feature'?40000:30000;
+    draft.scope='intimate';draft.allocation=null;syncDraftTier();delete draft.sequelOf;
     if(was!==p.format){draft.cast={director:'founder',writer:'founder',lead:'',crew:''};
       draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;}
     render();
@@ -523,7 +571,7 @@ var UI = (function () {
         esc(x.lane==='safe'?'ACCESSIBLE PITCH':x.lane==='prestige'?'CRITICAL PROSPECT':'HIGH-RISK PROJECT')+
         '</small>'+(x.contested?'<span class="fc-v14-warning">Rival interest</span>':'')+'</div>'+
         '<h3>'+esc(x.title)+'</h3><p>'+esc(x.hook)+'</p>'+
-        '<div class="fc-v14-meta"><span>'+esc(nameOf(Engine.formats(),x.format))+'</span>'+
+        '<div class="fc-v14-meta"><span>'+esc(mediaName(x))+'</span>'+
         '<span>'+esc(nameOf(CONTENT.GENRES,x.genre))+'</span></div>'+
         '<p class="fc-v14-script-qualities">+'+x.strengths.map(i=>esc(v[i])).join(' · +')+
         '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span></p>'+
@@ -589,19 +637,38 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
+    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ?
+      '<section class="franchise-card"><strong>Continue the story of '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+
+      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p>'+
+      '<label>Relationship <select onchange="UI.setDraft(\'continuationType\',this.value)">'+
+      [['direct','Direct sequel'],['spinoff','Spin-off'],['adaptation','Series or cross-media adaptation']].map(x=>opt(x[0],x[1],x[0]===(draft.continuationType||'direct'))).join('')+
+      '</select></label><button onclick="UI.cancelSequel()">Cancel story link</button></section>' : '')+
+      '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
     h += '<label>Title <input value="' + esc(draft.title) + '" oninput="UI.setDraft(\'title\', this.value)"> <button onclick="UI.randomizeTitle()">Random</button></label>';
-    h += '<label>Format <select onchange="UI.setDraft(\'format\', this.value)">' +
-      fmts.map(f => opt(f.id, f.name + (f.unlocked ? '' : ' (needs ' + (Engine.state.studio.tier < f.minTier ? tierName(f.minTier) : 'fame ' + f.unlockFame) + ')'), f.id === draft.format, !f.unlocked)).join('') + '</select></label>';
+    h += '<label>Media format <select onchange="UI.setMediaVariant(this.value)">' +
+      Object.entries(FinalCutBudget.VARIANTS).map(([id,v])=>{
+        const f=fmts.find(x=>x.id===v.format);
+        const locked=Engine.dateOf().year<v.minYear||!f||!f.unlocked;
+        return opt(id,v.name+(locked?' (unavailable until unlocked)':''),id===draft.mediaVariant,locked);
+      }).join('') + '</select></label>';
     h += '<label>Genre <select onchange="UI.setDraft(\'genre\', this.value)">' +
       CONTENT.GENRES.map(g => opt(g.id, g.name, g.id === draft.genre)).join('') + '</select></label>';
     h += '<label>Topic <select onchange="UI.setDraft(\'topic\', this.value)">' +
       CONTENT.TOPICS.map(t => opt(t.id, t.name, t.id === draft.topic)).join('') + '</select></label>';
-    h += '<label>Budget <select onchange="UI.setDraft(\'tier\', this.value)">' +
-      fmt.tiers.map((t, i) => opt(i, t.name + ' (' + money(t.budget) + ')' + (t.locked ? ' – needs ' + tierName(t.minTier) : ''), i === draft.tier, t.locked)).join('') + '</select></label>';
+    h += '<section class="fc-budget-step"><h2>1. Choose your spending limit</h2>'+
+      '<p class="muted">Your cap is a plan, not an upfront payment. The '+esc(FinalCutBudget.budgetClass(draft.format,draft.budgetCap))+
+      ' budget label is descriptive; artistic viability depends on scope, cast and allocations.</p>'+
+      '<label>Maximum project spend <input type="number" min="250" max="50000000" step="50" value="'+Number(draft.budgetCap)+
+      '" onchange="UI.setBudgetCap(this.value)"></label>'+
+      '<label>Adjust cap <input type="range" min="250" max="'+Math.max(4000,draft.budgetCap*2)+'" step="50" value="'+Number(draft.budgetCap)+
+      '" oninput="UI.budgetCapPreview(this.value)" onchange="UI.setBudgetCap(this.value)"></label>'+
+      '<strong id="fc-cap-preview">'+money(draft.budgetCap)+'</strong> · Studio cash '+money(Engine.state.cash)+'</section>';
     if (pv.continuity && pv.continuity.notes.length) h += '<section class="franchise-card"><strong>Original cast continuity</strong><p>Estimated hype ' + (pv.continuity.hype >= 0 ? '+' : '') + pv.continuity.hype + ' from returning or recast creative leads. Replacement skills still determine quality.</p>' +
       pv.continuity.notes.map(n => '<p>' + esc(CONTENT.SLOT_LABELS[n.slot]) + ': ' + esc(n.originalName) + ' — ' + esc(n.status) + ' (' + (n.delta >= 0 ? '+' : '') + n.delta + ' hype)</p>').join('') + '</section>';
-    h += '<div class="fc-v14-creative"><h2>Creative direction</h2>'+
+    h += '<div class="fc-v14-creative"><h2>2. Creative direction & production scope</h2>'+
+      '<label>Production scope <select onchange="UI.setScope(this.value)">'+
+      Object.keys(FinalCutBudget.SCOPE).map(x=>opt(x,x[0].toUpperCase()+x.slice(1),x===draft.scope)).join('')+
+      '</select></label>'+
       '<p class="muted">Every film has a creative promise. This guides both production dilemmas and audience expectations, without guaranteeing quality.</p>'+
       '<label>Creative vision <select onchange="UI.setDraft(\'vision\',this.value)">'+
       Object.entries(Engine.v14Visions()).map(([id,v])=>opt(id,v.name,id===draft.vision)).join('')+'</select></label>'+
@@ -614,7 +681,7 @@ var UI = (function () {
         '</select></label><p>Script rights cost: '+money(pv.scriptFee||0)+'. Included in cash requirements.</p>':
         '<p>Original commission: no external script rights fee. Genre/topic and talent will still determine craft and appeal.</p>')+
       '</div>';
-    h += '</div><h2>Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
+    h += '</div><h2>3. Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
       Engine.SLOTS.map(castPicker).join('') + '</div>';
     const caps=Engine.ensembleCaps(draft.format,draft.tier);
     if(caps.supporting||caps.specialists){
@@ -624,10 +691,32 @@ var UI = (function () {
       if(caps.backgroundCrew)h+='<label>Background production crew <select onchange="UI.setBackgroundCrew(this.value)">'+Array.from({length:caps.backgroundCrew+1},(_,i)=>'<option value="'+i+'"'+(draft.backgroundCrew===i?' selected':'')+'>'+['Standard','Expanded','Large'][i]+'</option>').join('')+'</select></label>';
       h+='</div>';
     }
-    if (pv.budget) {
-      h += '<p>Budget ' + money(pv.budget) + ': fees ' + money(pv.fees) + ' up front, ' + money(Math.max(pv.prodBudget, 0)) + ' production over about ' + pv.weeks +
-        ' weeks (' + money(pv.weekly) + '/week). Cash if fully spent: <span class="' + (pv.cashAfter < 0 ? 'neg' : '') + '">' + money(pv.cashAfter) + '</span>. Marketing (features) is extra.</p>';
-      if (pv.prodQuality < 1) h += '<p class="neg">Fees are eating into production values (' + Math.round(pv.prodQuality * 100) + '% of the tier\'s quality bonus).</p>';
+    if (pv.feasibility) {
+      const f=pv.feasibility,available=Math.max(0,draft.budgetCap-pv.fees-(pv.scriptFee||0));
+      h+='<section class="fc-budget-step"><h2>4. Allocate the remainder</h2>'+
+        '<p><strong>Budget '+money(draft.budgetCap)+'</strong> · Cast/crew '+money(pv.fees)+
+        ' · Script '+money(pv.scriptFee||0)+' · Available for stages '+money(available)+'</p>'+
+        '<p class="muted">Unspent contingency remains in studio cash. These are planned allocations, not instant payments.</p>'+
+        '<div class="fc-budget-presets">'+['balanced','craft','audience','lean'].map(x=>
+          '<button type="button" class="'+(draft.allocationPreset===x?'primary':'')+
+          '" onclick="UI.budgetPreset(\''+x+'\')">'+({balanced:'Balanced',craft:'Craft-first',audience:'Audience-first',lean:'Lean'}[x])+'</button>').join('')+'</div>';
+      for(const key of FinalCutBudget.KEYS){
+        const amount=f.plan[key],max=Math.max(available,amount,100);
+        h+='<label class="fc-budget-allocation"><span>'+esc(FinalCutBudget.LABELS[key])+
+          '</span> <strong>'+money(amount)+'</strong>'+
+          '<input type="range" min="0" max="'+max+'" step="25" value="'+amount+
+          '" onchange="UI.setAllocation(\''+key+'\',this.value)"></label>';
+      }
+      h+='<p><strong>Remaining unallocated: '+money(f.unallocated)+'</strong>'+
+        (f.unallocated<0?' · <span class="neg">Reduce allocations or increase the cap.</span>':'')+'</p>'+
+        '<h3>5. Production Feasibility: '+esc(f.level)+'</h3>'+
+        '<p>Estimated craft effect '+(f.qualityEffect>=0?'+':'')+f.qualityEffect+
+        ' · Planned duration '+f.plannedWeeks+' weeks'+(f.delayWeeks?' · Risk of '+f.delayWeeks+' added filming weeks':'')+
+        ' · Scope '+esc(f.scope)+'.</p>'+
+        (f.risks.length?'<p class="neg">'+f.risks.map(esc).join(' ')+'</p>':'<p class="muted">Funding is aligned with this production scope.</p>')+
+        '<p class="muted">Projected cash after planned payments excluding contingency and ongoing studio costs: '+money(pv.cashAfter)+'.</p></section>';
+    }else if(pv.budget){
+      h+='<p>Budget '+money(pv.budget)+' · Upfront fees '+money(pv.fees)+' · Production '+money(pv.prodBudget)+'.</p>';
     }
     if (draft.format === 'feature' || draft.format === 'pilot') {
       const mk = Engine.marketInfo();
@@ -640,7 +729,13 @@ var UI = (function () {
         (draft.format === 'feature' ? ' · ' + esc(mk.cycle.name) + ' ' + mult(mk.cycle.mult) + '. Biggest possible opening this year: ' + money(mk.audienceCap) + '. You pick the release week when it\'s done.' : '.') +
         ' <a href="#" onclick="UI.go(\'market\');return false">Market</a></p>';
     }
-    if (draft.format === 'pilot') h += '<p class="muted">Pilots go to the networks when finished. A pickup orders a season; ratings decide renewals. Shows: ' + Engine.tvSlotsUsed() + ' of ' + Engine.growthTier().maxSeries + '.</p>';
+    if (draft.format === 'pilot'){
+      h+='<label>Episodes if picked up <select onchange="UI.setDraft(\'episodeCount\',this.value)">'+
+        [4,6,8,10,13,16].map(n=>opt(n,n+' episodes',n===Number(draft.episodeCount||8))).join('')+'</select></label>'+
+        '<p class="muted">'+(draft.mediaVariant==='web'?'A web series needs an audience to expand; income follows viewers and sponsorships.':
+        'Pilots need a network pickup. Production cost and cast contracts renew each season.')+
+        ' TV slots: '+Engine.tvSlotsUsed()+' / '+Engine.growthTier().maxSeries+'.</p>';
+    }
     if (!pv.ok) h += '<p class="neg">' + esc(pv.reason) + '</p>';
     h += '<button class="primary" ' + (pv.ok ? '' : 'disabled') + ' onclick="UI.startProject()">Greenlight</button>';
     return h;
@@ -985,7 +1080,7 @@ var UI = (function () {
       '</p></div>'+decision+'</div></section>';
     const slate=list.slice(0,centerShowOlder?list.length:7).map(p=>{
       const stg=centerStage(p);
-      return '<button class="fc-title '+(p.id===chosen.id?'selected':'')+'" onclick="UI.centerFocus('+p.id+')"><strong>'+esc(p.title)+'</strong><small>'+esc(nameOf(Engine.formats(),p.format))+' · '+esc(stg.status)+'</small></button>';
+      return '<button class="fc-title '+(p.id===chosen.id?'selected':'')+'" onclick="UI.centerFocus('+p.id+')"><strong>'+esc(p.title)+'</strong><small>'+esc(mediaName(p))+' · '+esc(stg.status)+'</small></button>';
     }).join('');
     const old=list.length>7?'<button class="fc-more" onclick="UI.centerShowMore()">'+(centerShowOlder?'Show fewer':'Show '+(list.length-7)+' more')+'</button>':'';
     const recent=[...theaters,...screenings].slice(0,4).map(p=>{const short=p.format==='short',pulse=Engine.projectPulse(p);
@@ -996,12 +1091,12 @@ var UI = (function () {
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE & SCREENINGS</small><h2>Now releasing</h2>'+
       '<p>Features show theatrical gross; shorts show weekly screening receipts. Stronger shorts have longer circuits.</p></div>'+
       '<div class="fc-pulse-list">'+(recent||'<p>No active releases. Completed films may still earn rights revenue and festival recognition.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(mediaName(chosen))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
     if (!s.projects.length) return centerPanel();
-    const fmtName = p => nameOf(Engine.formats(), p.format);
+    const fmtName = p => mediaName(p);
     return centerPanel() + '<details class="fc-archive"><summary>All projects · searchable production records</summary><h2>Project archive</h2>' + tblHtml('projects', {
       rows: () => Engine.state.projects.slice().reverse(),
       rowId: p => p.id,
@@ -1107,7 +1202,7 @@ var UI = (function () {
           '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
           (mine?'':'<td>'+esc(f.studio)+'</td>')+
-          '<td>'+f.year+'</td><td>'+esc(nameOf(Engine.formats(),f.format))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
+          '<td>'+f.year+'</td><td>'+esc(mediaName(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
           '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
           '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
       }).join('')+
@@ -1365,7 +1460,7 @@ var UI = (function () {
     let h = '<h1>TV</h1><p class="muted">Shows ' + Engine.tvSlotsUsed() + ' of ' + g.maxSeries + ' (pilots in production included). ' +
       (g.maxSeries ? 'Start a pilot from New project.' : 'TV opens at the ' + esc(tierName(1)) + ' tier.') + '</p>';
     if (!s.series.length) return h + '<p>No series yet.</p>';
-    return h + tblHtml('tv', {
+    h += tblHtml('tv', {
       rows: () => Engine.series().slice().reverse(),
       rowId: x => x.projectId,
       onRow: openProject,
@@ -1383,6 +1478,37 @@ var UI = (function () {
         { key: 'profit', label: 'Profit', num: true, value: x => x.revenue - x.cost, render: x => '<span class="' + (x.revenue - x.cost < 0 ? 'neg' : '') + '">' + money(x.revenue - x.cost) + '</span>' }
       ]
     });
+    const live=Engine.series().filter(x=>x.flexibleSeries&&x.status!=='ended').slice(-5).reverse();
+    h+='<h2>Series production & renewals</h2><p class="muted">Plan the next season without weekly chores. Higher ratings can attract sponsorships and make returning stars much more expensive. Established contracts are honored until renewal.</p>';
+    h+=live.map(x=>{
+      const feasibility=Engine.seriesFeasibility(x);
+      return '<article class="fc-series-card"><h3>'+esc(x.title)+' · Season '+x.season+
+      '</h3><p>Episode budget '+money(x.episodeBudget||x.epCost)+' · Current cost '+money(x.epCost)+
+      '/episode · Contracted fee '+money(x.fee)+'/episode · Season production need '+money(x.epCost*x.episodes)+
+      ' · Sponsor receipts to date '+money(x.sponsorRevenue||0)+'</p>'+
+      '<p>Star-demand quote '+(x.starDemand||1).toFixed(2)+'× · Sponsor '+(x.sponsor?esc(x.sponsor.name):'none signed')+'</p>'+
+      (feasibility?'<p class="fc-budget-ledger"><strong>Season Feasibility: '+esc(feasibility.status)+
+        '</strong> · Remaining production '+money(feasibility.productionNeed)+
+        ' · Contracted episode receipts '+money(feasibility.contractedRevenue)+
+        ' · Confirmed sponsor receipts '+money(feasibility.guaranteedSponsorship)+
+        ' · Direct margin '+money(feasibility.projectedDirectMargin)+
+        ' · First-week cash requirement '+money(feasibility.firstWeekCashNeed)+
+        '<small> '+esc(feasibility.note)+'</small></p>':'')+
+      '<div class="fc-series-controls"><label>Next season cast <select onchange="UI.seriesPlan('+x.id+',this.value)">'+
+        [['retain','Keep returning stars'],['lean','Lean production'],['recast','Recast lead / local talent']].map(v=>
+        '<option value="'+v[0]+'"'+(v[0]===(x.talentStrategy||'retain')?' selected':'')+'>'+v[1]+'</option>').join('')+
+        '</select></label><label>Next season episodes <select onchange="UI.seriesEpisodeCount('+x.id+',this.value)">'+
+        [4,6,8,10,13,16].map(n=>'<option value="'+n+'"'+(n===(x.nextEpisodeCount||x.episodes)?' selected':'')+'>'+n+'</option>').join('')+
+        '</select></label><label>Production scope <select onchange="UI.seriesScope('+x.id+',this.value)">'+
+        Object.keys(FinalCutBudget.SCOPE).map(v=>'<option value="'+v+'"'+(v===(x.scope||'standard')?' selected':'')+'>'+v+'</option>').join('')+
+        '</select></label></div>'+
+      (x.sponsorOffer?'<p><strong>Sponsor offer: '+esc(x.sponsorOffer.name)+'</strong> · '+
+        money(x.sponsorOffer.perEpisode)+'/episode for the remaining season. Expires after episode '+
+        x.sponsorOffer.expiresEpisode+'.</p><div class="fc-actions"><button class="primary" onclick="UI.seriesSponsor('+x.id+',true)">Accept sponsorship</button>'+
+        '<button onclick="UI.seriesSponsor('+x.id+',false)">Decline</button></div>':'')+
+      '</article>';
+    }).join('');
+    return h;
   }
 
 // ===== SECTION: VIEW_STAFF =====
@@ -1917,16 +2043,34 @@ var UI = (function () {
   function projectDrawer(p) {
     const profit = profitOf(p);
     const pct = p.budget ? Math.min(100, Math.round(p.spent / p.budget * 100)) : 0;
-    let h = drawerHead(p.title, esc(nameOf(Engine.formats(), p.format)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
+    let h = drawerHead(p.title, esc(mediaName(p)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
     if (typeof Media !== 'undefined') h += '<div class="poster">' + posterFor(p) + '</div>' + posterActions(p);
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
-    if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
+    if(Engine.sequelEligibility(p.id).ok)
+      h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Continue this story in any media</button>';
     h += awardIcons(p);   // 8.3
     h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
       v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
+    if(p.budgetPlan){
+      const budget=Engine.v144BudgetInfo(p),label=FinalCutBudget.budgetClass(p.format,p.budget);
+      h+=dl('Budget class & scope',esc(label)+' · '+esc(p.productionScope||'intimate')+
+        ' · '+esc(p.budgetPlan.feasibility||''));
+      h+=dl('Stage allocations',FinalCutBudget.KEYS.map(k=>esc(FinalCutBudget.LABELS[k])+': '+
+        money(budget.spent[k])+' spent / '+money(budget.allocation[k])+' planned').join('<br>'));
+      h+=dl('Unspent reserve',money(budget.stageRemaining.reserve));
+      h+='<p class="fc-budget-ledger">The project budget is a cap, not money paid twice. Routine production charges vary by stage. Unused funds stay in studio cash; studio overhead and payroll are separate.</p>';
+      if(['development','preproduction','shoot','post'].includes(p.stage)){
+        h+='<div class="fc-actions"><strong>Optional production budget review</strong>';
+        if(budget.stageRemaining.reserve>=50&&['development','preproduction','shoot'].includes(p.stage))
+          h+='<button onclick="UI.v144Shift('+p.id+',\'reserve\',\'shoot\')">Move $50 reserve to filming</button>';
+        if(budget.stageRemaining.reserve>=50)
+          h+='<button onclick="UI.v144Shift('+p.id+',\'reserve\',\'post\')">Move $50 reserve to post</button>';
+        h+='<button onclick="UI.v144Extra('+p.id+')">Approve $250 additional contingency cap</button></div>';
+      }
+    }
     h += dl('Talent fees', money(p.fees || 0));
     h += dl('Spent', money(p.spent) + ' <div class="bar"><div style="width:' + pct + '%"></div></div>');
     h += dl('Film quality',p.quality == null ? 'Est. '+centerEstimate(p).value : p.quality+'/100');
@@ -1941,7 +2085,12 @@ var UI = (function () {
       if(fst)h+=dl('Festival exposure',fst.selections+' recognitions · '+fst.judged+'/'+fst.planned+' judged'+
         (fst.next?' · next: '+esc(fst.next.name)+' '+dateLabel(fst.next.week):''));
     }
-    if(p.format==='pilot')h+=dl('Est. TV household impressions',compactCount(Engine.estimatedTvHouseholds(p)));
+    if(p.format==='pilot'){
+      if(p.mediaVariant==='web')h+=dl('Est. online episode views',compactCount(p.estimatedOnlineViews||0));
+      else h+=dl('Est. TV household impressions',compactCount(Engine.estimatedTvHouseholds(p)));
+      if(p.seriesRevenue!=null)h+=dl('Series revenue / expenses',
+        money(p.seriesRevenue)+' / '+money(p.seriesSpend||0)+' · tracked separately from pilot spend');
+    }
     if (p.format === 'feature') h += dl('Gross', cu('gross-' + p.id, p.gross));
     h += dl('Revenue', cu('revenue-' + p.id, p.revenue));
     h += dl('Profit', profit == null ? '–' : '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>');
@@ -2247,8 +2396,8 @@ var UI = (function () {
     "title": "Pick format, cast and budget",
     "view": "newproject",
     "target": "#main .form",
-    "location": "New project → Film form",
-    "text": "Keep the budget affordable. Shorts cost less than full features; choose cast, writer, director and creative vision. Marketing and sponsors will become available in the Film Hub after greenlighting."
+    "location": "New project → Format, budget cap, cast and stage allocations",
+    "text": "Set an exact spending cap and suitable media/scope, then choose your creative vision and hire cast/crew. Their fees reduce the remaining funds. Use the six allocation sliders or a preset; Production Feasibility explains quality and delay risk. Sponsor and promotion options depend on future results."
   },
   {
     "section": "Plan a film",
@@ -2256,7 +2405,7 @@ var UI = (function () {
     "view": "newproject",
     "target": "#main .form",
     "location": "New project → Start project",
-    "text": "Click Greenlight. Any real upfront fees are charged now; production expenses continue week by week. If this campaign already has a film, choose Follow my latest existing film instead.",
+    "text": "Click Greenlight. Only hired talent and screenplay rights are charged immediately. Your chosen production allocations are spent as work progresses through each stage. Keep cash for weekly studio overhead. Existing campaigns may follow their active film instead.",
     "goal": "project"
   },
   {
@@ -2797,21 +2946,43 @@ var UI = (function () {
     const q=Engine.sequelEligibility(id);
     if(!q.ok){drawerMsg=q.reason;renderDrawer();return;}
     const p=q.parent;
-    draft.format='feature';draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
-    draft.genre=p.genre;draft.topic=p.topic;draft.tier=p.tier;
-    draft.sequelOf=p.id;draft.pitchId=null;draft.pitchApproach='standard';
+    draft.format=p.format;draft.mediaVariant=p.mediaVariant||p.format;
+    draft.budgetCap=Math.max(500,p.budget||1500);
+    draft.scope=p.productionScope||'intimate';draft.allocation=null;draft.allocationPreset='balanced';
+    draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
+    draft.genre=p.genre;draft.topic=p.topic;syncDraftTier();
+    draft.sequelOf=p.id;draft.continuationType='direct';draft.pitchId=null;draft.pitchApproach='standard';
     draft.vision=p.dna?.vision||'mainstream';draft.releasePosition='wide';
     const suggested=Engine.sequelCastSuggestion(p);
     draft.cast={director:suggested.director,writer:suggested.writer,lead:suggested.lead,crew:suggested.crew};
-    draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps('feature',draft.tier).supporting);
+    draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps(draft.format,draft.tier).supporting);
     draft.specialists=[];draft.backgroundCrew=0;
     closeDrawer();go('newproject');
   }
-  function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
+  function cancelSequel(){delete draft.sequelOf;delete draft.continuationType;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
     if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
-      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
+      draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+  }
+  function v144Shift(id,from,to){
+    const r=Engine.v144Reallocate(id,from,to,50);
+    setFlash(r.ok?'Moved $50 of unspent project funds.':r.reason);render();
+  }
+  function v144Extra(id){
+    const r=Engine.v144IncreaseCap(id,250,'reserve');
+    setFlash(r.ok?'Approved a $250 higher cap; no cash charged until spent.':r.reason);render();
+  }
+  function seriesPlan(id,kind){const r=Engine.seriesPlan(id,kind);if(!r.ok)setFlash(r.reason);render();}
+  function seriesEpisodeCount(id,n){
+    const s=Engine.getSeries(id);if(!s)return;
+    const r=Engine.seriesPlan(id,s.talentStrategy||'retain',n);if(!r.ok)setFlash(r.reason);render();
+  }
+  function seriesScope(id,scope){const r=Engine.seriesScope(id,scope);if(!r.ok)setFlash(r.reason);render();}
+  function seriesSponsor(id,accept){
+    const r=accept?Engine.signSeriesSponsor(id):Engine.declineSeriesSponsor(id);
+    if(!r.ok)setFlash(r.reason);render();
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -2991,6 +3162,10 @@ var UI = (function () {
     tutorialRestartGuided:tutorialRestartGuided,tutorialFollowExistingFilm:tutorialFollowExistingFilm,
     tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
+    setMediaVariant:setMediaVariant,setScope:setScope,setBudgetCap:setBudgetCap,
+    v144Shift:v144Shift,v144Extra:v144Extra,
+    seriesPlan:seriesPlan,seriesEpisodeCount:seriesEpisodeCount,seriesScope:seriesScope,seriesSponsor:seriesSponsor,
+    budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,

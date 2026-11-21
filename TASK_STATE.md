@@ -122,3 +122,15 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Stage D guided tutorial code: 23-step live first-film journey, mandatory script/greenlight/week/advance/premiere/history actions, existing-film opt-in, reference-mode bypass, accurate format-specific walkthrough and no tutorial-triggered game mutations. Added actual Chromium first-film walkthrough replacing the old 26-step reference assertions and updated README. Full real-film Playwright journey and v14.3 changelog added. PR #13 merged at 0c24bd5 after full real-film Chromium first-film browser QA #44876187273 succeeded. Latest main live-site and v14 regression verification pending.
 
 - [x] All 12 user feedback requests delivered via stage PRs #10–#13; stage A/B/C regression suites and dedicated real first-film tutorial browser acceptance passed. Release documents and changelog updated in main.
+
+
+## v14.4 — approved flexible production release work (November 21, 2026)
+- [x] Audited published v14.3 engine, legacy save format and current UI; based working branch v14-4-flexible-production on main 6316010.
+- [x] Implemented custom media variant/cap and production feasibility, persisted opt-in allocations and cast-first slider UI (engine.js, ui.js).
+- [x] Implemented independent prep, shoot, post charges, budget reserve transfer/explicit cap changes, cap-bound promotion/distribution and exclusion of unused cap from craft/receipts.
+- [x] Added cross-media franchise continuations with separate results; TV/web episode count, tiered sponsor offers, fame-driven salary raises, re-cast/lean choices, signed-income-only season feasibility.
+- [x] New tests in tests/v14_4_budget.js and Chromium/legacy CI workflow v14_4.yml; first full v14.4 engine+browser test passed #44885627778.
+- [x] Created draft PR #14 and docs/CHANGELOG_V14_4.md/HANDOFF.md; safety of old v13 saves preserved by opting new projects in only.
+- [ ] Verify latest branch head's full prior v13/v14/long-career and new v14.4 checks; remedy regressions. Historical CI check failures on intermediate commits were debugged and fixed before continuing.
+- [ ] Only after green regression and release validation: finalize README, merge PR #14 into main, confirm Pages deployment and record live release SHA.
+- [ ] Physical Android/iPhone device check remains manually outstanding.

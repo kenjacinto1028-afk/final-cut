@@ -1,3 +1,78 @@
+/* FinalCut v14.4 — pure, versioned budget planning helpers.
+ * Keeps legacy v13 films untouched; only projects with budgetPlan opt in. */
+var FinalCutBudget = (function () {
+  'use strict';
+  const KEYS = ['prep','shoot','post','marketing','distribution','reserve'];
+  const VARIANTS = {
+    micro:   {name:'Micro-short', format:'short', minYear:1970, target:420, weeks:[1,1,1,1]},
+    short:   {name:'Short film', format:'short', minYear:1970, target:1050, weeks:[2,1,3,3]},
+    mid:     {name:'Mid-length film', format:'short', minYear:1970, target:4500, weeks:[3,2,4,4]},
+    feature: {name:'Feature film', format:'feature', minYear:1970, target:25000, weeks:[6,4,6,8]},
+    pilot:   {name:'TV pilot', format:'pilot', minYear:1970, target:24500, weeks:[3,2,3,2]},
+    web:     {name:'Web episode', format:'pilot', minYear:1995, target:4000, weeks:[2,1,2,2]}
+  };
+  const SCOPE = {intimate:1, standard:2.6, ambitious:5.6};
+  const LABELS = {prep:'Development & pre-production',shoot:'Filming',post:'Post-production',
+    marketing:'Marketing',distribution:'Distribution',reserve:'Contingency'};
+  const BASE = {prep:0.15,shoot:0.47,post:0.20,marketing:0.08,distribution:0.05,reserve:0.05};
+  function bounded(n,min,max){return Math.min(max,Math.max(min,n));}
+  function variant(id){return VARIANTS[id]||VARIANTS.short;}
+  function media(id){return variant(id).format;}
+  function stageWeeks(id){const w=variant(id).weeks;return {development:w[0],preproduction:w[1],shoot:w[2],post:w[3]};}
+  function budgetClass(format,budget){
+    const bands=format==='short'?[2000,6000,16000]:format==='pilot'?[30000,90000,240000]:[40000,120000,1000000];
+    return budget<bands[0]?'Micro':budget<bands[1]?'Low':budget<bands[2]?'Mid':'High';
+  }
+  function recommended(total,vision,preset){
+    const available=Math.max(0,Math.round(total)||0);
+    const w=Object.assign({},BASE);
+    if(vision==='prestige'){w.post+=0.04;w.marketing-=0.03;w.distribution-=0.01;}
+    if(vision==='bold'){w.shoot+=0.05;w.prep+=0.01;w.marketing-=0.03;w.post-=0.03;}
+    if(preset==='craft'){w.prep+=0.05;w.post+=0.08;w.marketing-=0.07;w.distribution-=0.04;w.reserve-=0.02;}
+    if(preset==='audience'){w.marketing+=0.11;w.distribution+=0.07;w.shoot-=0.09;w.post-=0.06;w.prep-=0.03;}
+    if(preset==='lean'){w.reserve+=0.08;w.marketing-=0.04;w.distribution-=0.03;w.post-=0.01;}
+    const plan={};let remaining=available;
+    for(const k of KEYS.slice(0,-1)){plan[k]=Math.round(available*Math.max(0,w[k]));remaining-=plan[k];}
+    plan.reserve=Math.max(0,remaining);
+    return plan;
+  }
+  function evaluate(opts){
+    opts=opts||{};
+    const kind=VARIANTS[opts.variant]?opts.variant:opts.format==='feature'?'feature':opts.format==='pilot'?'pilot':'short';
+    const v=variant(kind), scope=SCOPE[opts.scope]?opts.scope:'intimate';
+    const cap=Math.max(0,Math.round(Number(opts.cap)||0)),fees=Math.max(0,Math.round(Number(opts.fees)||0));
+    const scriptFee=Math.max(0,Math.round(Number(opts.scriptFee)||0));
+    const crew=Math.max(0,cap-fees-scriptFee);
+    const plan=opts.plan&&typeof opts.plan==='object'?Object.fromEntries(KEYS.map(k=>[k,Math.round(Number(opts.plan[k])||0)])):recommended(crew,opts.vision,opts.preset);
+    const allocated=KEYS.reduce((n,k)=>n+plan[k],0),unallocated=cap-fees-scriptFee-allocated;
+    const target=v.target*SCOPE[scope];
+    const need={prep:target*.15,shoot:target*.59,post:target*.26};
+    const ratios=Object.fromEntries(['prep','shoot','post'].map(k=>[k,bounded(plan[k]/Math.max(1,need[k]),0,1.5)]));
+    const weight={prep:0.25,shoot:0.50,post:0.25};
+    const adequacy=Object.keys(ratios).reduce((a,k)=>a+weight[k]*Math.min(1,ratios[k]),0);
+    const risks=[];
+    if(unallocated<0)risks.push('Allocated costs exceed the spending limit.');
+    if(cap<fees+scriptFee)risks.push('Hiring and screenplay fees exceed the cap.');
+    for(const k of ['prep','shoot','post'])if(ratios[k]<0.60)risks.push(LABELS[k]+' is underfunded for '+scope+' scope.');
+    const level=adequacy>=.92&&unallocated>=0?'Comfortable':adequacy>=.66&&unallocated>=0?'Lean but achievable':'Underfunded';
+    const qualityEffect=Math.round(bounded((adequacy-.83)*18,-14,8));
+    const delayWeeks=Math.min(5,Math.max(0,Math.round((.88-adequacy)*5)));
+    return {kind,format:v.format,name:v.name,scope,cap,fees,scriptFee,plan,allocated,unallocated,
+      contingency:plan.reserve,production:plan.prep+plan.shoot+plan.post,need,ratios,adequacy,
+      level,risks,qualityEffect,delayWeeks,budgetClass:budgetClass(v.format,cap),
+      plannedWeeks:Object.values(stageWeeks(kind)).reduce((a,b)=>a+b,0)};
+  }
+  function milestoneCost(plan,stage,spent,planned){
+    const total=stage==='development'||stage==='preproduction'?'prep':stage;
+    const limit=Math.max(0,Number(plan[total])||0), used=Math.max(0,Number(spent[total])||0);
+    const left=Math.max(0,limit-used);
+    const weeks=Math.max(1,Number(planned[total])||1);
+    return Math.min(left,Math.ceil(limit/weeks));
+  }
+  return {KEYS,VARIANTS,SCOPE,LABELS,media,variant,stageWeeks,budgetClass,recommended,evaluate,milestoneCost};
+})();
+
+
 // ===== SECTION: HEADER =====
 // Final Cut — engine.js
 // State, turn loop and all game rules. No DOM access here.
@@ -1180,11 +1255,15 @@ var Engine = (function () {
   }
   function sequelEligibility(id) {
     const parent=getProject(id);
-    if (!parent || parent.format!=='feature' || parent.stage!=='done' || parent.result!=='Hit')
-      return {ok:false, reason:'Only a completed hit feature can launch a sequel.'};
-    if (state.projects.some(p=>p.sequelOf===parent.id && p.stage!=='done'))
-      return {ok:false, reason:'A sequel to this film is already in development.'};
-    return {ok:true,parent:parent};
+    if(!parent||parent.releaseWeek==null||!['short','feature','pilot'].includes(parent.format))
+      return {ok:false,reason:'Only an already released, player-owned story can be continued.'};
+    const known=parent.result==='Hit'||parent.result==='Picked up'||parent.result==='Won'||
+      (parent.quality||0)>=65||(parent.critic||0)>=68||(parent.audience||0)>=72||
+      (parent.festResults||[]).some(x=>/selection|prize|mention|won/i.test(x.result||''));
+    if(!known)return {ok:false,reason:'This story needs an actual audience, critical, or festival foothold before a continuation.'};
+    if(state.projects.some(p=>p.sequelOf===parent.id&&ACTIVE_STAGES.includes(p.stage)))
+      return {ok:false,reason:'A continuation of this story is already in production.'};
+    return {ok:true,parent};
   }
   // Historical cast links are stable IDs: names alone do not prove a returning artist.
   // Skill is never penalized by an actor change, only opening awareness.
@@ -1235,17 +1314,24 @@ var Engine = (function () {
   function previewProject(o) {
     const f = TUNING.formats[o.format];
     if (!f) return { ok: false, reason: 'Pick a format.' };
-    const tier = f.tiers[o.tier];
+    // v14.4 opt-in flexible projects; v13/legacy callers retain their exact rules.
+    const flexible=o.budgetCap!=null && Number.isFinite(Number(o.budgetCap));
+    const cap=flexible?Math.round(Number(o.budgetCap)):null;
+    const tierIndex=flexible?f.tiers.reduce((best,t,i)=>t.budget<=cap&&state.studio.tier>=(t.minTier||0)?i:best,0):o.tier;
+    const tier = f.tiers[tierIndex];
     if (!tier) return { ok: false, reason: 'Pick a budget tier.' };
     const cast = normalizeCast(o.cast);
-    const cc = castCheck(cast, o.format, o);
-    const weeks = plannedWeeks(o.format);
+    const cc = castCheck(cast, o.format,Object.assign({},o,{tier:tierIndex}));
+    const weeks = flexible?Object.values(FinalCutBudget.stageWeeks(o.mediaVariant||o.format)).reduce((a,b)=>a+b,0):plannedWeeks(o.format);
     const script=v14ScriptQuote(o);
+    const budget=flexible?cap:tier.budget;
     const backgroundCrew=Number(o.backgroundCrew)||0;
-    const crewPackageCost=Math.round(tier.budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
+    const crewPackageCost=Math.round(budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
     const fees = cc.fees + crewPackageCost;
-    const prodBudget = tier.budget - fees;
-    const weekly = Math.round(Math.max(prodBudget, 0) / weeks);
+    const prodBudget = budget - fees;
+    const feasibility=flexible?FinalCutBudget.evaluate({variant:o.mediaVariant,format:o.format,scope:o.scope,
+      cap:budget,fees,scriptFee:script.fee,plan:o.allocation,vision:o.vision}):null;
+    const weekly = flexible?0:Math.round(Math.max(prodBudget, 0) / weeks);
     let reason = null;
     const tierName = i => (CONTENT.GROWTH_TIERS[i] || { name: 'tier ' + i }).name;
     if (activeProjects().length >= capacity()) reason = 'The studio is at capacity (' + capacity() + ' production' + (capacity() > 1 ? 's' : '') + '). Grow the studio for more.';
@@ -1254,15 +1340,23 @@ var Engine = (function () {
     else if (state.studio.tier < (tier.minTier || 0)) reason = 'The ' + tier.name + ' budget needs the ' + tierName(tier.minTier) + ' tier.';
     else if (o.format === 'pilot' && tvSlotsUsed() >= growthTier().maxSeries) reason = 'No room for another show (' + growthTier().maxSeries + ' at this tier, pilots included).';
     else if (!o.title || !o.title.trim()) reason = 'Enter a title.';
-    else if (o.sequelOf != null && (o.format!=='feature' || !sequelEligibility(o.sequelOf).ok)) reason = 'This sequel needs a completed, profitable hit feature as its source.';
+    else if (o.sequelOf != null && !sequelEligibility(o.sequelOf).ok) reason=sequelEligibility(o.sequelOf).reason;
     else if (!byId(CONTENT.GENRES, o.genre)) reason = 'Pick a genre.';
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
     else if (!script.ok) reason=script.reason;
     else if (cc.reason) reason = cc.reason;
-    else if (fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
-    else if (state.cash < fees + weekly * 2 + script.fee) reason = 'Not enough cash for script, talent and the first two weeks.';
-    return { ok: !reason, reason: reason, budget: tier.budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
-      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget - script.fee,
+    else if (flexible&&(!Number.isSafeInteger(cap)||cap<250||cap>50000000)) reason='Enter a spending cap between $250 and $50 million.';
+    else if (flexible&&(!o.mediaVariant||FinalCutBudget.media(o.mediaVariant)!==o.format)) reason='Select a valid media variant.';
+    else if (flexible&&FinalCutBudget.variant(o.mediaVariant).minYear>dateOf().year) reason='That media format is not available in this era.';
+    else if (flexible&&feasibility.unallocated<0) reason='Your planned allocations and fees exceed the spending limit.';
+    else if (flexible&&Object.values(feasibility.plan).some(n=>n<0||!Number.isSafeInteger(n))) reason='Allocation amounts must be non-negative whole dollars.';
+    else if (!flexible&&fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
+    else if (state.cash < fees + script.fee + (flexible?Math.min(feasibility.plan.prep,Math.ceil(feasibility.plan.prep/Math.max(1,weeks))*2):weekly*2)) reason = 'Not enough cash for script, talent and the first two weeks.';
+    return { ok: !reason, reason: reason, budget: budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
+      flexible,mediaVariant:flexible?o.mediaVariant:null,scope:flexible?(o.scope||'intimate'):null,
+      tier:tierIndex,feasibility,allocation:feasibility?feasibility.plan:null,
+      prodQuality: flexible?Math.max(0.4,feasibility.adequacy):prodQualityMult(budget, fees),
+      cashAfter: state.cash - (flexible?fees+script.fee+(feasibility.allocated-feasibility.plan.reserve):budget+script.fee),
       scriptFee:script.fee||0,scriptPitch:script.pitch||null,
       continuity: o.sequelOf == null ? null : sequelContinuity(getProject(o.sequelOf),cast,o.supporting),
       extraFees:cc.fees, crewPackageCost };
@@ -1307,12 +1401,21 @@ var Engine = (function () {
     const seriesId = parent ? (parent.franchiseId || 'player:'+parent.id) : null;
     const installment = parent ? 1 + state.projects.reduce((n,x) => (x.id === parent.id || x.franchiseId === seriesId) ? Math.max(n,x.installment || 1) : n, 0) : 1;
     const p = {
-      id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: o.tier,
+      id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: pv.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
+      mediaVariant:pv.mediaVariant||o.format,productionScope:pv.scope||null,
+      requestedEpisodes:pv.flexible?clamp(Math.round(Number(o.episodeCount)||8),4,16):null,
+      budgetPlan:pv.flexible?{cap:pv.budget,allocation:Object.assign({},pv.allocation),
+        spent:{prep:0,shoot:0,post:0,marketing:0,distribution:0,reserve:0},
+        stageWeeks:FinalCutBudget.stageWeeks(pv.mediaVariant),
+        feasibility:pv.feasibility.level,qualityEffect:pv.feasibility.qualityEffect,
+        delayWeeks:pv.feasibility.delayWeeks}:null,
       cast: cast, castNames: castNames, supporting, specialists,
       backgroundCrew:Number(o.backgroundCrew)||0, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
-      stage: 'development', stageWeeksLeft: f.stages.development, startWeek: state.week,
+      stage: 'development', stageWeeksLeft: pv.flexible?FinalCutBudget.stageWeeks(pv.mediaVariant).development:f.stages.development, startWeek: state.week,
       sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
+      continuationType:parent?(o.continuationType|| (parent.format!==o.format?'adaptation':'direct')):null,
+      sourceMedia:parent?(parent.mediaVariant||parent.format):null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
@@ -1327,7 +1430,10 @@ var Engine = (function () {
       // Recognition improves opening awareness but increasing installments face diminishing novelty.
       p.hypeMod += Math.max(1, 10-Math.max(0,installment-2)*2);
       p.qualityMod -= Math.max(0,installment-2)*1.5;
-      p.franchiseExpectation = Math.max(0,(parent.critic||0)-60) * .06 + Math.max(0,installment-2)*2;
+      p.franchiseExpectation = Math.max(0,(parent.critic||0)-60) * .08 + Math.max(0,installment-2)*2;
+      // A franchise provides awareness, never an inherited quality score or guaranteed result.
+      if(p.continuationType==='spinoff')p.hypeMod-=2;
+      if(p.continuationType==='adaptation')p.hypeMod-=3;
       p.hypeMod -= Math.max(0,installment-3)*2;
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
@@ -1399,7 +1505,9 @@ var Engine = (function () {
       return;
     }
     p.stage = ACTIVE_STAGES[ACTIVE_STAGES.indexOf(p.stage) + 1];
-    p.stageWeeksLeft = f.stages[p.stage] + (p.stage === 'post' ? postWeeksAdj(p) + eraMods().postWeeks : 0);
+    const planned=p.budgetPlan?p.budgetPlan.stageWeeks[p.stage]:f.stages[p.stage];
+    p.stageWeeksLeft = planned + (p.stage === 'post' ? postWeeksAdj(p) + eraMods().postWeeks : 0) +
+      (p.stage === 'shoot'&&p.budgetPlan?p.budgetPlan.delayWeeks||0:0);
     if (p.stageWeeksLeft < 1) p.stageWeeksLeft = 1;
     addLog('"' + p.title + '" moved to ' + CONTENT.STAGE_LABELS[p.stage] + '.', 'project');
     // Routine stage transitions are visible in the dashboard and log, not blocking interruptions.
@@ -1441,7 +1549,9 @@ var Engine = (function () {
     const T = TUNING.talent, tier = TUNING.formats[p.format].tiers[p.tier];
     const roles = {};
     SLOTS.forEach(slot => { roles[slot] = Math.round(slotSkill(p, slot) * T.weights[slot] * 10) / 10; });
-    const production = tier.quality * prodQualityMult(p.budget, p.fees || 0);
+    // Allocated stage resources, not the fixed old tier, determine new films' craft.
+    const production=p.budgetPlan?clamp(7+Math.log10(Math.max(250,v144EffectiveBudget(p))/1000)*3+
+      (p.budgetPlan.qualityEffect||0),-7,24):tier.quality * prodQualityMult(p.budget, p.fees || 0);
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
     const staff = deptBonus('development'), era = eraQuality(p.genre),
@@ -1613,14 +1723,19 @@ var Engine = (function () {
     }
   }
   function raiseMarketing(p) {
+    const pool=p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget;
     raise(p, {
       id: 'marketing',
-      text: 'How much marketing for "' + p.title + '"? Spend is a share of the production budget.',
-      choices: TUNING.marketing.map(m => ({
-        label: m.name + (m.share ? ' (' + fmtMoney(p.budget * m.share) + ')' : ''),
-        effects: m.share ? { marketing: m.share, hype: m.hype } : {},
-        result: 'Marketing for "' + p.title + '": ' + m.name + '.'
-      }))
+      text: p.budgetPlan?
+        'Choose how much of your pre-approved marketing allocation to deploy for "'+p.title+'". The hype benefit depends on actual funding; reserve stays unspent.':
+        'How much marketing for "'+p.title+'"? Spend is a share of the production budget.',
+      choices: TUNING.marketing.map(m => {
+        const share=p.budgetPlan?({none:0,small:.25,medium:.55,large:1}[m.id]||0):m.share;
+        const h=p.budgetPlan?Math.round(m.hype*clamp((pool/Math.max(1,p.budget))/.25,0,1)):m.hype;
+        return {label:m.name+(share?' ('+fmtMoney(pool*share)+', hype +'+h+')':' (no spending)'),
+          effects:share?{marketing:share,hype:h}:{},
+          result:'Marketing for "'+p.title+'": '+m.name+'.'};
+      })
     });
   }
   function homeRegion() { return state && state.studio.homeRegion || 'northamerica'; }
@@ -1694,8 +1809,13 @@ var Engine = (function () {
     if (e.quality) p.qualityMod += e.quality;
     if (e.hype) p.hypeMod += e.hype;
     if (e.weeks) p.stageWeeksLeft += e.weeks;
-    if (e.costPct) { const c = Math.round(p.budget * e.costPct); state.cash -= c; p.spent += c; }
-    if (e.marketing) { const c = Math.round(p.budget * e.marketing); state.cash -= c; p.spent += c; p.marketingSpend += c; }
+    if (e.costPct) { const c = Math.round(p.budget * e.costPct);
+      if(!p.budgetPlan||!v144Pay(p,'reserve',c)){if(!p.budgetPlan){state.cash-=c;p.spent+=c;}else p.qualityMod-=2;}
+    }
+    if (e.marketing) { const c = Math.round((p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget) * e.marketing);
+      if(!p.budgetPlan){state.cash-=c;p.spent+=c;p.marketingSpend+=c;}
+      else if(v144Pay(p,'marketing',c))p.marketingSpend+=c;
+    }
     if (e.fame) state.studio.fame = clamp(state.studio.fame + e.fame, 0, 100);
   }
   function choose(i) {
@@ -1977,14 +2097,18 @@ var Engine = (function () {
     if((p.marketingSpend||0)+cost>p.budget*.55)
       return {ok:false,reason:'Existing marketing spending has already reached this film’s planned budget limit.'};
     if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for this campaign.',cost};
+    if(p.budgetPlan&&cost>v144Available(p,'marketing'))
+      return {ok:false,reason:'Not enough allocated marketing funds. This costs '+fmtMoney(cost)+'; remaining '+fmtMoney(v144Available(p,'marketing'))+'.',cost};
     return {ok:true,kind,name:plan.name,cost,hypeLift:plan.hype,
       description:plan.description+' Release hype varies with other cast, script, marketing and market factors.'};
   }
   function filmPromote(id,kind){
     const q=filmPromotionQuote(id,kind);if(!q.ok)return q;
     const p=getProject(Number(id));
-    state.cash-=q.cost;state.finance.q.production+=q.cost;
-    p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+    if(p.budgetPlan){if(!v144Pay(p,'marketing',q.cost))return {ok:false,reason:'Marketing allocation or cash changed.'};}
+    else{state.cash-=q.cost;p.spent+=q.cost;}
+    state.finance.q.production+=q.cost;
+    p.marketingSpend=(p.marketingSpend||0)+q.cost;
     p.hypeMod=clamp((p.hypeMod||0)+q.hypeLift,-80,80);
     p.promotionCampaign={kind:q.kind,week:state.week,cost:q.cost,hypeLift:q.hypeLift};
     recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
@@ -2097,6 +2221,22 @@ var Engine = (function () {
     if(p.dna&&p.format==='short'&&v14UseOffer('festival',p))
       p.v14FestivalConnection=2;
     p.quality = computeQuality(p);
+    // Pilots commit release/platform-pitch funding, without buying a pickup.
+    if(p.budgetPlan&&p.format==='pilot'){
+      const outreach=Math.min(v144Available(p,'distribution'),state.cash);
+      if(outreach&&v144Pay(p,'distribution',outreach)){
+        p.distributionCost=(p.distributionCost||0)+outreach;
+        p.hypeMod=clamp((p.hypeMod||0)+Math.min(4,Math.round(7*Math.sqrt(outreach/Math.max(1,p.budget)))),-80,80);
+      }
+    }
+    // Marketing planned for shorts and pilots executes automatically at launch.
+    if(p.budgetPlan&&p.format!=='feature'){
+      const due=Math.min(state.cash,v144Available(p,'marketing'));
+      if(due&&v144Pay(p,'marketing',due)){
+        p.marketingSpend=(p.marketingSpend||0)+due;
+        p.hypeMod=clamp((p.hypeMod||0)+Math.min(10,Math.round(Math.sqrt(due/Math.max(1,p.budget))*20)),-80,80);
+      }
+    }
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
       (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10) -
@@ -2142,10 +2282,19 @@ var Engine = (function () {
     p.staffSnapshot = Object.keys(state.staff.depts).map(id => ({ department: id, heads: state.staff.depts[id].heads, skill: state.staff.depts[id].skill }));
     if (p.format === 'short') {
       const quoted = regionQuote(p, p.regions);
-      if (state.cash < quoted.cost) { p.regions = [homeRegion()]; addLog('Not enough cash for overseas screenings of "' + p.title + '"; using the home circuit.', 'finance'); }
+      if (state.cash < quoted.cost || (p.budgetPlan&&quoted.cost>v144Available(p,'distribution'))) {
+        p.regions = [homeRegion()]; addLog('Distribution allowance cannot cover overseas screenings of "' + p.title + '"; using the home circuit.', 'finance');
+      }
       const rollout = regionQuote(p, p.regions);
       p.regions = rollout.regions; p.distributionCost = rollout.cost;
-      p.spent += rollout.cost; state.cash -= rollout.cost;
+      if(p.budgetPlan)v144Pay(p,'distribution',rollout.cost);
+      else{p.spent += rollout.cost; state.cash -= rollout.cost;}
+      if(p.budgetPlan){
+        const local=Math.min(state.cash,v144Available(p,'distribution'));
+        if(local&&v144Pay(p,'distribution',local)){
+          p.distributionCost+=local;p.hype=clamp(p.hype+Math.min(4,Math.round(8*Math.sqrt(local/Math.max(1,p.budget)))),0,100);
+        }
+      }
       p.shortCircuitReach = Math.min(.3, Math.max(0, rollout.openingMult - 1) * .23);
       p.festivalPlan = festivalPlan(p);
       const f = festivalDefinition(p.festivalPlan[0]) || CONTENT.AWARDS.circuit[0];
@@ -2163,22 +2312,30 @@ var Engine = (function () {
     } else {
       p.festivalPlan = festivalPlan(p);
       const quote = regionQuote(p, p.regions);
-      if (state.cash < quote.cost) { p.regions = [homeRegion()]; addLog('Insufficient funds for overseas release of \"' + p.title + '\"; opening in the home market only.', 'finance'); }
-      const rollout = regionQuote(p, p.regions);
-      p.regions = rollout.regions;
-      p.distributionCost = rollout.cost;
-      p.spent += rollout.cost;
-      state.cash -= rollout.cost;
+      if (state.cash < quote.cost || (p.budgetPlan&&quote.cost>v144Available(p,'distribution'))) {
+        p.regions=[homeRegion()];
+        addLog('Distribution allowance cannot cover overseas release of "'+p.title+'"; opening at home.', 'finance');
+      }
+      const rollout=regionQuote(p,p.regions);
+      p.regions=rollout.regions;p.distributionCost=rollout.cost;
+      if(p.budgetPlan){
+        v144Pay(p,'distribution',rollout.cost);
+        const local=Math.min(state.cash,v144Available(p,'distribution'));
+        if(local&&v144Pay(p,'distribution',local)){
+          p.distributionCost+=local;p.hype=clamp(p.hype+Math.min(5,Math.round(9*Math.sqrt(local/Math.max(1,p.budget)))),0,100);
+        }
+      }else{p.spent+=rollout.cost;state.cash-=rollout.cost;}
       p.regionalGross = {}; p.regionalRevenue = {};
       const m = marketOutlook(p, 0);
       p.market = { genre: m.genre, taste: m.taste, topic: m.topic, season: m.season, cycle: m.cycle, competitors: m.competitors, pressure: m.pressure, mult: m.mult,
         rivals: m.rivals.map(r => r.studio + ': ' + r.title) };
       const ref = TUNING.boxOfficeRefBudget;
-      const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
+      const economicBudget=v144EffectiveBudget(p);
+      const scale = ref * Math.pow(economicBudget / ref, TUNING.boxOfficeBudgetExp);
       // v14.1: a tentpole can command wider attention, but rising budget and
       // a studio's repeated same-genre launches compete for a finite audience.
       // Only previous released films count; old receipts remain untouched.
-      const premium=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const premium=Math.max(0,Math.log2(Math.max(1,economicBudget)/TUNING.boxOfficeRefBudget));
       const budgetAttention=1/(1+Math.min(.25,premium*.046));
       const repeatedGenre=state.projects.filter(x=>x!==p&&x.format==='feature'&&x.genre===p.genre&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
@@ -2187,13 +2344,13 @@ var Engine = (function () {
       // only mid/high-budget features and leaves small independent films alone.
       const recentStudioFeatures=state.projects.filter(x=>x!==p&&x.format==='feature'&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
-      const slateAttention=p.budget>=TUNING.boxOfficeRefBudget?
+      const slateAttention=economicBudget>=TUNING.boxOfficeRefBudget?
         Math.max(.92,1-Math.min(4,recentStudioFeatures)*.02):1;
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
         m.mult * rollout.openingMult * budgetAttention * genreAttention * slateAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
       // automatic profitability; their higher budgets and marketing costs remain.
-      const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const budgetMultiple=Math.max(0,Math.log2(Math.max(1,economicBudget)/TUNING.boxOfficeRefBudget));
       const cap=audienceCap()*(1+Math.min(.28,budgetMultiple*TUNING.bigFilmAudienceCapPerDoubling));
       p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)) * (p.dna?v14ReleasePlan(p).opening:1));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
@@ -2574,9 +2731,98 @@ var Engine = (function () {
 
 // ===== SECTION: FINANCE =====
   function loanCap() { return TUNING.loanBaseCap + Math.floor(state.studio.fame) * TUNING.loanCapPerFame; }
+  function v144EffectiveBudget(p){
+    if(!p.budgetPlan)return p.budget;
+    const a=p.budgetPlan.allocation,spent=p.budgetPlan.spent;
+    // Budget not yet committed to actual production (reserve/unused cap) cannot
+    // create fictitious production values or theatrical opening demand.
+    return Math.max(250,(p.fees||0)+(p.scriptFee||0)+
+      Math.min(a.prep,spent.prep)+Math.min(a.shoot,spent.shoot)+Math.min(a.post,spent.post));
+  }
+  function v144Bucket(stage){return stage==='development'||stage==='preproduction'?'prep':stage;}
+  function v144StageCost(p){
+    if(!p.budgetPlan)return p.weekly;
+    const b=p.budgetPlan,k=v144Bucket(p.stage),stages=b.stageWeeks||FinalCutBudget.stageWeeks(p.mediaVariant||p.format);
+    const planned=k==='prep'?stages.development+stages.preproduction:stages[k]||1;
+    const normal=FinalCutBudget.milestoneCost(b.allocation,k,b.spent, {prep:planned,shoot:stages.shoot,post:stages.post});
+    if(normal)return normal;
+    // Extra weeks can consume only the pre-approved reserve. No silent cap overrun.
+    const unused=Math.max(0,b.allocation.reserve-(b.spent.reserve||0));
+    return Math.min(unused,Math.max(15,Math.round((b.allocation[k]||0)/Math.max(1,planned)*.4)));
+  }
+  function v144BudgetTick(p){
+    if(!p.budgetPlan)return p.weekly;
+    const b=p.budgetPlan,k=v144Bucket(p.stage),spent=b.spent[k]||0;
+    const normal=FinalCutBudget.milestoneCost(b.allocation,k,b.spent,{
+      prep:b.stageWeeks.development+b.stageWeeks.preproduction,shoot:b.stageWeeks.shoot,post:b.stageWeeks.post});
+    if(normal){b.spent[k]=spent+normal;return normal;}
+    const extra=v144StageCost(p);
+    if(extra){b.spent.reserve=(b.spent.reserve||0)+extra;return extra;}
+    // The production limps through without additional funded resources.
+    if((p.stageWeeksLeft||0)>0)p.qualityMod=Math.max(-18,(p.qualityMod||0)-.5);
+    return 0;
+  }
+  function v144Available(p,k){return p.budgetPlan?Math.max(0,(p.budgetPlan.allocation[k]||0)-(p.budgetPlan.spent[k]||0)):Infinity;}
+  function v144Pay(p,k,cost){
+    cost=Math.max(0,Math.round(cost)||0);
+    if(p.budgetPlan&&cost>v144Available(p,k))return false;
+    if(state.cash<cost)return false;
+    state.cash-=cost;p.spent+=cost;
+    if(p.budgetPlan)p.budgetPlan.spent[k]=(p.budgetPlan.spent[k]||0)+cost;
+    return true;
+  }
+  function v144BudgetInfo(id){
+    const p=typeof id==='object'?id:getProject(Number(id));if(!p||!p.budgetPlan)return null;
+    const b=p.budgetPlan,spent=Object.values(b.spent).reduce((a,n)=>a+(n||0),0);
+    return {cap:b.cap,classification:FinalCutBudget.budgetClass(p.format,b.cap),scope:p.productionScope,
+      allocation:Object.assign({},b.allocation),spent:Object.assign({},b.spent),stageRemaining:FinalCutBudget.KEYS
+        .reduce((out,k)=>(out[k]=v144Available(p,k),out),{}),
+      projectedRemaining:Math.max(0,b.cap-(p.fees||0)-(p.scriptFee||0)-spent)};
+  }
+  function v144Reallocate(id,from,to,amount){
+    const p=getProject(Number(id));
+    if(!p||!p.budgetPlan||!ACTIVE_STAGES.includes(p.stage))
+      return {ok:false,reason:'Only active flexible-budget films can move unspent money.'};
+    if(!FinalCutBudget.KEYS.includes(from)||!FinalCutBudget.KEYS.includes(to)||from===to)
+      return {ok:false,reason:'Choose two different allocation buckets.'};
+    const b=p.budgetPlan,live=ACTIVE_STAGES.indexOf(p.stage);
+    const requiredStage={prep:0,shoot:2,post:3,marketing:4,distribution:4,reserve:4};
+    if((requiredStage[from]<live&&from!=='reserve')||(requiredStage[to]<live&&to!=='reserve'))
+      return {ok:false,reason:'Already completed production stages cannot be re-budgeted.'};
+    amount=Math.round(Number(amount)||0);
+    if(amount<=0||amount>v144Available(p,from))
+      return {ok:false,reason:'Only unspent allocated money may be moved.'};
+    b.allocation[from]-=amount;b.allocation[to]+=amount;
+    const f=FinalCutBudget.evaluate({variant:p.mediaVariant,format:p.format,scope:p.productionScope,
+      cap:p.budget,fees:p.fees,scriptFee:p.scriptFee,plan:b.allocation});
+    b.qualityEffect=f.qualityEffect;b.feasibility=f.level;
+    // Do not retroactively shorten or lengthen an already-running stage.
+    if(live<2)b.delayWeeks=f.delayWeeks;
+    addLog('Moved '+fmtMoney(amount)+' from '+FinalCutBudget.LABELS[from]+' to '+
+      FinalCutBudget.LABELS[to]+' for "'+p.title+'".','finance');
+    save();emit('project',p);return {ok:true,level:f.level};
+  }
+  function v144IncreaseCap(id,amount,where){
+    const p=getProject(Number(id));
+    if(!p||!p.budgetPlan||!ACTIVE_STAGES.includes(p.stage))
+      return {ok:false,reason:'Only active productions may request a new spending limit.'};
+    amount=Math.round(Number(amount)||0);
+    const bucket=FinalCutBudget.KEYS.includes(where)?where:'reserve';
+    if(amount<=0||amount>500000||p.budgetPlan.cap+amount>50000000)
+      return {ok:false,reason:'Budget increase must be positive and within studio limits.'};
+    if(state.cash<amount)return {ok:false,reason:'Studio cash cannot support this optional extra commitment.'};
+    p.budget+=amount;p.budgetPlan.cap+=amount;p.budgetPlan.allocation[bucket]+=amount;
+    const f=FinalCutBudget.evaluate({variant:p.mediaVariant,scope:p.productionScope,
+      cap:p.budget,fees:p.fees,scriptFee:p.scriptFee,plan:p.budgetPlan.allocation});
+    p.budgetPlan.qualityEffect=f.qualityEffect;p.budgetPlan.feasibility=f.level;
+    // Raising a cap does not itself move money out of cash. Only costs do.
+    addLog('Approved an additional '+fmtMoney(amount)+' budget limit for "'+p.title+
+      '", assigned to '+FinalCutBudget.LABELS[bucket]+'.','finance');
+    save();emit('project',p);return {ok:true};
+  }
   function weeklyBurn() {
     return TUNING.livingCost + Math.round(state.debt * TUNING.weeklyInterest) + weeklySalaries() + weeklyPayroll() + weeklyOverhead() +
-      activeProjects().reduce((a, p) => a + p.weekly, 0) + state.series.filter(s => s.status === 'airing').reduce((a, s) => a + s.epCost, 0);
+      activeProjects().reduce((a, p) => a + v144StageCost(p), 0) + state.series.filter(s => s.status === 'airing').reduce((a, s) => a + s.epCost, 0);
   }
   function weeklyProfit() { return state.lastWeek.income - state.lastWeek.costs; }
   function takeLoan() {
@@ -3486,31 +3732,93 @@ var Engine = (function () {
     const score = pilotScore(p);
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
     const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
+    // Web commissions have their own era-appropriate audience access, while
+    // retaining the established bounded pilot-pickup outcome rules.
+    const isWeb=p.mediaVariant==='web';
     const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift + bonus, T.pickupFloor, T.pickupCeil);
     p.stage = 'done';
     if (Math.random() < chance) {
-      p.estimatedHouseholdImpressions=0;
-      const epCost = Math.round(p.budget * T.episodeCostShare);
+      if(isWeb)p.estimatedOnlineViews=0;else p.estimatedHouseholdImpressions=0;
+      const epCost = p.budgetPlan?Math.round(v144EffectiveBudget(p)*(p.mediaVariant==='web'?.78:.92)):
+        Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
       const pilotFee = Math.round(p.budget * T.pilotFeeShare);
       p.result = 'Picked up';
       p.revenue += pilotFee;
       earn(pilotFee);
-      const s = { id: state.nextSeriesId++, projectId: p.id, title: p.title, genre: p.genre, topic: p.topic, season: 1, episodes: rint(T.episodes[0], T.episodes[1]), aired: 0,
-        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [], status: 'airing', hiatusLeft: 0, revenue: pilotFee, cost: 0,
-        renewalChance: null, ratingsTrend: 0, showMomentum: 0 };
+      const s = { id: state.nextSeriesId++, projectId: p.id, title: p.title, genre: p.genre, topic: p.topic, season: 1,
+        episodes:p.requestedEpisodes||rint(T.episodes[0],T.episodes[1]), aired: 0,
+        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [],
+        status:'airing',hiatusLeft:0,revenue:pilotFee,cost:0,
+        flexibleSeries:!!p.budgetPlan,mediaVariant:p.mediaVariant||'pilot',
+        scope:p.productionScope||'standard',firstEpCost:epCost,episodeBudget:epCost,
+        castIds:castTalent(p).map(t=>t.id),talentStrategy:'retain',
+        nextEpisodeCount:p.requestedEpisodes||null,seasonHistory:[],sponsor:null,sponsorOffer:null,
+        sponsorRevenue:0,sponsorOffersMade:0,lastSeasonCost:0,starDemand:1,
+        renewalChance:null,ratingsTrend:0,showMomentum:0 };
       state.series.push(s);
       state.studio.fame = clamp(state.studio.fame + 2, 0, 100);
-      addLog('The network picked up "' + p.title + '": ' + s.episodes + ' episodes at ' + fmtMoney(fee) + ' each (cost ' + fmtMoney(epCost) + '). Pilot fee ' + fmtMoney(pilotFee) + '.', 'tv');
+      addLog((isWeb?'The online platform commissioned ':'The network picked up ')+'"'+p.title+'": '+
+        s.episodes+' episodes at '+fmtMoney(fee)+' each (cost '+fmtMoney(epCost)+'). Initial fee '+fmtMoney(pilotFee)+'.','tv');
     } else {
       const devFee = Math.round(p.budget * T.passFeeShare);
       p.result = 'Passed';
       p.revenue += devFee;
-      p.estimatedHouseholdImpressions=null; // network declined: no airing household data
+      if(isWeb)p.estimatedOnlineViews=null;else p.estimatedHouseholdImpressions=null;
       earn(devFee);
-      addLog('The networks passed on "' + p.title + '" (development fee ' + fmtMoney(devFee) + ').', 'tv');
+      addLog((isWeb?'Online platforms':'Networks')+' passed on "'+p.title+'" (development fee '+fmtMoney(devFee)+').','tv');
     }
     emit('tv', p);
+  }
+  function seriesFeasibility(id){
+    const s=typeof id==='object'?id:getSeries(id);
+    if(!s)return null;
+    const episodes=Math.max(0,(s.episodes||0)-(s.aired||0));
+    const cost=Math.max(0,(s.epCost||0)*episodes);
+    const earned=(s.fee||0)*episodes;
+    const guaranteed=s.sponsor&&s.sponsor.season===s.season?
+      (s.sponsor.perEpisode||0)*episodes:0;
+    // Unsigned offers are never counted as guaranteed income.
+    const margin=earned+guaranteed-cost;
+    const cash=state.cash;
+    const firstWeek=(s.epCost||0)+TUNING.livingCost+weeklySalaries()+weeklyPayroll()+weeklyOverhead();
+    const risk=margin<0?'Underfunded':cash<firstWeek?'Lean but achievable':'Comfortable';
+    return {season:s.season,episodes,productionNeed:cost,contractedRevenue:earned,
+      guaranteedSponsorship:guaranteed,uncommittedOffers:s.sponsorOffer?s.sponsorOffer.perEpisode:0,
+      projectedDirectMargin:margin,firstWeekCashNeed:firstWeek,
+      status:risk,scope:s.scope||'standard',starDemand:s.starDemand||1,
+      note:margin<0?'Contract income does not cover remaining episode costs; sponsor proposals are not guaranteed.':
+        cash<firstWeek?'Studio cash is thin for the next episode plus weekly obligations.':
+          'Current booked episode income can support scheduled production before major disruptions.'};
+  }
+  function seriesPlan(id,kind,episodes){
+    const s=getSeries(id);
+    if(!s||!s.flexibleSeries||s.status==='ended')return {ok:false,reason:'Only active flexible-budget series can change their next-season plan.'};
+    if(!['retain','lean','recast'].includes(kind))return {ok:false,reason:'Unknown cast strategy.'};
+    s.talentStrategy=kind;
+    if(episodes!=null)s.nextEpisodeCount=clamp(Math.round(Number(episodes)||s.episodes),4,16);
+    save();emit('tv',s);
+    return {ok:true,kind,episodes:s.nextEpisodeCount};
+  }
+  function seriesScope(id,scope){
+    const s=getSeries(id);
+    if(!s||!s.flexibleSeries||s.status==='ended'||!FinalCutBudget.SCOPE[scope])
+      return {ok:false,reason:'No active series or invalid production scope.'};
+    s.scope=scope;save();emit('tv',s);return {ok:true};
+  }
+  function signSeriesSponsor(id){
+    const s=getSeries(id);
+    if(!s||s.status!=='airing'||!s.sponsorOffer||s.sponsorOffer.season!==s.season||
+      s.aired>s.sponsorOffer.expiresEpisode)return {ok:false,reason:'There is no eligible sponsor offer.'};
+    s.sponsor=Object.assign({},s.sponsorOffer);
+    s.sponsorOffer=null;
+    addLog(s.sponsor.name+' signs for '+fmtMoney(s.sponsor.perEpisode)+'/remaining episode with "'+s.title+'".','tv');
+    save();emit('tv',s);return {ok:true};
+  }
+  function declineSeriesSponsor(id){
+    const s=getSeries(id);
+    if(!s||!s.sponsorOffer)return {ok:false,reason:'No active offer.'};
+    s.sponsorOffer=null;save();emit('tv',s);return {ok:true};
   }
   function tvTick() {
     const T = TUNING.tv;
@@ -3527,14 +3835,36 @@ var Engine = (function () {
       s.ratings.push(r);
       s.aired++;
       const bonus = r > T.bonusThreshold ? Math.round((r - T.bonusThreshold) * s.epCost * T.bonusPerPoint) : 0;
-      revenue += s.fee + bonus;
+      // Signed sponsorship pays per actual aired episode, never upfront or twice.
+      const sponsorPay=s.sponsor&&s.sponsor.season===s.season?s.sponsor.perEpisode:0;
+      revenue += s.fee + bonus+sponsorPay;
       cost += s.epCost;
-      s.revenue += s.fee + bonus;
+      s.revenue += s.fee + bonus+sponsorPay;
+      s.sponsorRevenue=(s.sponsorRevenue||0)+sponsorPay;
       s.cost += s.epCost;
+      if(s.flexibleSeries&&s.aired>=3&&!s.sponsorOffer&&!s.sponsor&&s.sponsorOffersMade!==s.season){
+        const recent=s.ratings.slice(-3).reduce((a,n)=>a+n,0)/Math.min(3,s.ratings.length);
+        if(recent>=7.5){
+          const tier=recent>=15?'National':recent>=10?'Regional':'Local';
+          const offer=Math.round(s.epCost*Math.min(.36,.04+(recent-7)*.024));
+          if(offer>0){
+            s.sponsorOffer={name:tier+' Screen Partners',tier,perEpisode:offer,season:s.season,expiresEpisode:Math.min(s.episodes-1,s.aired+3)};
+            s.sponsorOffersMade=s.season;
+            addLog('A '+tier.toLowerCase()+' sponsor has offered '+fmtMoney(offer)+
+              '/episode for "'+s.title+'". Accept or decline in TV before the offer expires.','tv');
+          }
+        }
+      }
+      if(s.sponsorOffer&&s.aired>s.sponsorOffer.expiresEpisode)s.sponsorOffer=null;
       const p = getProject(s.projectId);
       if (p) {
-        p.revenue += s.fee + bonus; p.spent += s.epCost;
-        p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
+        if(s.flexibleSeries){
+          p.seriesRevenue=(p.seriesRevenue||0)+s.fee+bonus+sponsorPay;
+          p.seriesSpend=(p.seriesSpend||0)+s.epCost;
+        }else{p.revenue += s.fee + bonus+sponsorPay; p.spent += s.epCost;}
+        if(s.mediaVariant==='web')p.estimatedOnlineViews=(p.estimatedOnlineViews||0)+
+          Math.round(Math.max(0,r)*1250*Math.pow(1.033,Math.max(0,dateOf().year-1995)));
+        else p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
       }
       if (s.aired >= s.episodes) endSeason(s);
     });
@@ -3546,6 +3876,21 @@ var Engine = (function () {
     const previous = s.seasonAvgs.length ? s.seasonAvgs[s.seasonAvgs.length - 1] : avg;
     const trend = avg - previous;
     s.seasonAvgs.push(avg);
+    s.seasonHistory=s.seasonHistory||[];
+    s.seasonHistory.push({season:s.season,avg,episodes:s.episodes,episodeCost:s.epCost,
+      episodeFee:s.fee,sponsorRevenue:s.sponsorRevenue||0,scope:s.scope||null,
+      strategy:s.talentStrategy||'retain'});
+    if(s.flexibleSeries){
+      const fameGain=clamp(Math.round((avg-6)*.62),0,9);
+      (s.castIds||[]).forEach((id,i)=>{
+        const t=getTalent(id);if(!t)return;
+        const original=t.fame;
+        const rise=Math.max(0,Math.round(fameGain*(i===0?1:.7)));
+        t.fame=clamp(t.fame+rise,0,100);
+        const career=ensureCareer(t);career.peakFame=Math.max(career.peakFame||original,t.fame);
+        if(rise>=5)career.trend='Rising star';
+      });
+    }
     s.lastRatings = s.ratings;
     s.ratings = [];
     const margin = s.fee / Math.max(1, s.epCost) - 1;
@@ -3561,9 +3906,28 @@ var Engine = (function () {
     } else {
       s.season++;
       s.aired = 0;
-      s.episodes = rint(T.episodes[0], T.episodes[1]);
-      s.fee = Math.round(s.fee * (1 + T.renewFeeRaise));
-      s.epCost = Math.round(s.epCost * (1 + T.renewCostRaise));
+      s.episodes=s.flexibleSeries?(s.nextEpisodeCount||s.episodes):rint(T.episodes[0],T.episodes[1]);
+      s.fee=Math.round(s.fee*(1+T.renewFeeRaise));
+      if(s.flexibleSeries){
+        // Fame + proven demand create sharply rising quotes; only unsigned
+        // renewals renegotiate. Premium is bounded by the first season's cost.
+        const stars=(s.castIds||[]).map(id=>getTalent(id)).filter(Boolean);
+        const avgFame=stars.length?stars.reduce((a,t)=>a+t.fame,0)/stars.length:20;
+        const fanPressure=Math.max(0,avg-7)*.16+Math.max(0,avgFame-35)*.016;
+        s.starDemand=1+Math.min(2.7,fanPressure);
+        const strategy=s.talentStrategy||'retain';
+        const rehire=strategy==='recast'?.62:strategy==='lean'?.86:1;
+        const baseline=s.firstEpCost*(.60+.40*s.starDemand)*Math.pow(1.045,s.season-1);
+        const scopeMult=s.scope==='ambitious'?1.35:s.scope==='intimate'?.91:1;
+        s.epCost=Math.round(Math.min(s.firstEpCost*5,baseline*rehire*scopeMult));
+        s.episodeBudget=s.epCost;
+        if(strategy==='recast'){
+          const p=getProject(s.projectId);
+          if(p&&typeof p.cast?.lead==='number')s.castIds=s.castIds.filter(id=>id!==p.cast.lead);
+          s.quality=Math.max(1,s.quality-2);s.hype=Math.max(0,s.hype-9);
+        }else if(strategy==='lean')s.quality=Math.max(1,s.quality-3);
+        s.sponsor=null;s.sponsorOffer=null;s.sponsorRevenue=0;
+      }else s.epCost = Math.round(s.epCost * (1 + T.renewCostRaise));
       const creativeRefresh = avg > T.renewAvg + 2 && Math.random() < 0.22 ? rint(1, 3) : 0;
       s.quality = clamp(s.quality - T.qualityDecay + creativeRefresh, 1, 100);
       s.hype = clamp(Math.round(s.hype * .35 + avg * 3.5), 0, 100);
@@ -4508,7 +4872,7 @@ var Engine = (function () {
     const actives = activeProjects();
     const freelance = founderFreelancing() ? freelanceIncome() : 0;
     let revenue = 0, production = 0;
-    actives.forEach(p => { p.spent += p.weekly; production += p.weekly; });
+    actives.forEach(p => { const charge=v144BudgetTick(p); p.spent += charge; production += charge; });
     state.projects.forEach(p => { if (p.stage === 'release') revenue += releaseIncome(p); });
     revenue += windowsTick();
     revenue += shortEncoreTick();
@@ -4908,6 +5272,8 @@ var Engine = (function () {
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
     startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
+    v144BudgetInfo:v144BudgetInfo,v144Pay:v144Pay,
+    v144Reallocate:v144Reallocate,v144IncreaseCap:v144IncreaseCap,
     sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
     formats: formats, activeProject: activeProject, activeProjects: activeProjects, capacity: capacity, getProject: getProject,
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
@@ -4915,6 +5281,8 @@ var Engine = (function () {
     studioSize: studioSize, staffCount: staffCount, weeklyPayroll: weeklyPayroll, officePayroll: officePayroll, weeklyOverhead: weeklyOverhead, quarterToDate: quarterToDate,
     marketInfo: marketInfo, marketOutlook: marketOutlook,
     series: () => state.series, activeSeries: activeSeries, getSeries: getSeries, tvSlotsUsed: tvSlotsUsed, windowName: windowName,
+    seriesPlan:seriesPlan,seriesScope:seriesScope,signSeriesSponsor:signSeriesSponsor,declineSeriesSponsor:declineSeriesSponsor,
+    seriesFeasibility:seriesFeasibility,
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,

@@ -98,3 +98,17 @@ Merged PR #9 at `fe76f9a`. The guided tour in `ui.js` is now chapter-labeled wit
 
 ## v14.3 update
 PRs #10 (Film Hub) and #11 (promotion/sponsors/critics), and #12 (calendar/charts/tooltips/archive) merged. Stage D interactive guided first film merged via PR #13 at 0c24bd5 after full real-film Chromium playthrough passed. Latest main Pages and integrated QA are checked after the release checkpoint. Full behavior, limitations, and financial/save guarantees in docs/CHANGELOG_V14_3.md. Keep v13 save schema and physical-phone testing caveat.
+
+
+## v14.4 development handoff (draft PR #14)
+
+- Integration branch `v14-4-flexible-production`, based on published v14.3. Review `docs/CHANGELOG_V14_4.md` before merging; **main/live currently remain v14.3 until regression and deployment gates succeed**.
+- `engine.js` now carries `FinalCutBudget` pure helpers **at file start**, intentionally self-contained: several historical tests evaluate only `content.js` + `engine.js`. Do not split this helper into another script without modifying all loaders.
+- Flexible project opt-in uses `o.budgetCap` and optional `o.mediaVariant`, `o.scope`, `o.allocation` in `Engine.previewProject/startProject`; legacy callers without `budgetCap` retain original engine paths and save version 13.
+- Per-film `budgetPlan` is persisted, with `allocation`, `spent`, `stageWeeks`, `feasibility`, `qualityEffect`. Stage production expenses are booked by `v144BudgetTick`; decision funding via `v144Pay` checks bucket capacity. `v144EffectiveBudget` prevents unspent caps from increasing theatrical reach. `Engine.v144BudgetInfo` is the HUD ledger; reallocation and cap changes are deliberate, not silent charges.
+- `ui.js` new-project draft has format variant, cap slider, scope selector, cast-first fee updates, allocation presets/sliders and feasibility; `budget-v14_4.css` handles mobile. Film Hub shows spend per bucket and available reserve.
+- Cross-media continuations use original `sequelOf`/franchise linkage, new `continuationType` and existing cast continuity. Each film must earn its own reviews/results; no source quality copied.
+- Newly picked-up flexible TV/web series store episode/season cost, cast ID list, sponsor contracts, season history and strategy. `Engine.seriesFeasibility` considers only *signed* sponsors and first-week liquidity. `p.seriesRevenue/p.seriesSpend` are separate from pilot `p.revenue/p.spent` to keep original film cap meaningful. Legacy series stay on previous formulas.
+- Web is unlocked in 1995 via TV-like commission logic and distinct modeled online view counts. Three new variants share existing short production/release engine rather than inventing rival shorts.
+- Required gates: `node tests/v14_4_budget.js`, historical v13/v14 contracts, Chromium 320px/390px and tutorial suites, and v14.1 normal-start long-career balance. New workflow `.github/workflows/v14_4.yml`. Earlier harness failure `ReferenceError: FinalCutBudget is not defined` was fixed by embedding helpers in engine; integrated v14.4 engine/browser run #44885627778 succeeded, but later branch commits need final checks.
+- Do not rewrite old films or bump v13 save version. Preserve poster store, IndexedDB slots, FCP1/FCP2 archives, physical-device caveats.

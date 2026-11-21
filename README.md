@@ -2,6 +2,14 @@
 
 **Current release: FinalCut v14.3.** [See the release notes](docs/CHANGELOG_V14_3.md) for Film Hub, marketing, reputation-gated sponsors, tiered critics, a truthful release calendar, accessible performance charts, World Archive receipts, and the interactive 23-step first-film tutorial. Stages shipped through PRs #10–#13 with automated compatibility tests.
 
+## v14.4 development candidate (PR #14 — not yet published)
+
+The proposed next release adds arbitrary spending caps, descriptive budget classes, micro-shorts/mid-length/web variants, a **cast-first** project planner with per-stage sliders and a scope-sensitive Production Feasibility assessment. New projects book actual prep/shoot/post expenses, rather than a single blended weekly charge; existing v13 saves and previously greenlit films retain their original rules. Successful film/TV stories may expand into other formats, while fresh reviews and outcomes remain independent.
+
+TV/web continuations track actual episodes, popularity-based fictional sponsor offers, cast fame, and next-season salary and scope pressure. The TV screen shows estimated season funding requirements and keeps unsigned sponsors out of guaranteed income.
+
+This branch remains under regression testing. See [v14.4 technical notes](docs/CHANGELOG_V14_4.md) and the [draft integration PR](https://github.com/kenjacinto1028-afk/final-cut/pull/14). The published game is still v14.3 until the merge and Pages deployment succeed.
+
 ## Guided First Film — v14.3
 Open **? Tutorial** or **How to play**. The state-aware 23-step guide now requires real script choice, actual greenlighting, clicking **Next week** and **Advance to next decision**, responding to genuine events, reaching a premiere, opening the real earnings ledger, and visiting Filmography and World Film Archive. It never simulates those actions for you, and may be minimized or skipped. Returning players can **Browse feature reference** without mandatory spending or follow an existing film. Browser acceptance: `python tests/v14_2_tutorial_browser.py`.
 
