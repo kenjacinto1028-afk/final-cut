@@ -2688,7 +2688,8 @@ var Engine = (function () {
       pressReviews:(p.pressReviews||[]).slice(),pressHypeDelta:p.pressHypeDelta||0,sponsor:p.sponsor||null,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
-      estimatedHouseholdImpressions:estimatedTvHouseholds(p),
+      estimatedHouseholdImpressions:estimatedTvHouseholds(p), estimatedOnlineViews:p.estimatedOnlineViews||null,
+      mediaVariant:p.mediaVariant||null,
       performanceHistory:(p.performanceHistory||[]).slice(-32),
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
@@ -2708,7 +2709,7 @@ var Engine = (function () {
   }
   function filmById(id) { return filmHistory().find(f => f.id === String(id)) || null; }
   // The rating uses one stable formula for both studio-only and world rankings.
-  function filmScore(f, criterion) {
+  function filmScore(f, criterion, region) {
     const awards = (f.awards || []).reduce((n, a) => n + (a.won ? 4 : 1), 0);
     const festivals = (f.festResults || []).reduce((n, a) => n +
       (/prize|grand|won|winner/i.test(a.result || '') ? 3 + Math.min(3, a.tierRank || 1) :
@@ -2717,7 +2718,9 @@ var Engine = (function () {
     const eraYears = Math.max(0, (f.year || TUNING.startYear) - TUNING.startYear);
     const eraScaleValue = Math.pow(1 + TUNING.market.audienceGrowth, eraYears);
     const reach = Math.min(100, 35 * Math.log10(1 + (f.gross || 0) / (Math.max(25000, f.budget || 25000) * 0.4)));
-    if (criterion === 'gross') return Math.round((f.gross || 0) / eraScaleValue);
+    if (criterion === 'gross') return Math.round((region ? (f.regionalGross?.[region]||0) : (f.gross||0)) / eraScaleValue);
+    if (criterion === 'audience') return f.audience == null ? -1 : f.audience;
+    if (criterion === 'reach') return f.format==='feature' ? (f.estimatedAdmissions||0) : f.format==='short' ? (f.estimatedScreeningViewers||0) : (f.mediaVariant==='web' ? f.estimatedOnlineViews||0 : f.estimatedHouseholdImpressions||0);
     if (criterion === 'critics') return f.critic == null ? -1 : f.critic;
     if (criterion === 'awards') return Math.round((awards + festivals) * 100) / 100;
     return Math.round((0.4 * (f.critic == null ? f.quality || 0 : f.critic) +
@@ -2725,14 +2728,24 @@ var Engine = (function () {
   }
   function filmRankings(opts) {
     opts = opts || {};
-    const criterion = opts.criterion || 'overall';
+    const criterion = opts.criterion || 'overall', currentYear=dateOf().year;
     const filter = f => f.stage === 'done' &&
-      (opts.format ? f.format === opts.format : f.format === 'feature') &&
+      (opts.format==='web' ? f.format==='pilot'&&f.mediaVariant==='web' :
+        opts.format==='pilot' ? f.format==='pilot'&&f.mediaVariant!=='web' :
+        f.format===(opts.format||'feature')) &&
       (!opts.genre || f.genre === opts.genre) && (!opts.topic || f.topic === opts.topic) &&
       (!opts.decade || Math.floor(f.year / 10) * 10 === Number(opts.decade)) &&
+      (!opts.period || opts.period==='all' ||
+        (opts.period==='year'&&f.year===currentYear) ||
+        (opts.period==='five'&&f.year>=currentYear-4&&f.year<=currentYear)) &&
       (!opts.region || (f.regions || []).includes(opts.region)) &&
+      (!opts.reach || (opts.reach==='home' ? (f.regions||[]).length===1 :
+        opts.reach==='international' ? (f.regions||[]).length>=2 :
+        (f.regions||[]).length>=4)) &&
+      // A region's gross chart only includes films with recorded local receipts.
+      (!(criterion==='gross'&&opts.region) || Number.isFinite(f.regionalGross?.[opts.region])) &&
       (!opts.awarded || (f.awards || []).some(a => a.won) || (f.festResults || []).some(a => /prize|grand|won|winner/i.test(a.result)));
-    const all = filmHistory().filter(filter).map(f => Object.assign({}, f, { score: filmScore(f, criterion) }));
+    const all = filmHistory().filter(filter).map(f => Object.assign({}, f, { score: filmScore(f, criterion, opts.region) }));
     all.sort((a, b) => b.score - a.score || (b.critic || 0) - (a.critic || 0) || a.releaseWeek - b.releaseWeek || String(a.id).localeCompare(String(b.id)));
     return all.map((f, i) => Object.assign({}, f, { worldRank: i + 1 })).filter(f => !opts.mine || f.projectId != null)
       .map((f, i) => Object.assign({}, f, { studioRank: opts.mine ? i + 1 : null }));
