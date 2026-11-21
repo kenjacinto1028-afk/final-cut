@@ -315,6 +315,11 @@ var Engine = (function () {
 
 // ===== SECTION: STATE =====
   let state = null;
+  let fastSimulationTesting=false; // Node-only QA acceleration; never skips browser autosaves
+  function setFastSimulationTesting(enabled){
+    if(typeof document!=='undefined')return false;
+    fastSimulationTesting=!!enabled;return true;
+  }
 
 
   // v14: compact, additive Film DNA; historical releases are never rewritten.
@@ -4396,6 +4401,7 @@ var Engine = (function () {
     return JSON.parse(json);
   }
   function save() {
+    if(fastSimulationTesting)return true; // test-only: persist a real full save at the end of a long simulated career
     const ls = storage();
     if (!ls || !state) return false;
     try { ls.setItem(SAVE_KEY, encodeSave(state)); return true; } catch (e) { return false; }
@@ -4532,6 +4538,7 @@ var Engine = (function () {
     dateOf: dateOf, eraOf: eraOf, eraInfo: eraInfo, eraLines: eraLines,
     save: save, load: load, hasSave: hasSave, clearSave: clearSave,
     inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
+    setFastSimulationTesting:setFastSimulationTesting,
     v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
     v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
     v14Chemistry:v14Chemistry, v14PairKey:v14PairKey, v14SetDelegation:v14SetDelegation,
