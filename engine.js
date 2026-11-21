@@ -2093,7 +2093,11 @@ var Engine = (function () {
     if(!state||state.gameOver||p.releaseWeek!=null||p.stage==='done')
       return {ok:false,reason:'Pre-release film promotion closes when the film premieres.'};
     if(p.promotionCampaign)return {ok:false,reason:'This film has already used its one optional pre-release campaign.'};
-    const cost=Math.max(plan.minimum,Math.round(p.budget*plan.share/5)*5);
+    // Flexible campaigns price the resources intentionally planned for use, not
+    // contingency that can be retained or reallocated. Legacy campaigns unchanged.
+    const campaignBase=p.budgetPlan?(p.fees||0)+(p.scriptFee||0)+
+      FinalCutBudget.KEYS.filter(k=>k!=='reserve').reduce((sum,k)=>sum+(p.budgetPlan.allocation[k]||0),0):p.budget;
+    const cost=Math.max(plan.minimum,Math.round(campaignBase*plan.share/5)*5);
     if((p.marketingSpend||0)+cost>p.budget*.55)
       return {ok:false,reason:'Existing marketing spending has already reached this film’s planned budget limit.'};
     if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for this campaign.',cost};
@@ -2143,7 +2147,11 @@ var Engine = (function () {
       fame>=43&&(r.buzz||0)>=17?2:1;
     const source=FILM_SPONSORS[(p.id+String(p.genre||'').length+tier)%FILM_SPONSORS.length];
     const fit=source.genres.includes(p.genre);
-    const amount=Math.max(50,Math.round(Math.min(p.budget*(.024+tier*.011),tier*40000)/25)*25);
+    // Sponsor investment tracks resources already put into the production. A
+    // large but unused budget cap must never mint sponsorship cash.
+    const sponsorBase=p.budgetPlan?v144EffectiveBudget(p)+
+      (p.budgetPlan.spent.marketing||0)+(p.budgetPlan.spent.distribution||0):p.budget;
+    const amount=Math.max(50,Math.round(Math.min(sponsorBase*(.024+tier*.011),tier*40000)/25)*25);
     const hypeLift=fit?Math.min(4,tier+1):1;
     const criticRisk=Math.min(5,(fit?0:2)+Math.max(1,tier-1));
     return {ok:true,name:source.name,brand:source.brand,tier,
