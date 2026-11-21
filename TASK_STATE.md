@@ -96,3 +96,10 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Accepted 12×61-year standard-start CI #44866770309 (all save roundtrips); averages: blockbuster $745.3m/99 flops, prestige $222.8m/69, careful $221.9m/5, cheap $29.8m/72; three regions, four strategies.
 - [x] Mobile Chrome/390px performance and full archive/worker ordering QA passed; existing v14 and v13.5–v13.9 compatibility/browser tests green on PR #7.
 - [x] Final documentation checkpoint `af1b09ff` verified: GitHub Pages deployment #44867237569 and integrated v14 + legacy/Chromium CI #44867238195 both succeeded. Remaining physical-device validation is explicitly tracked above.
+
+## v14.2 — Targeted polish (2026-11-21)
+- [x] Scope frozen: remove long-history UI stalls from manual save, save-slot switch, copy and import while retaining sync fallback, legacy archives, poster separation and save version 13.
+- [ ] Implement async save/encode worker and state-safe slot transitions.
+- [ ] Mobile 320/390px and reduced-motion usability plus save progress indicator.
+- [ ] Chromium and Node targeted QA; existing v13/v14 CI and 12-carrier econometric smoke unchanged.
+- [ ] Merge v14.2 to main and verify live Pages; physical Android/iPhone validation remains explicitly outstanding.
