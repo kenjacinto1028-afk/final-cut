@@ -171,3 +171,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 - [x] Added Project Monitor → Project Details shortcut and corresponding tutorial navigation update to `docs/NEXT_UI_POLISH_PLAN.md`; implementation deferred.
 - [ ] Future update: implement Project Details in each film monitor and verify guided tutorial access on desktop/mobile.
+
+- [x] Planned full v14.5 tutorial navigation/breadcrumb/target audit and missing completed-film My Filmography regression in `docs/NEXT_UI_POLISH_PLAN.md`.
+- [ ] Future implementation: reproduce and fix completed film visibility for all media/save paths; repair every tutorial link; run end-to-end film tutorial and desktop/mobile/save regressions.
