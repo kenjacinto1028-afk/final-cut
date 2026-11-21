@@ -3446,6 +3446,8 @@ var Engine = (function () {
   function nextTurn() {
     if (!state || state.gameOver || state.pending) return false;
     state.week++;
+    const priorProjects=new Map(state.projects.map(p=>[p.id,{gross:p.gross||0,revenue:p.revenue||0,
+      spent:p.spent||0,stage:p.stage,admissions:p.format==='feature'?filmAdmissions(p):0}]));
     marketTick();
     const interest = Math.round(state.debt * TUNING.weeklyInterest);
     const salaries = weeklySalaries();
@@ -3483,6 +3485,15 @@ var Engine = (function () {
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
     if (dateOf().week === TUNING.weeksPerYear) annualReview();
     checkBankruptcy();
+    // Track actual booked project income, expenses, and release reach; keep
+    // only the last 32 eventful weeks to protect long-running save size.
+    state.projects.forEach(p=>{
+      const old=priorProjects.get(p.id);if(!old)return;
+      const gross=(p.gross||0)-old.gross,revenue=(p.revenue||0)-old.revenue,spent=(p.spent||0)-old.spent;
+      const admissions=p.format==='feature'?Math.max(0,(filmAdmissions(p)||0)-(old.admissions||0)):0;
+      if(gross||revenue||spent||old.stage!==p.stage||ACTIVE_STAGES.includes(p.stage)||p.stage==='release')
+        recordProjectPulse(p,state.week,gross,revenue,spent,p.stage,admissions);
+    });
     save();
     emit('turn');
     return true;
