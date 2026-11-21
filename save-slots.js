@@ -51,7 +51,14 @@ var SaveSlots=(function(){
     const x=readIndex(),ls=storage(),raw=ls&&ls.getItem(ACTIVE),info=Engine.state?summaryFromState():(raw&&summary(raw));
     if(!info)return x;
     const active=x.slots.find(s=>s.id===x.activeId);
-    if(active&&(!active.campaignId||!info.campaignId||active.campaignId===info.campaignId))return x;
+    if(active&&(!active.campaignId||!info.campaignId||active.campaignId===info.campaignId)){
+      // After a fresh page load, the active autosave may be newer than the
+      // last time the save library was opened. Refresh its displayed year.
+      if(!Engine.state&&(active.week!==info.week||active.campaignId!==info.campaignId)){
+        refreshEntry(x,info);writeIndex(x);
+      }
+      return x;
+    }
     const matched=x.slots.find(s=>s.campaignId&&s.campaignId===info.campaignId);
     if(matched)x.activeId=matched.id;
     else {const newId=id();x.slots.push(entry(newId,info,info.studio));x.activeId=newId;}
