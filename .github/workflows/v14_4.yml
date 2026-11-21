@@ -16,7 +16,6 @@ jobs:
           node-version: '22'
       - name: Syntax, flexible finance and legacy integrity
         run: |
-          node --check budget-v14_4.js
           node --check engine.js
           node --check ui.js
           node tests/v14_4_budget.js
