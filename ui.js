@@ -514,8 +514,9 @@ var UI = (function () {
   const CENTER_STAGES = ['development','preproduction','shoot','post','release','done'];
   function centerStage(p) {
     const labels = ['Development','Pre-production','Filming','Post-production',
-      p.format === 'short' ? 'Festivals' : p.format === 'pilot' ? 'Broadcast' : 'In theaters',
-      p.format === 'feature' ? 'Catalog' : 'Complete'];
+      p.format === 'short' ? 'Screenings' : p.format === 'pilot' ? 'Broadcast' : 'In theaters',
+      p.format === 'short' && Engine.shortFestivalStatus(p)?.next ? 'Festival circuit' :
+        p.format === 'feature' ? 'Catalog' : 'Complete'];
     const i=Math.max(0,CENTER_STAGES.indexOf(p.stage));
     return {index:i,labels,status:labels[i]||'Completed'};
   }
@@ -665,7 +666,8 @@ var UI = (function () {
     render();
   }
   function projectPhasePercent(p){
-    if(p.stage==='release')return Math.min(100,Math.round(p.weeksInRelease/Engine.TUNING.maxReleaseWeeks*100));
+    if(p.stage==='release')return Math.min(100,Math.round(p.weeksInRelease/
+      (p.format==='short'?(p.shortRunWeeks||Engine.TUNING.shortScreening.maxWeeks):Engine.TUNING.maxReleaseWeeks)*100));
     if(p.stage==='done')return 100;
     const stages=Engine.TUNING.formats[p.format]?.stages||{};
     const total=stages[p.stage]||1;
@@ -678,43 +680,65 @@ var UI = (function () {
     dock.hidden=!show;app.classList.toggle('monitor-open',show);
     if(!show){dock.innerHTML='';return;}
     const active=s.projects.filter(p=>p.stage!=='done');
-    const residual=s.projects.filter(p=>p.stage==='done'&&(p.windows||[]).some(w=>w.paid<w.total));
+    const postlife=s.projects.filter(p=>p.stage==='done'&&(
+      (p.windows||[]).some(w=>w.paid<w.total)||
+      (p.format==='short'&&(
+        Engine.shortFestivalStatus(p)?.next||
+        (p.shortEncore&&p.shortEncore.paid<p.shortEncore.total)||
+        Engine.shortPostReleaseQuote(p.id,'press').ok||
+        Engine.shortPostReleaseQuote(p.id,'encore').ok
+      ))
+    ));
     const recent=s.projects.filter(p=>p.stage==='done').slice(-3);
-    const all=[...active,...residual,...recent].filter((p,i,a)=>a.findIndex(x=>x.id===p.id)===i);
+    const all=[...active,...postlife,...recent].filter((p,i,arr)=>arr.findIndex(x=>x.id===p.id)===i);
     all.sort((a,b)=>{
-      const score=p=>p.stage==='release'?4: p.stage!=='done'?3:(p.windows||[]).some(w=>w.paid<w.total)?2:1;
-      return score(b)-score(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
+      const importance=p=>p.stage==='release'?5:p.stage!=='done'?4:
+        postlife.includes(p)?3:(p.windows||[]).some(w=>w.paid<w.total)?2:1;
+      return importance(b)-importance(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
     });
-    const selected=all.slice(0,6);
-    const cards=selected.map(p=>{
-      const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature';
+    const cards=all.slice(0,6).map(p=>{
+      const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature',short=p.format==='short';
+      const fest=short?Engine.shortFestivalStatus(p):null;
       const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
       const metric=live&&feature?'gross':'revenue';
       const current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue;
-      const viewer=feature?'<span>'+compactCount(pulse.estimatedAdmissions)+' est. admissions</span>':
-        '<span>'+(p.format==='short'?'Festival / screening release':'TV / network deal')+'</span>';
+      const reach=feature
+        ?'<span>'+compactCount(p.releaseWeek==null?null:pulse.estimatedAdmissions)+' est. ticket visits</span>'
+        :short?'<span>'+compactCount(pulse.estimatedScreeningViewers)+' est. screening visits</span>'
+        :'<span>'+compactCount(pulse.estimatedHouseholdImpressions)+' est. HH impressions</span>';
+      const q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value;
+      const h=Number.isFinite(p.hype)?p.hype+'/100':'Est. '+Math.max(0,Math.min(100,
+        Math.round((s.studio.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
+      const info=short&&fest?'<p class="fc-monitor-festival">'+fest.selections+' festival recognitions'+
+        (fest.next?' · next '+esc(fest.next.name)+' '+esc(dateLabel(fest.next.week)):'')+'</p>':'';
+      const time=short&&live?' · wk '+p.weeksInRelease+'/'+(p.shortRunWeeks||'?'):
+        live?' · wk '+p.weeksInRelease:'';
       return '<article class="fc-monitor-card">'+
-        '<div class="fc-monitor-card-head"><span class="fc-monitor-symbol">'+esc(feature?'FILM':p.format==='short'?'SHORT':'TV')+'</span>'+
+        '<div class="fc-monitor-card-head"><span class="fc-monitor-symbol">'+esc(feature?'FILM':short?'SHORT':'TV')+'</span>'+
         '<button type="button" onclick="UI.openProject('+p.id+')" title="Open '+esc(p.title)+'">'+esc(p.title)+'</button></div>'+
-        '<div class="fc-monitor-status"><span>'+esc(phase)+(live?' · wk '+p.weeksInRelease:'')+'</span>'+
+        '<div class="fc-monitor-status"><span>'+esc(phase+time)+'</span>'+
         '<strong>'+Math.round(projectPhasePercent(p))+'%</strong></div>'+
         '<div class="fc-monitor-track"><i style="width:'+projectPhasePercent(p)+'%"></i></div>'+
-        '<div class="fc-monitor-money"><div><small>'+(metric==='gross'?'This week · box office':'This week · receipts')+'</small><strong>'+money(current)+'</strong></div>'+
+        '<div class="fc-monitor-health"><span>Quality <b>'+esc(q)+'</b></span><span>Hype <b>'+esc(h)+'</b></span></div>'+
+        '<div class="fc-monitor-money"><div><small>'+(metric==='gross'?'This week · box office':'This week · receipts')+
+        '</small><strong>'+money(current)+'</strong></div>'+
         '<div><small>Studio receipts · total</small><strong>'+money(p.revenue||0)+'</strong></div></div>'+
-        '<div class="fc-monitor-audience">'+viewer+
-        '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
-        filmPulseChart(p,metric,7)+
+        '<div class="fc-monitor-audience">'+reach+
+        '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+
+        money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
+        info+filmPulseChart(p,metric,7)+
         (live&&feature?releasePushAction(p):'')+
+        (short?shortFilmActions(p,true):'')+
         '</article>';
     }).join('');
     dock.innerHTML='<header class="fc-monitor-head"><div><small>LIVE STUDIO FEED</small><h2>Project monitor</h2>'+
-      '<span>'+active.length+' active · '+s.projects.length+' lifetime projects</span></div>'+
+      '<span>'+active.length+' in production/release · '+postlife.length+' after-release opportunities</span></div>'+
       '<button class="fc-monitor-close" type="button" onclick="UI.toggleFilmMonitor()" aria-label="Collapse project monitor">✕</button></header>'+
       '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">Greenlight a film to follow weekly production and earnings.</p>')+'</div>'+
       '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Full Production Center</button>'+
-      '<small>Weekly earnings are booked by the game engine. Ticket reach is modeled, not measured.</small></footer>';
+      '<small>Quality and hype are release scores. Audience reach and households are modeled estimates, not measured unique viewers.</small></footer>';
   }
-  function centerPanel() {
+    function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
     const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature');
     const chosen=list.find(p=>p.id===centerProjectId)||active[0]||list[0];
