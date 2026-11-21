@@ -1790,7 +1790,8 @@ var UI = (function () {
         dl('Critical reception',f.critic==null?'Not rated':f.critic+'/100')+
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
-      if(original)h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);
+      if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
+        h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
       h+='</section>';
     } else if(filmHubTab==='reviews'){
       h+='<section class="fc-hub-panel"><h3>Critical reception</h3>'+filmCriticsPanel(f)+
@@ -2023,7 +2024,7 @@ var UI = (function () {
     return '<section class="fc-film-press"><h3>Critic coverage · '+list.length+' published</h3>'+
       '<p class="muted">Fictional publications, independent viewpoints; higher-tier coverage increases reach, not guaranteed ratings.</p>'+
       '<div class="fc-film-review-list">'+list.map(r=>'<article><div><strong>'+esc(r.publication)+'</strong>'+
-        '<small>'+esc(r.name)+' · Tier '+Number(r.tier)+'</small></div><strong class="fc-review-rating">'+
+        '<small>'+esc(r.name)+' · '+esc(criticReachName(r.tier))+'</small></div><strong class="fc-review-rating">'+
         esc(r.score)+'/100 · '+esc(r.stars)+'★</strong><p>'+esc(r.text)+'</p></article>').join('')+'</div>'+
       '<p class="muted">Press impact at premiere: '+((f.pressHypeDelta||0)>0?'+':'')+
         (f.pressHypeDelta||0)+' release hype (bounded). Aggregate critics: '+(f.critic==null?'—':f.critic+'/100')+'.</p></section>';
@@ -2368,6 +2369,73 @@ var UI = (function () {
       m.hidden = true;
       m.innerHTML = '';
     }
+  }
+
+
+  // v14.5 premiere reports: a presentation event, not a second outcome roll.
+  // Successful releases are reported once, in release order, across saved games.
+  let premiereReplayId=null;
+  let premiereRendered='';
+  function currentPremiereReport(){
+    const st=Engine.state;
+    if(!st || st.gameOver || st.pending || tutorialStep>=0 || currentYearEndReport())return null;
+    if(premiereReplayId!=null)return st.projects.find(p=>p.id===premiereReplayId&&p.releaseWeek!=null)||null;
+    if(!Array.isArray(st.premierePresented))return null;
+    return st.projects.filter(p=>p.releaseWeek!=null&&!st.premierePresented.includes(p.id))
+      .sort((a,b)=>a.releaseWeek-b.releaseWeek||a.id-b.id)[0]||null;
+  }
+  function renderPremiereReport(){
+    const root=$('premiere-report');if(!root)return;
+    const p=currentPremiereReport();
+    if(!p){root.hidden=true;root.innerHTML='';premiereRendered='';return;}
+    const key=p.id+':'+p.releaseWeek+':'+(premiereReplayId!=null?'replay':'new');
+    if(premiereRendered===key&&!root.hidden)return;
+    premiereRendered=key;
+    const list=(p.pressReviews||[]).slice(0,4);
+    const format=p.format==='pilot'?(p.mediaVariant==='web'?'Web episode':'TV pilot'):p.format==='short'?'Short film':'Feature film';
+    const reach=v145ReachLabel(p);
+    let details='';
+    if(p.format==='feature')details='Theatrical opening scheduled in '+esc(reach)+'. First-week actual receipts arrive after a screening week.';
+    else if(p.format==='short')details='Screening circuit: '+esc(reach)+'. '+(p.festivalPlan?.length||0)+' festival submissions are planned; selections are not guaranteed.';
+    else{
+      const series=Engine.series().find(x=>x.projectId===p.id);
+      details=(series?'Pilot picked up · '+esc(series.title)+' · season '+series.season:'Pilot released; see TV & Web for network outcomes and any subsequent series.')+
+        ' Household impressions are estimated after broadcasts.';
+    }
+    const ratings=[['Quality',p.quality],['Critics',p.critic],['Audience',p.audience],['Hype',p.hype]];
+    root.innerHTML='<div class="fc-premiere-shade"><section class="fc-premiere-card" role="dialog" aria-modal="true" aria-labelledby="fc-premiere-title">'+
+      '<div class="fc-premiere-mast"><small>FINAL CUT · PREMIERE REPORT</small><button type="button" onclick="UI.closePremiereReport()" aria-label="Close premiere report">✕</button></div>'+
+      '<div class="fc-premiere-content"><div class="fc-premiere-titlebar"><div class="fc-premiere-poster">'+posterFor(p)+'</div>'+
+      '<div><small>'+esc(format)+' · '+dateLabel(p.releaseWeek)+'</small><h2 id="fc-premiere-title">'+esc(p.title)+'</h2>'+
+      '<p>'+esc(p.dna?.hook||'Your production has reached its audience.')+'</p></div></div>'+
+      '<div class="fc-premiere-stats">'+ratings.map(x=>'<div><small>'+x[0]+'</small><strong>'+(x[1]==null?'—':x[1]+'/100')+'</strong></div>').join('')+'</div>'+
+      '<div class="fc-premiere-reach"><strong>Release reach · '+esc(reach)+'</strong><p>'+details+'</p></div>'+
+      '<h3>What the critics say</h3>'+
+      (list.length?'<div class="fc-premiere-reviews">'+list.map(r=>'<article><div><strong>'+esc(r.publication)+'</strong><span>'+esc(r.score)+'/100</span></div>'+
+        '<small>'+esc(criticReachName(r.tier))+' · '+esc(r.name)+'</small><p>“'+esc(r.text)+'”</p></article>').join('')+'</div>':
+        '<p class="muted">No individual critic reviews were recorded for this older release.</p>')+
+      '<p class="fc-premiere-impact">Press impact: '+((p.pressHypeDelta||0)>0?'+':'')+(p.pressHypeDelta||0)+' opening hype. '+
+      (p.format==='feature'?'Weekly charts are available after the first week.':'Reach and receipts develop over subsequent weeks.')+'</p></div>'+
+      '<div class="fc-premiere-actions"><button type="button" onclick="UI.closePremiereReport()">Close & continue</button>'+
+      '<button type="button" class="primary" onclick="UI.viewPremiereFilm('+p.id+')">Open Film Hub</button></div></section></div>';
+    root.hidden=false;
+    const close=root.querySelector('.fc-premiere-mast button');if(close)close.focus();
+  }
+  function closePremiereReport(){
+    const p=currentPremiereReport();
+    if(!p)return;
+    if(premiereReplayId!=null)premiereReplayId=null;
+    else{
+      const s=Engine.state;s.premierePresented=s.premierePresented||[];
+      if(!s.premierePresented.includes(p.id))s.premierePresented.push(p.id);
+      Engine.save();
+    }
+    premiereRendered='';renderPremiereReport();
+  }
+  function viewPremiereFilm(id){closePremiereReport();openProject(id);}
+  function replayPremiere(id){
+    if(!Engine.getProject(Number(id))?.releaseWeek && Engine.getProject(Number(id))?.releaseWeek!==0)return;
+    premiereReplayId=Number(id);premiereRendered='';renderPremiereReport();
   }
 
 // ===== SECTION: YEAR_END_HONORS =====
@@ -2947,6 +3015,7 @@ var UI = (function () {
     renderDrawer();
     renderTutorial();
     renderYearEndHonors();
+    renderPremiereReport();
     renderFilmMonitor();
     renderShortActionPrompt();
   }
@@ -2957,6 +3026,7 @@ var UI = (function () {
     drawer=null;drawerMsg='';centerProjectId=null;centerShowOlder=false;
     tutorialStep=-1;tutorialMinimized=false;tutorialReturnFocus=null;
     yearEndReplayYear=null;yearEndRendered='';yearEndStage=0;
+    premiereReplayId=null;premiereRendered='';
     yearEndReturnFocus=null;
     if(posterEdit)closePosterEditor();
     resetHistory();setFlash('');
@@ -3060,7 +3130,7 @@ var UI = (function () {
     finally{saveBusy=false;}
   }
   function nextWeek(){
-    if(currentYearEndReport())return;
+    if(currentYearEndReport()||currentPremiereReport())return;
     const old=Engine.state?.week,advanced=Engine.nextTurn();
     if(advanced&&Engine.state.week>old&&tutorialStep>=0&&
       ['week','releaseWeek'].includes(TUTORIAL_STEPS[tutorialStep].goal))
@@ -3068,7 +3138,7 @@ var UI = (function () {
     render();
   }
   function advance(){
-    if(currentYearEndReport())return;
+    if(currentYearEndReport()||currentPremiereReport())return;
     const n=Engine.advance();
     if(n>0&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='advance')
       tutorialUsedAdvance=true;
@@ -3272,6 +3342,17 @@ var UI = (function () {
         }
         return;
       }
+      if (currentPremiereReport()) {
+        if(e.key==='Escape'){e.preventDefault();closePremiereReport();return;}
+        if(e.key==='Tab'){
+          const buttons=Array.from($('premiere-report').querySelectorAll('button:not(:disabled)'));
+          if(!buttons.length)return;
+          const at=buttons.indexOf(document.activeElement);
+          if(e.shiftKey&&at<=0){e.preventDefault();buttons[buttons.length-1].focus();}
+          else if(!e.shiftKey&&at===buttons.length-1){e.preventDefault();buttons[0].focus();}
+        }
+        return;
+      }
       if (currentYearEndReport()) {
         if (e.key === 'Escape') { e.preventDefault(); closeYearEndHonors(); return; }
         if (e.key === 'Tab') {
@@ -3307,7 +3388,7 @@ var UI = (function () {
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
-    filmHubSelect:filmHubSelect,
+    filmHubSelect:filmHubSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
