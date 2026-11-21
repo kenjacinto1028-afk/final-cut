@@ -27,9 +27,9 @@ try:
   assert page.locator('#drawer .fc-film-promotion').count()==1
   assert 'No sponsor approaches yet' in page.locator('#drawer .fc-film-promotion').inner_text()
   assert page.locator('#drawer .fc-film-promotion button:not([disabled])').count()>=1
-  page.once('dialog',lambda d:d.accept())
   page.locator('#drawer .fc-film-promotion button:not([disabled])').first.click()
-  assert page.evaluate('(id)=>!!Engine.getProject(id).promotionCampaign',data['id'])
+  page.locator('.fc-game-dialog [data-yes]').click()
+  page.wait_for_function('(id)=>!!Engine.getProject(id).promotionCampaign',arg=data['id'])
   page.evaluate("""(id)=>{
     Engine.state.studio.fame=25;
     Engine.state.reputation.buzz=35;
@@ -37,9 +37,9 @@ try:
     UI.openProject(id);
   }""",data['id'])
   assert page.locator('#drawer .fc-sponsor-offer').count()==1
-  page.once('dialog',lambda d:d.accept())
   page.locator('#drawer .fc-sponsor-offer').get_by_role('button',name='Accept partnership').click()
-  assert page.evaluate('(id)=>!!Engine.getProject(id).sponsor',data['id'])
+  page.locator('.fc-game-dialog [data-yes]').click()
+  page.wait_for_function('(id)=>!!Engine.getProject(id).sponsor',arg=data['id'])
   outcome=page.evaluate("""(id)=>{
     const f=Engine.getProject(id);let n=0;
     while(f.stage!=='release'&&n++<90){

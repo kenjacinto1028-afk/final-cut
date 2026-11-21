@@ -80,7 +80,7 @@ try:
   source_id=page.evaluate("Engine.state.campaignId")
   clone_id=page.evaluate("async() => (await SaveSlots.duplicate('Independent backup')).slotId")
   assert page.evaluate("SaveSlots.list().slots.length")==2
-  page.evaluate("window.confirm=()=>true")
+  # v14.6 in-game confirmation replaces window.confirm.
   t=page.evaluate("""() => {
     const t=performance.now();
     window.__quitDone=false;
@@ -88,6 +88,7 @@ try:
     return performance.now()-t;
   }""")
   assert t<1200,('quit save click blocked mobile main thread',t)
+  page.locator(".fc-game-dialog [data-yes]").click()
   page.wait_for_function("window.__quitDone===true",timeout=90000)
   assert page.evaluate("Engine.state===null")
   title_ms=page.evaluate("() => {const t=performance.now();SaveSlots.list();return performance.now()-t;}")

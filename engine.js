@@ -608,6 +608,7 @@ var Engine = (function () {
       annualReviews: [],
       yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
       premierePresented: [], // Release reports are presentation only, one per film with saved dismissal.
+      endRunPresented: [], // Distinct final screening reports, dismissed once per project.
       reputation: { buzz: 5, currentPrestige: 0, lifetimeLegacy: 0, prestigeEvents: [] },
       world: { yearbook: [], decadeChampions: [], leadershipEvents: [] },
       legacyPlay: { milestones: [], initiative: null, nextInitiativeWeek: 0, reissues: [], lastReissueWeek: -999, industryShift: null, shiftHistory: [] },
@@ -1293,7 +1294,12 @@ var Engine = (function () {
       hype+=delta;
       notes.push({slot:'supporting',originalId:id,originalName:previous&&previous.name||'Original supporting performer',selectedId:wasBack?id:null,returned:wasBack,delta,status:wasBack?'Returning':'Not returning'});
     });
-    return { hype: clamp(hype, -18, 18), notes };
+    const fans=filmFollowing(parent);
+    const audienceLift=clamp(Math.round(Math.log10(1+fans.loyal)*1.35-2),0,6);
+    if(audienceLift)notes.push({slot:'fans',originalName:'Existing loyal audience',returned:true,
+      delta:audienceLift,status:'Returning audience'});
+    hype+=audienceLift;
+    return { hype: clamp(hype, -18, 18), notes, returningFans:fans.loyal, audienceLift };
   }
   function sequelCastSuggestion(parent) {
     const result = { director: null, writer: null, lead: null, crew: null };
@@ -1311,6 +1317,41 @@ var Engine = (function () {
       const t=getTalent(id);return t&&!isRivalTalent(t)&&!talentProject(t)&&!recruitmentCooldown(t);
     });
     return result;
+  }
+
+  // Followers are simulated interest, not unique measured admissions.
+  // Derive them from the canonical film record so old saves require no invented history.
+  function filmFollowing(p) {
+    if(!state||!p||p.releaseWeek==null)return {active:0,loyal:0,trend:'Not released',status:'No following'};
+    const reach=p.format==='feature'?filmAdmissions(p):
+      p.format==='short'?shortAudience(p):
+      (Number.isFinite(p.estimatedOnlineViews)?p.estimatedOnlineViews:estimatedTvHouseholds(p));
+    const q=clamp(Number(p.quality)||0,0,100),a=clamp(Number(p.audience)||0,0,100);
+    const qualityFit=clamp((q*.55+a*.45-42)/45,0,1.25);
+    const honor=(p.awards||[]).filter(x=>x.won).length+(p.festResults||[]).filter(x=>x.kind==='winner').length;
+    const awareness=Math.min(25000000,Math.max(0,reach||0))*.14*qualityFit*(1+Math.min(.15,honor*.025));
+    const loyalty=clamp(.11+(q-55)*.005+(a-55)*.0035+Math.min(.1,honor*.018),.06,.52);
+    const loyal0=Math.round(awareness*loyalty);
+    const age=Math.max(0,state.week-p.releaseWeek);
+    const durable=q>=78&&a>=70;
+    const permanent=durable?.72:q>=68?.36:.10;
+    const loyal=Math.round(loyal0*(permanent+(1-permanent)*Math.exp(-age/(durable?650:250))));
+    const casual=Math.max(0,awareness-loyal0);
+    const active=Math.round(loyal+casual*Math.exp(-age/(durable?105:64)));
+    const status=age>=52&&q>=74&&loyal>=3500&&loyal/Math.max(1,active)>.42?
+      'Cult classic':loyal>=8000?'Dedicated following':active>=8000?'Growing following':'Small following';
+    return {active,loyal,trend:age<8?'Building':age>104&&durable?'Enduring':'Gradually cooling',status};
+  }
+  function studioFollowing(){
+    if(!state)return {active:0,loyal:0,trend:'New studio'};
+    const films=(state.projects||[]).filter(p=>p.releaseWeek!=null);
+    const followers=films.map(filmFollowing).sort((a,b)=>b.active-a.active);
+    const loyalty=films.map(filmFollowing).sort((a,b)=>b.loyal-a.loyal);
+    // Shared moviegoers are not simply added twice across every film.
+    const active=Math.round(followers.reduce((n,f,i)=>n+f.active/(1+i*.75),0));
+    const loyal=Math.round(loyalty.reduce((n,f,i)=>n+f.loyal/(1+i*.95),0));
+    return {active:Math.min(active,30000000),loyal:Math.min(loyal,12000000),
+      trend:films.length>0?'Built through studio releases':'New studio'};
   }
   function franchiseFilms(fid) { return filmHistory().filter(f=>f.franchiseId===fid).sort((a,b)=>a.releaseWeek-b.releaseWeek); }
   function previewProject(o) {
@@ -1467,10 +1508,29 @@ var Engine = (function () {
     if(!Number.isInteger(styleId)||styleId<0||styleId>7)return {ok:false,reason:'Invalid design.'};
     p.posterStyleId=styleId;save();emit('poster',p);return {ok:true};
   }
-  function randomTitle() {
-    const t = CONTENT.TITLES;
-    return pick(t.patterns).replace('{adj}', pick(t.adjectives)).replace('{noun2}', pick(t.nouns))
-      .replace('{noun}', pick(t.nouns)).replace('{place}', pick(t.places));
+  function randomTitle(genre, topic) {
+    const t=CONTENT.TITLES, used=new Set();
+    const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    if(state){
+      (state.projects||[]).forEach(p=>used.add(normalize(p.title)));
+      ((state.filmArchive&&state.filmArchive.rivals)||[]).forEach(f=>used.add(normalize(f.title)));
+      ((state.v14&&state.v14.pitches)||[]).forEach(p=>used.add(normalize(p.title)));
+      ((state.rivals&&state.rivals.list)||[]).forEach(s=>(s.films||[]).forEach(f=>used.add(normalize(f.title))));
+    }
+    const preferred=genre==='horror'?['Dark','Hollow','Hidden','Last','Strange','Midnight','Bitter','Silent']:
+      genre==='comedy'?['Familiar','Second','Ordinary','Wild','Borrowed','Golden']:
+      genre==='drama'?['Unfinished','Tender','Forgotten','Quiet','Distant','Last']:
+      genre==='scifi'?['Electric','Glass','Neon','Silver','Endless','Distant']:null;
+    const generate=()=>pick(t.patterns).replace(/\{(adj|noun2|noun|place)\}/g,(_,tag)=>
+      tag==='adj'?pick(preferred&&Math.random()<.6?preferred:t.adjectives):
+      tag==='place'?pick(t.places):pick(t.nouns));
+    let candidate='';
+    for(let attempt=0;attempt<80;attempt++){
+      candidate=generate();
+      if(!used.has(normalize(candidate)))return candidate;
+    }
+    // Fallback remains original rather than modifying user-entered titles.
+    return candidate+' '+(state?state.week+1:Math.ceil(Math.random()*999));
   }
   function advanceProject(p) {
     p.stageWeeksLeft--;
@@ -1578,10 +1638,12 @@ var Engine = (function () {
     const studio = state.studio.fame * T.hypeStudioFame + founderHype() + (state.reputation?state.reputation.buzz*TUNING.reputation.buzzHype:0);
     const publicity = talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype;
     const ensemble=entourageContribution(p);
-    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod +
+    const earnedFans=studioFollowing();
+    const studioFanHype=clamp(Math.floor(Math.log10(1+earnedFans.loyal)-3),0,3);
+    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod + studioFanHype +
       (p.dna?(V14_VISIONS[p.dna.vision]?.hype||0):0) + rnd(-5, 5);
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.hype)), 0, 100);
-    p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, decisions:p.hypeMod, result };
+    p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, studioFans:studioFanHype, decisions:p.hypeMod, result };
     return result;
   }
 
@@ -2691,6 +2753,7 @@ var Engine = (function () {
       budget: p.budget, spent: p.spent, quality: p.quality, critic: p.critic, audience: p.audience, review: p.review || null, hype: p.hype,
       pressReviews:(p.pressReviews||[]).slice(),pressHypeDelta:p.pressHypeDelta||0,sponsor:p.sponsor||null,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
+      following:filmFollowing(p),
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
       estimatedHouseholdImpressions:estimatedTvHouseholds(p), estimatedOnlineViews:p.estimatedOnlineViews||null,
       mediaVariant:p.mediaVariant||null,
@@ -5274,6 +5337,9 @@ var Engine = (function () {
     // Legacy studios already saw their historical releases. Do not replay all premieres after upgrade.
     state.premierePresented = Array.isArray(state.premierePresented) ? state.premierePresented :
       state.projects.filter(p => p.releaseWeek != null).map(p => p.id);
+    // Existing players should not receive a backlog of old wrap-up popups.
+    state.endRunPresented = Array.isArray(state.endRunPresented) ? state.endRunPresented :
+      state.projects.filter(p => p.stage === 'done').map(p => p.id);
     state.reputation = state.reputation || migrateReputation(state);
     state.world = state.world || {yearbook:[],decadeChampions:[],leadershipEvents:[]};
     state.legacyPlay = state.legacyPlay || {milestones:[],initiative:null,nextInitiativeWeek:0,reissues:[],lastReissueWeek:-999,industryShift:null,shiftHistory:[]};
@@ -5325,6 +5391,7 @@ var Engine = (function () {
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
+    filmFollowing:filmFollowing, studioFollowing:studioFollowing,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
     shortAudience: shortAudience, shortRunRemaining: shortRunRemaining, shortScreeningWeeks:shortScreeningWeeks,

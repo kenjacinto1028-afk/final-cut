@@ -106,6 +106,10 @@ try:
   assert page.locator('#drawer .fc-performance-board').count()>=1
   next_step();step(14,'Advance another screening week')
   page.evaluate('UI.closeDrawer()')
+  # The premiere is an opening report that must be acknowledged before time advances.
+  if page.locator('#premiere-report').is_visible():
+   assert 'PREMIERE REPORT' in page.locator('#premiere-report').inner_text()
+   page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
   if page.evaluate('(id)=>Engine.getProject(id).stage!=="done"',new['id']):
    if page.evaluate('!!Engine.state.pending'):page.locator('#modal .choice').first.click()
    page.locator('#topbar [data-guide="week"]').click()
@@ -113,13 +117,13 @@ try:
   page.locator('.fc-center').get_by_role('button',name='Open project details').click()
   page.evaluate("UI.filmHubSelect('performance')")
   assert 'Direct P/L' in page.locator('#drawer .fc-performance-board').inner_text()
-  next_step();step(16,'Visit My Filmography')
+  next_step();step(16,'Visit My Releases')
   sidebar('filmography');step(17,'Open your released film')
   page.locator('#main .fc-finance-table tbody tr',has_text=new['title']).locator('td a').first.click()
   assert page.locator('#drawer').get_by_role('button',name='Open Film Hub',exact=False).count()==1
   next_step();step(18,"Understand a film's second life")
   assert 'normally quality 60+' in page.locator('#tutorial-description').inner_text()
-  next_step();step(19,'Explore World Film Archive')
+  next_step();step(19,'Explore Film Archive')
   sidebar('archive');step(20,'Compare rival release dates')
   sidebar('calendar');step(21,'Review studio identity')
   sidebar('studio_profile');step(22,'Save your career')

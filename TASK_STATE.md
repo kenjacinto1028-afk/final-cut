@@ -184,3 +184,21 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 - [x] Added genre/story-aware diverse generated film titles, duplicate prevention, intentional sequel exceptions and long-career title-variety tests to `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
 - [ ] Future update: implement film title generation improvements, test early and multi-decade saves, and keep user-authored names intact.
+
+## v14.6 implementation — active branch `feature/v14-6-lifecycle-fanbase-ui`
+- [x] Phase 1a: repaired common completed-film hiding from carried-over archive filters; Filmography opens All My Films unfiltered and has reset control (ui.js c974428).
+- [x] Phase 1b: premiere no longer hidden by tutorial; distinct end-of-run report and save migration added (engine.js 668cd2b, ui.js 3b9828b).
+- [x] Phase 1c: audited 23 tutorial steps, replacing legacy paths with current five-section navigation and monitor/film hub access (ui.js 3f8e525).
+- [x] Phase 1d: added monitor Project Details buttons, future-jury festival disclosure and in-game asynchronous confirm/prompt/alert dialog framework (ui.js d4895b5/7a304ea; theme-ab.css d3afb5d).
+- [x] Phase 2: expanded 33 name patterns, word banks, genre-aware generation, and duplicate avoidance (content.js 3b35875; engine.js b42b9a7).
+- [x] Phase 3: added derived film following, natural decay, loyal survivors, earned cult status and bounded sequel awareness (engine.js 0624621, ui.js dc0bad7).
+- [x] Phase 3b: added separate studio active/loyal fans, overlap-aware aggregation, bounded opening-hype lift and Studio Profile card (engine.js 0624621, ui.js dc0bad7).
+- [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
+  - [x] Added tests/v14_6_regression.js for title variety, fan decay/loyalty, sequel bounds and save migration, plus .github/workflows/v14_6.yml (89664af, 0fb7dea).
+  - [x] Added tests/v14_6_browser.py for premiere during tour, wrap-up, Filmography and follower UI; adapted native-dialog-era save and publicity tests to new in-game confirmations; premiere becomes nonblocking while tour is visible (tests and theme-ab.css).
+  - [ ] All GitHub Actions and desktop/mobile tests green; merge and verify Pages.
+
+  - [x] Corrected v14.3b browser test to wait for asynchronous in-game marketing/sponsor confirmation effects (`tests/v14_3b_promotions_browser.py`, ba46ca7).
+  - [x] Browser tutorial regression showed premiere card blocking Next Week in topbar; docked in-tutorial report bottom-right instead of top-right (`theme-ab.css`, 32995c0).
+  - [x] Tutorial regression now explicitly acknowledges premiere before Next Week; game correctly pauses progression until the premiere is dismissed (`tests/v14_2_tutorial_browser.py`, efbf5ce).
+  - [x] Aligned end-to-end tutorial expected step labels with renamed My Releases / Film Archive (`tests/v14_2_tutorial_browser.py`, a71d834).

@@ -72,10 +72,37 @@ CONTENT.TOPICS = [
 
 // ===== SECTION: TITLES =====
 CONTENT.TITLES = {
-  patterns: ['The {adj} {noun}', '{noun} of the {noun2}', '{adj} {noun}', 'Last {noun} in {place}', 'Return to {place}', 'The {noun} Affair', '{place} After Dark'],
-  adjectives: ['Silent', 'Broken', 'Golden', 'Midnight', 'Crimson', 'Lonely', 'Electric', 'Wild', 'Hollow', 'Neon', 'Distant', 'Restless', 'Burning', 'Quiet'],
-  nouns: ['Highway', 'Harbor', 'Drifter', 'Signal', 'Orchard', 'Echo', 'Stranger', 'Frontier', 'Mirror', 'Season', 'Witness', 'Tide', 'Engine', 'Carnival'],
-  places: ['Paradise', 'Redwater', 'Coldbrook', 'the Valley', 'Mercy Falls', 'Dry Creek', 'Port Ellis']
+  patterns: [
+    'The {adj} {noun}', '{noun} of the {noun2}', '{adj} {noun}', 'Last {noun} in {place}',
+    'Return to {place}', 'The {noun} Affair', '{place} After Dark',
+    'Beneath the {noun}', 'Before {place}', 'A Map of {noun2}', 'When the {noun} Breaks',
+    'The {noun} Between Us', '{noun} at Dawn', 'Letters from {place}', 'The {adj} Hour',
+    'No Way Back to {place}', 'Three Days in {place}', 'The Weight of {noun2}',
+    'Under {adj} Skies', 'A Season for {noun2}', 'The {noun} We Left Behind',
+    'Between Two {noun2}', 'In the Shadow of {place}', '{place}, Again',
+    'The Last Good {noun}', 'A Thousand {noun2}', '{noun} & {noun2}',
+    'One More {noun}', 'The {place} Incident', 'The {adj} Road Home',
+    'Somewhere Beyond {place}', 'Small Hours in {place}', 'A Question of {noun2}'
+  ],
+  adjectives: [
+    'Silent','Broken','Golden','Midnight','Crimson','Lonely','Electric','Wild','Hollow','Neon',
+    'Distant','Restless','Burning','Quiet','Fading','Hidden','Tender','Glass','Winter',
+    'Unfinished','Forgotten','Second','Strange','Borrowed','Last','Blue','Paper','Endless',
+    'Bitter','Secret','Northern','Lost','Shallow','Familiar','Silver','Ordinary','Furious'
+  ],
+  nouns: [
+    'Highway','Harbor','Drifter','Signal','Orchard','Echo','Stranger','Frontier','Mirror',
+    'Season','Witness','Tide','Engine','Carnival','Postmark','Station','Letter','House',
+    'River','Garden','Promise','Crossing','Light','Photograph','Passenger','Compass',
+    'Bridge','Window','Clock','Portrait','Forest','Memory','Train','Inheritance','Storm',
+    'Silence','Dream','Moon','Ledger','Road','Telephone','Secret','Disappearance','Sky'
+  ],
+  places: [
+    'Paradise','Redwater','Coldbrook','the Valley','Mercy Falls','Dry Creek','Port Ellis',
+    'North Point','Blackwater','Eastmere','Stonehaven','the Coast','the Border',
+    'The Hollow','Old Harbor','Highland Station','Brighton Road','Winter Bay',
+    'the Pines','Southbridge','Moonrise County','the Last Stop','Westlake'
+  ]
 };
 
 // ===== SECTION: NAMES =====

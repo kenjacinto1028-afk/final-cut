@@ -49,6 +49,47 @@ var UI = (function () {
   function mult(m) { return '×' + Number(m).toFixed(2); }
   let flash = '';
   function setFlash(msg) { flash = msg || ''; }
+  // A single accessible in-game dialog replaces native browser confirm/prompt/alert.
+  // Actions execute only after explicit confirmation; closing never triggers the action.
+  let gameDialogActive=false;
+  function gameDialog(message,kind='confirm',initial='') {
+    if(gameDialogActive)return Promise.resolve(kind==='prompt'?null:false);
+    gameDialogActive=true;
+    const previous=document.activeElement;
+    const root=document.createElement('div');root.className='fc-game-dialog';
+    root.innerHTML='<div class="fc-game-dialog-shade"><section role="dialog" aria-modal="true" aria-labelledby="fc-game-dialog-title" class="fc-game-dialog-card">'+
+      '<h2 id="fc-game-dialog-title">'+(kind==='alert'?'Notification':kind==='prompt'?'Enter details':'Confirm action')+'</h2>'+
+      '<p>'+esc(message)+'</p>'+
+      (kind==='prompt'?'<label>Value<input type="text" maxlength="150" value="'+esc(initial)+'"></label>':'')+
+      '<div class="fc-game-dialog-actions">'+(kind==='alert'?'':'<button type="button" data-no>Cancel</button>')+
+      '<button type="button" data-yes class="primary">'+(kind==='alert'?'OK':'Confirm')+'</button></div></section></div>';
+    document.body.appendChild(root);
+    return new Promise(resolve=>{
+      function done(ok){
+        root.remove();gameDialogActive=false;
+        if(previous&&previous.isConnected)previous.focus();
+        resolve(kind==='prompt'?(ok?root.querySelector('input').value:null):!!ok);
+      }
+      root.querySelector('[data-yes]').addEventListener('click',()=>done(true));
+      const no=root.querySelector('[data-no]');if(no)no.addEventListener('click',()=>done(false));
+      root.addEventListener('keydown',e=>{
+        if(e.key==='Escape'){e.preventDefault();done(false);}
+        if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();done(true);}
+        if(e.key==='Tab'){
+          const controls=[...root.querySelectorAll('button,input')];
+          const i=controls.indexOf(document.activeElement);
+          if(e.shiftKey&&i<=0){e.preventDefault();controls[controls.length-1].focus();}
+          else if(!e.shiftKey&&i===controls.length-1){e.preventDefault();controls[0].focus();}
+        }
+      });
+      const focus=root.querySelector(kind==='prompt'?'input':kind==='alert'?'[data-yes]':'[data-no]');
+      if(focus)focus.focus();
+    });
+  }
+  const confirmGame=message=>gameDialog(message,'confirm');
+  const promptGame=(message,initial)=>gameDialog(message,'prompt',initial);
+  const notifyGame=message=>gameDialog(message,'alert');
+
 
 // ===== SECTION: MEDIA_HELPERS =====
   // 8.3–8.5: small display helpers over Media (art, count-up numbers, toggles). Nothing here changes game state.
@@ -211,6 +252,11 @@ var UI = (function () {
   let viewTransitionPending = false;
   function go(v) {
     closeMobileNav();
+    // Filmography should always open on a complete, unfiltered studio catalog.
+    // Do not carry restrictive Industry Rankings/Archive filters across sections.
+    if (v === 'filmography' && view !== 'filmography') {
+      Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
+    }
     if (v !== view) {
       viewTransitionPending = true;
       if (hasMedia()) Media.uiSound('navigate');
@@ -613,10 +659,13 @@ var UI = (function () {
         '<p>Release more films to establish an identity.</p>')+'</div></details></section>';
   }
   function viewStudioProfile(){
-    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation;
+    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation,following=Engine.studioFollowing();
     const active=a.active&&!a.active.completed&&a.active.expiresWeek>=Engine.state.week;
     let h='<h1>Studio Profile</h1><p class="muted">Your studio is classified by the films it actually makes, not by a permanent starting choice.</p>'+
       v14IdentityCard('you')+
+      '<section class="fc-v14-profile-section"><h2>Studio following</h2><div class="fc-fan-summary"><strong>'+
+      compactCount(following.active)+' active studio followers</strong><span>'+
+      compactCount(following.loyal)+' loyal studio fans</span><small>Estimated returning audience interest across your releases. Different from Fame, Buzz and Prestige.</small></div></section>'+
       '<section class="fc-v14-profile-section"><h2>Creative delegation</h2>'+
       '<p>Routine work is automatic. Decide whether major creative dilemmas interrupt you.</p>'+
       '<div class="fc-v14-seg">'+[
@@ -652,7 +701,7 @@ var UI = (function () {
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
     let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ?
       '<section class="franchise-card"><strong>Continue the story of '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+
-      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p>'+
+      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p><p>Existing loyal following: '+compactCount(Engine.filmFollowing(Engine.getProject(draft.sequelOf)).loyal)+' · returning fans can raise opening awareness, but success is not guaranteed.</p>'+
       '<label>Relationship <select onchange="UI.setDraft(\'continuationType\',this.value)">'+
       [['direct','Direct sequel'],['spinoff','Spin-off'],['adaptation','Series or cross-media adaptation']].map(x=>opt(x[0],x[1],x[0]===(draft.continuationType||'direct'))).join('')+
       '</select></label><button onclick="UI.cancelSequel()">Cancel story link</button></section>' : '')+
@@ -885,7 +934,7 @@ var UI = (function () {
       (press?'<p><strong>What changes?</strong> Future festival juries assess this short at +4 merit points. '+
         'It does not grant festival entry, selection, prizes or awards.</p>'+
         '<p>Future judging: '+(status?.next?esc(status.next.name)+' · '+esc(dateLabel(status.next.week)):
-          'No upcoming jury date recorded')+'. Past jury decisions are never changed.</p>':
+          'No upcoming jury date recorded')+'. Past jury decisions are never changed. Screening completion does not end festival eligibility.</p>':
         '<p><strong>What changes?</strong> One additional four-week screening run after completion. '+
         'The additional receipts may fail to cover the cost.</p>')+
       '<dl><div><dt>Campaign cost</dt><dd>'+money(q.cost)+'</dd></div>'+
@@ -959,10 +1008,10 @@ var UI = (function () {
     return '<div class="fc-release-action"><div><strong>Optional: Post-opening publicity</strong><p>'+esc(quote.description)+'</p></div>'+
       '<button type="button" onclick="UI.promoteFilm('+p.id+')">Invest '+money(quote.cost)+'</button></div>';
   }
-  function promoteFilm(id){
+  async function promoteFilm(id){
     const q=Engine.releasePushQuote(id);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
+    if(!await confirmGame('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
     const result=Engine.pushRelease(id);setFlash(result.ok?'Publicity campaign started for '+(Engine.getProject(id)||{}).title+'.':result.reason);render();
   }
   // Dock is a compact, always-available software-studio-style release monitor,
@@ -1014,6 +1063,7 @@ var UI = (function () {
       return importance(b)-importance(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
     });
     const cards=all.slice(0,6).map(p=>{
+      const fan=p.releaseWeek!=null?Engine.filmFollowing(p):null;
       const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature',short=p.format==='short';
       const fest=short?Engine.shortFestivalStatus(p):null;
       const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
@@ -1026,7 +1076,7 @@ var UI = (function () {
       const q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value;
       const h=Number.isFinite(p.hype)?p.hype+'/100':'Est. '+Math.max(0,Math.min(100,
         Math.round((s.studio.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
-      const info=short&&fest?'<p class="fc-monitor-festival">'+fest.selections+' festival recognitions'+
+      const info=short&&fest?'<p class="fc-monitor-festival">'+(p.stage==='done'&&fest.next?'Screenings complete · festival campaign still active · ':'')+fest.selections+' festival recognitions'+
         (fest.next?' · next '+esc(fest.next.name)+' '+esc(dateLabel(fest.next.week)):'')+'</p>':'';
       const time=short&&live?' · wk '+p.weeksInRelease+'/'+(p.shortRunWeeks||'?'):
         live?' · wk '+p.weeksInRelease:'';
@@ -1043,7 +1093,7 @@ var UI = (function () {
         '<div class="fc-monitor-audience">'+reach+
         '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+
         money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
-        info+filmPulseChart(p,metric,7)+
+        info+(fan?'<div class="fc-monitor-fans">'+compactCount(fan.active)+' followers · '+compactCount(fan.loyal)+' loyal</div>':'')+'<div class="fc-monitor-details"><button type="button" onclick="UI.openProject('+p.id+')">Project Details · Film Hub</button></div>'+filmPulseChart(p,metric,7)+
         (live&&feature?releasePushAction(p):'')+
         (short?shortFilmActions(p,true):'')+
         '</article>';
@@ -1195,6 +1245,7 @@ var UI = (function () {
     });
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
+    if(mine && rows.length===0)h += '<p class="muted">No films match these filters. <button type="button" onclick="UI.resetMyFilmographyFilters()">Show all my films</button></p>';
     const detailed=!ranked,ownDetails=mine&&!ranked;
     const heads=(ranked?'<th>'+(filmBrowse.region?'Market #':'Rank #')+'</th>'+(mine?'<th>Studio #</th>':''):'')+
       (ownDetails?'<th>Studio #</th><th>World #</th>':'')+
@@ -1257,6 +1308,10 @@ var UI = (function () {
     films.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
     return filmTable(films,false,my);
   }
+  function resetMyFilmographyFilters(){
+    Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
+    render();
+  }
   function viewFilmography() {
     const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
     const receipts=mine.reduce((n,f)=>n+(f.revenue||0),0),
@@ -1270,7 +1325,7 @@ var UI = (function () {
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
     return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
 
-      '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
+      '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.resetMyFilmographyFilters()">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
       filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
@@ -1786,6 +1841,8 @@ var UI = (function () {
   }
   function v145FilmHub(f){
     const original=f.projectId!=null?Engine.getProject(f.projectId):null;
+    const following=original?Engine.filmFollowing(original):null;
+    const fanSummary=following?'<div class="fc-fan-summary"><strong>'+compactCount(following.active)+' active followers</strong><span>'+compactCount(following.loyal)+' loyal fans · '+esc(following.status)+' · '+esc(following.trend)+'</span><small>Simulated interested followers, not unique ticket buyers.</small></div>':'';
     const tabs='<nav class="fc-hub-tabs" aria-label="Film detail sections">'+FILM_HUB_TABS.map(t=>
       '<button type="button" class="'+(filmHubTab===t[0]?'is-active':'')+'" aria-current="'+(filmHubTab===t[0]?'page':'false')+
       '" onclick="UI.filmHubSelect(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</nav>';
@@ -1804,6 +1861,7 @@ var UI = (function () {
         dl('Distribution',v145ReachLabel(f))+
         dl('Critical reception',f.critic==null?'Not rated':f.critic+'/100')+
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
+      h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
         h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
@@ -1813,7 +1871,7 @@ var UI = (function () {
         (f.review?'<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>':'')+
         qualityDetails(f.qualityBreakdown,f.hypeBreakdown)+'</section>';
     } else if(filmHubTab==='reach'){
-      h+='<section class="fc-hub-panel"><h3>Where this release reached</h3>'+v145ReachDetails(f)+
+      h+='<section class="fc-hub-panel"><h3>Where this release reached</h3>'+fanSummary+v145ReachDetails(f)+
         '<p class="muted">Recorded release regions are broad simulated territories. City or country-specific totals are not tracked, so none are invented.</p>'+
         v145FilmChartDetails(f)+'</section>';
     } else if(filmHubTab==='performance'){
@@ -1828,7 +1886,7 @@ var UI = (function () {
       if(original)h+=projectPerformanceBoard(original);
       h+='</section>';
     } else if(filmHubTab==='legacy'){
-      h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3><dl>'+
+      h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3>'+fanSummary+'<dl>'+
         dl('Awards',(f.awards||[]).map(a=>esc((a.won?'Won: ':'Nominated: ')+(a.category||a.cat)+' · '+(a.ceremony||'Film awards'))).join('<br>')||'None')+
         dl('Festivals',(f.festResults||[]).map(a=>esc(a.festival+' · '+a.result)).join('<br>')||'None')+'</dl>';
       if(original){
@@ -2083,18 +2141,18 @@ var UI = (function () {
       '<div><small>RECORDED FILM MARKETING</small><strong>'+money(p.marketingSpend||0)+'</strong></div>'+
       promo+'<h3>Fictional sponsors & brand fit</h3>'+sponsor+'</section>';
   }
-  function filmPromote(id,kind){
+  async function filmPromote(id,kind){
     const q=Engine.filmPromotionQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Invest '+money(q.cost)+' in '+q.name+' for this film? Potential release hype +'+
+    if(!await confirmGame('Invest '+money(q.cost)+' in '+q.name+' for this film? Potential release hype +'+
       q.hypeLift+'. This does not guarantee more income.'))return;
     const r=Engine.filmPromote(id,kind);
     setFlash(r.ok?'Film promotion commissioned for '+money(r.cost)+'.':r.reason);render();
   }
-  function filmSponsor(id){
+  async function filmSponsor(id){
     const q=Engine.filmSponsorQuote(id);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Accept '+q.name+' sponsorship for '+money(q.upfront)+
+    if(!await confirmGame('Accept '+q.name+' sponsorship for '+money(q.upfront)+
       '? This film will contain commercial placement; review penalty can reach '+q.criticRisk+' points.'))return;
     const r=Engine.acceptFilmSponsor(id);
     setFlash(r.ok?'Sponsor partnership signed; '+money(r.upfront)+' credited to studio receipts.':r.reason);render();
@@ -2142,16 +2200,16 @@ var UI = (function () {
   function v14Position(id,kind){
     const r=Engine.v14SetReleasePlan(id,kind);setFlash(r.ok?'Film release positioning updated.':r.reason);render();
   }
-  function v14Respond(id,kind){
+  async function v14Respond(id,kind){
     const q=Engine.v14ReleaseResponseQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm(q.name+'. '+q.description+' '+(q.cost?'Cash cost: '+money(q.cost)+'.':'No new cash cost.')+' Continue?'))return;
+    if(!await confirmGame(q.name+'. '+q.description+' '+(q.cost?'Cash cost: '+money(q.cost)+'.':'No new cash cost.')+' Continue?'))return;
     const r=Engine.v14ReleaseResponse(id,kind);setFlash(r.ok?'Release strategy response recorded.':r.reason);render();
   }
-  function v14Afterlife(id,kind){
+  async function v14Afterlife(id,kind){
     const q=Engine.v14AfterlifeQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm(q.name+'. '+q.description+(q.cost?' Cost: '+money(q.cost)+'.':'')+' Continue?'))return;
+    if(!await confirmGame(q.name+'. '+q.description+(q.cost?' Cost: '+money(q.cost)+'.':'')+' Continue?'))return;
     const r=Engine.v14AfterlifeAction(id,kind);setFlash(r.ok?'Catalog decision recorded.':r.reason);render();
   }
   function v14Calendar(){
@@ -2393,16 +2451,48 @@ var UI = (function () {
   let premiereRendered='';
   function currentPremiereReport(){
     const st=Engine.state;
-    if(!st || st.gameOver || st.pending || tutorialStep>=0 || currentYearEndReport())return null;
+    if(!st || st.gameOver || st.pending || currentYearEndReport())return null;
     if(premiereReplayId!=null)return st.projects.find(p=>p.id===premiereReplayId&&p.releaseWeek!=null)||null;
     if(!Array.isArray(st.premierePresented))return null;
     return st.projects.filter(p=>p.releaseWeek!=null&&!st.premierePresented.includes(p.id))
       .sort((a,b)=>a.releaseWeek-b.releaseWeek||a.id-b.id)[0]||null;
   }
+  function currentEndRunReport() {
+    const st=Engine.state;
+    if(!st || st.gameOver || st.pending || currentYearEndReport() || !Array.isArray(st.endRunPresented))return null;
+    return st.projects.filter(p=>p.stage==='done'&&p.releaseWeek!=null&&!st.endRunPresented.includes(p.id))
+      .sort((a,b)=>(a.releaseWeek||0)-(b.releaseWeek||0)||a.id-b.id)[0]||null;
+  }
+  function renderEndRunReport(p){
+    const root=$('premiere-report');
+    const reach=p.format==='short'?Engine.shortAudience(p):
+      p.format==='feature'?Engine.filmAdmissions(p):p.estimatedHouseholdImpressions;
+    root.hidden=false;
+    root.innerHTML='<div class="fc-premiere-shade"><section class="fc-premiere-card" role="dialog" aria-modal="true" aria-labelledby="fc-premiere-title">'+
+      '<div class="fc-premiere-mast"><small>FINAL CUT · RELEASE WRAP-UP</small><button type="button" onclick="UI.closePremiereReport()" aria-label="Close release summary">✕</button></div>'+
+      '<div class="fc-premiere-content"><div class="fc-premiere-titlebar"><div class="fc-premiere-poster">'+posterFor(p)+'</div>'+
+      '<div><small>'+esc(mediaName(p))+' · Screening run complete</small><h2 id="fc-premiere-title">'+esc(p.title)+'</h2>'+
+      '<p>Final screening outcomes. Festival judging and other rights opportunities may continue afterward.</p></div></div>'+
+      '<div class="fc-premiere-stats"><div><small>Quality</small><strong>'+Math.round(p.quality||0)+'/100</strong></div>'+
+      '<div><small>Studio receipts</small><strong>'+money(p.revenue||0)+'</strong></div>'+
+      '<div><small>Direct P/L</small><strong>'+money((p.revenue||0)-(p.spent||0))+'</strong></div></div>'+
+      '<div class="fc-premiere-reach"><strong>Recorded reach</strong><p>'+
+      (Number.isFinite(reach)?compactCount(reach):'—')+
+      (p.format==='feature'?' estimated ticket visits':p.format==='short'?' estimated screening visits':' estimated household impressions')+
+      ' · These are not verified unique viewers.</p></div>'+
+      '<p>Screenings have ended; awards, festivals and later rights can continue where eligible.</p>'+
+      '<div class="fc-premiere-actions"><button type="button" class="primary" onclick="UI.closePremiereReport()">Close & continue</button>'+
+      '<button type="button" onclick="UI.viewPremiereFilm('+p.id+')">Open Film Hub</button></div></div></section></div>';
+    const focus=root.querySelector('.fc-premiere-mast button');if(focus)focus.focus();
+  }
   function renderPremiereReport(){
     const root=$('premiere-report');if(!root)return;
     const p=currentPremiereReport();
-    if(!p){root.hidden=true;root.innerHTML='';premiereRendered='';return;}
+    if(!p){
+      const end=currentEndRunReport();
+      if(end){premiereRendered='wrap:'+end.id;renderEndRunReport(end);return;}
+      root.hidden=true;root.innerHTML='';premiereRendered='';return;
+    }
     const key=p.id+':'+p.releaseWeek+':'+(premiereReplayId!=null?'replay':'new');
     if(premiereRendered===key&&!root.hidden)return;
     premiereRendered=key;
@@ -2438,7 +2528,11 @@ var UI = (function () {
   }
   function closePremiereReport(){
     const p=currentPremiereReport();
-    if(!p)return;
+    if(!p){
+      const end=currentEndRunReport();if(!end)return;
+      const st=Engine.state;st.endRunPresented.push(end.id);Engine.save();
+      premiereRendered='';renderPremiereReport();return;
+    }
     if(premiereReplayId!=null)premiereReplayId=null;
     else{
       const s=Engine.state;s.premierePresented=s.premierePresented||[];
@@ -2574,7 +2668,7 @@ var UI = (function () {
     "section": "Get started",
     "title": "Welcome to your studio",
     "view": "dashboard",
-    "target": "#nav [data-view=\"dashboard\"]",
+    "target": "#nav [data-section=\"overview\"]",
     "location": "Dashboard",
     "text": "Follow a real first film from script to release and financial results. The guide never plays the game for you. Minimize, skip or browse reference instructions at any time."
   },
@@ -2590,8 +2684,8 @@ var UI = (function () {
     "section": "Plan a film",
     "title": "Open New Project",
     "view": "newproject",
-    "target": "#nav [data-view=\"newproject\"]",
-    "location": "Studio → New project",
+    "target": "#nav .fc-nav-create",
+    "location": "Productions → New Project (or + New Project)",
     "text": "Click New project to see script opportunities, affordable short films, budgets and talent.",
     "visit": "newproject"
   },
@@ -2625,8 +2719,8 @@ var UI = (function () {
     "section": "Produce",
     "title": "Go to Production Center",
     "view": "projects",
-    "target": "#nav [data-view=\"projects\"]",
-    "location": "Studio → Projects",
+    "target": "#nav [data-section=\"productions\"]",
+    "location": "Productions → Production Center",
     "text": "Open Projects. Your active film progresses automatically, but a genuine decision may interrupt.",
     "visit": "projects"
   },
@@ -2634,9 +2728,9 @@ var UI = (function () {
     "section": "Produce",
     "title": "Open its Film Hub",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Projects → Open project details",
-    "text": "Open the project details. Explore Film DNA, promotion choices, any sponsorship offer and locked future actions. The guide waits until the Film Hub is open.",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Project Monitor → Project Details",
+    "text": "Open Project Details directly from the Project Monitor to inspect the active film in the Film Hub. Keep the tutorial visible while using the game.",
     "goal": "hub"
   },
   {
@@ -2679,9 +2773,9 @@ var UI = (function () {
     "section": "Release",
     "title": "Open release performance",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Projects → Open project details → Weekly performance",
-    "text": "Open the Film Hub again. Compare Film quality, opening Hype, critic reviews, studio receipts and modeled audience reach.",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Project Monitor → Project Details → Performance tab",
+    "text": "When your film premieres, read the opening report, then use Project Monitor → Project Details → Performance for live weekly numbers. The end-of-run report arrives later.",
     "goal": "hubReleased"
   },
   {
@@ -2697,18 +2791,18 @@ var UI = (function () {
     "section": "Release",
     "title": "Read direct profit or loss",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Film Hub → Weekly performance and Direct P/L",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Film Hub → Performance → Direct P/L",
     "text": "Open your Film Hub and read receipts less film spending. Direct P/L excludes shared overhead. Gross theatrical receipts and studio earnings are not the same.",
     "goal": "hubReleased"
   },
   {
     "section": "Your catalog",
-    "title": "Visit My Filmography",
+    "title": "Visit My Releases",
     "view": "filmography",
-    "target": "#nav [data-view=\"filmography\"]",
-    "location": "Studio → My Filmography",
-    "text": "Open My Filmography to find your released movie, studio revenue, P/L and estimated audience.",
+    "target": "#main .fc-section-tabs [data-view=\"filmography\"]",
+    "location": "Productions → My Releases (My Filmography)",
+    "text": "Open Productions, then My Releases. All released films should appear in My Filmography; reset filters using All My Films.",
     "visit": "filmography"
   },
   {
@@ -2716,7 +2810,7 @@ var UI = (function () {
     "title": "Open your released film",
     "view": "filmography",
     "target": "#main .fc-finance-table",
-    "location": "My Filmography → select your film title",
+    "location": "Productions → My Releases → All My Films → select the title",
     "text": "Click the released film title. It shows the actual custom poster, cast, critic opinions, festival history and a link back to Film Hub.",
     "goal": "film"
   },
@@ -2725,15 +2819,15 @@ var UI = (function () {
     "title": "Understand a film's second life",
     "view": "filmography",
     "target": "#main .fc-finance-table",
-    "location": "Film record → Open Film Hub",
+    "location": "My Releases → select a film → Film Hub",
     "text": "Short films may qualify for festival press kits and encore screenings, normally quality 60+ or a selection. Features may later license rights or screen again. Locked actions explain why; none are automatic windfalls."
   },
   {
     "section": "The industry",
-    "title": "Explore World Film Archive",
+    "title": "Explore Film Archive",
     "view": "archive",
-    "target": "#nav [data-view=\"archive\"]",
-    "location": "World → World Film Archive",
+    "target": "#nav [data-section=\"history\"]",
+    "location": "History → Film Archive",
     "text": "Compare historical releases from player and rival studios. Shorts show screening receipts rather than misleading $0 theatrical gross.",
     "visit": "archive"
   },
@@ -2750,8 +2844,8 @@ var UI = (function () {
     "section": "Your studio",
     "title": "Review studio identity",
     "view": "studio_profile",
-    "target": "#nav [data-view=\"studio_profile\"]",
-    "location": "Studio → Studio Profile",
+    "target": "#nav [data-section=\"overview\"]",
+    "location": "Overview → Studio",
     "text": "Company classification follows your real film portfolio. Growing Lifetime Fame, Buzz and Prestige also attracts more sponsor offers and higher-tier critic coverage.",
     "visit": "studio_profile"
   },
@@ -2759,17 +2853,17 @@ var UI = (function () {
     "section": "Keep playing",
     "title": "Save your career",
     "view": "saves",
-    "target": "#nav [data-view=\"saves\"]",
-    "location": "Studio → Saved Games",
-    "text": "Save Now and automatic saves protect your progress. Export a backup with posters before switching phones or browsers; saves do not cloud-sync automatically.",
+    "target": "#nav .fc-nav-tools summary",
+    "location": "Settings & saves → Saved Games",
+    "text": "Open Saved Games from Settings & saves, or use the navigation when the guide opens the section for you.",
     "visit": "saves"
   },
   {
     "section": "Keep playing",
     "title": "Start your next picture",
     "view": "newproject",
-    "target": "#nav [data-view=\"newproject\"]",
-    "location": "Studio → New project",
+    "target": "#nav .fc-nav-create",
+    "location": "Productions → New Project",
     "text": "You have followed a real movie to release and reviewed its results. Try a new genre, an ambitious feature, a sequel or a future catalog opportunity. Reopen the guide any time."
   }
 ];
@@ -2934,6 +3028,9 @@ var UI = (function () {
     const item = TUTORIAL_STEPS[tutorialStep];
     if(item.view&&drawer)closeDrawer();
     if (item.view) go(item.view);
+    if ((item.goal==='hub'||item.goal==='hubReleased') && tutorialFilm()) {
+      openProject(tutorialFilm().id);
+    }
   }
   function tutorialMinimize() {
     if (tutorialStep < 0) return;
@@ -2950,6 +3047,7 @@ var UI = (function () {
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
     tutorialReturnFocus = null;
     renderYearEndHonors();
+    renderPremiereReport();
   }
   function tutorialKeydown(e) {
     if (tutorialStep < 0) return false;
@@ -3083,7 +3181,7 @@ var UI = (function () {
     const list=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
     const target=list?.slots.find(s=>s.id===slotId);
     if(!target){setFlash('Save slot not found.');render();return;}
-    if(Engine.state&&!target.active&&!confirm('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
+    if(Engine.state&&!target.active&&!await confirmGame('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
     saveBusy=true;
     try{
       await SaveSlots.activate(slotId);
@@ -3091,11 +3189,11 @@ var UI = (function () {
     }catch(err){setFlash('Could not load save: '+err.message);render();}
     finally{saveBusy=false;}
   }
-  function renameSave(slotId){
+  async function renameSave(slotId){
     if(typeof SaveSlots==='undefined')return;
     const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
     if(!slot)return;
-    const value=prompt('Name this save slot:',slot.name);
+    const value=await promptGame('Name this save slot:',slot.name);
     if(value==null)return;
     try{SaveSlots.rename(slotId,value);setFlash('Save slot renamed.');}
     catch(err){setFlash('Rename failed: '+err.message);}
@@ -3104,7 +3202,7 @@ var UI = (function () {
   async function copySave(){
     if(saveBusy||!Engine.state||typeof SaveSlots==='undefined')return;
     const info=SaveSlots.list(),active=info.slots.find(s=>s.active);
-    const label=prompt('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
+    const label=await promptGame('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
     if(label==null)return;
     saveBusy=true;
     try{
@@ -3116,7 +3214,7 @@ var UI = (function () {
   async function deleteSave(slotId){
     if(saveBusy||typeof SaveSlots==='undefined')return;
     const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
-    if(!slot||!confirm('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
+    if(!slot||!await confirmGame('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
     saveBusy=true;
     try{
       await SaveSlots.remove(slotId);
@@ -3129,10 +3227,10 @@ var UI = (function () {
   async function quit(){
     if(saveBusy)return;
     if(typeof SaveSlots==='undefined'){
-      if(Engine.state&&!Engine.state.gameOver&&!confirm('Start a new game? Your current save will be replaced when you start.'))return;
+      if(Engine.state&&!Engine.state.gameOver&&!await confirmGame('Start a new game? Your current save will be replaced when you start.'))return;
       Engine.clearSave();location.reload();return;
     }
-    if(Engine.state&&!confirm('Return to title? The current studio will remain saved in its own slot.'))return;
+    if(Engine.state&&!await confirmGame('Return to title? The current studio will remain saved in its own slot.'))return;
     saveBusy=true;
     try{
       if(Engine.state){
@@ -3211,17 +3309,17 @@ var UI = (function () {
   function contractResult(r, okMsg) { drawerMsg = r.ok ? okMsg : r.reason; render(); }
   function sign(id, years) { contractResult(Engine.signExclusive(id, years), 'Signed.'); }
   function renew(id, years) { contractResult(Engine.renewContract(id, years), 'Renewed.'); }
-  function releaseTalent(id) {
+  async function releaseTalent(id) {
     const t = Engine.getTalent(id);
-    if (!t || !confirm('Release ' + t.name + '? Severance: ' + money(Engine.severanceOf(t)) + '.')) return;
+    if (!t || !await confirmGame('Release ' + t.name + '? Severance: ' + money(Engine.severanceOf(t)) + '.')) return;
     contractResult(Engine.releaseContract(id), 'Released.');
   }
   // 8.1: music. setVolume doesn't re-render, so dragging the slider isn't interrupted.
   function toggleMusic() { if (typeof Media !== 'undefined') { Media.toggleMusic(); render(); } }
   function setVolume(v) { if (typeof Media !== 'undefined') Media.setVolume(Number(v) / 100); }
   // 7.2: wipes only the leaderboard, never the game save.
-  function clearLeaderboard() {
-    if (!confirm('Clear the leaderboard on this device? This cannot be undone.')) return;
+  async function clearLeaderboard() {
+    if (!await confirmGame('Clear the leaderboard on this device? This cannot be undone.')) return;
     Engine.clearLeaderboard();
     render();
   }
@@ -3282,7 +3380,7 @@ var UI = (function () {
       await PosterStore.put(id,out);
       const p=Engine.getProject(id);if(p){p.posterCustom=true;Engine.save();}
       closePosterEditor();renderDrawer();
-    }catch(e){alert('Poster could not be saved: '+e.message);}
+    }catch(e){notifyGame('Poster could not be saved: '+e.message);}
   }
   async function exportBackup(){
     if(!Engine.state)return;
@@ -3292,11 +3390,11 @@ var UI = (function () {
       const data=JSON.stringify({format:'finalcut-v13-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
       const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='FinalCut-backup-'+Engine.dateOf().year+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-    }catch(e){alert('Backup export failed: '+e.message);}
+    }catch(e){notifyGame('Backup export failed: '+e.message);}
   }
   async function importBackup(input){
     const f=input.files&&input.files[0];if(!f)return;
-    if(f.size>25000000){alert('The backup exceeds 25 MB.');input.value='';return;}
+    if(f.size>25000000){notifyGame('The backup exceeds 25 MB.');input.value='';return;}
     if(saveBusy){input.value='';return;}
     saveBusy=true;
     try{
@@ -3319,10 +3417,10 @@ var UI = (function () {
           Engine.save();posterNote+=' '+absent.length+' unavailable poster(s) use generated art.';
         }
         clearForSaveTransition();view='saves';render();
-        alert('Backup imported into a new independent save slot.'+posterNote);
+        notifyGame('Backup imported into a new independent save slot.'+posterNote);
       }else{
         // Standalone compatibility path for older embed builds.
-        if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
+        if(Engine.state&&!await confirmGame('Replace your current game with this backup?'))return;
         const old=localStorage.getItem('backlot_save');
         try{
           localStorage.setItem('backlot_save',JSON.stringify(b.game));
@@ -3333,13 +3431,13 @@ var UI = (function () {
           const absent=await PosterStore.missing(declared);
           if(absent.length){const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save();}
           resetHistory();closeDrawer();render();
-          alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
+          notifyGame('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
         }catch(err){
           if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old);
           if(old)Engine.load();throw err;
         }
       }
-    }catch(e){alert('Backup import failed: '+e.message);}
+    }catch(e){notifyGame('Backup import failed: '+e.message);}
     finally{saveBusy=false;input.value='';}
   }
 
@@ -3404,7 +3502,7 @@ var UI = (function () {
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     filmHubSelect:filmHubSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
-    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
+    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();

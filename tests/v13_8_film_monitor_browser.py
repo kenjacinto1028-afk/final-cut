@@ -90,8 +90,8 @@ try:
   quote=page.evaluate("(id)=>Engine.releasePushQuote(id)",result['id'])
   assert quote['ok'],quote
   money_before=page.evaluate("Engine.state.cash")
-  page.once('dialog',lambda dialog:dialog.accept())
   card.get_by_role('button',name='Invest').click()
+  page.locator('.fc-game-dialog [data-yes]').click()
   page.wait_for_function('(id)=>!!Engine.getProject(id).releasePush',arg=result['id'])
   assert page.evaluate('Engine.state.cash')==money_before-quote['cost']
   assert page.evaluate('(id)=>Engine.releasePushQuote(id).ok',result['id'])==False

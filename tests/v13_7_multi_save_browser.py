@@ -68,26 +68,28 @@ try:
     original_campaign=page.evaluate("Engine.state.campaignId")
     original_cash=page.evaluate("Engine.state.cash")
     # Save as new independent branch; artwork must be copied into its namespace.
-    page.once("dialog",lambda d:d.accept("Alternate Cut"))
     page.get_by_role("button",name="Make a copy").first.click()
+    page.locator(".fc-game-dialog input").fill("Alternate Cut")
+    page.locator(".fc-game-dialog [data-yes]").click()
     page.wait_for_function("SaveSlots.list().slots.length===3")
     copy=page.evaluate("SaveSlots.list().slots.find(s=>s.name==='Alternate Cut')")
     assert copy and copy["campaignId"]!=original_campaign
     copy_id=copy["id"]
-    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Alternate Cut").get_by_role("button",name="Load campaign").click()
+    page.locator(".fc-game-dialog [data-yes]").click()
     page.wait_for_function("(id)=>SaveSlots.list().activeId===id",arg=copy_id,timeout=12000)
     assert page.evaluate("Engine.getProject(%s).posterCustom"%project_id)==True
     assert page.evaluate("async (id)=>(await PosterStore.missing([id])).length",project_id)==0
     page.evaluate("Engine.state.cash += 17001;Engine.save()")
     # Renaming must not alter its campaign ID or copy.
     page.evaluate("UI.go('saves')")
-    page.once("dialog",lambda d:d.accept("Director's Alternate"))
     page.locator(".fc-save-card",has_text="Alternate Cut").get_by_role("button",name="Rename").click()
+    page.locator(".fc-game-dialog input").fill("Director's Alternate")
+    page.locator(".fc-game-dialog [data-yes]").click()
     assert page.evaluate("(id)=>SaveSlots.list().slots.find(s=>s.id===id).name",copy_id)=="Director's Alternate"
     # Returning to Aurora restores its independent cash and original artwork.
-    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Aurora Pictures").get_by_role("button",name="Load campaign").click()
+    page.locator(".fc-game-dialog [data-yes]").click()
     page.wait_for_function("(id)=>SaveSlots.list().activeId===id",arg=aurora_id)
     assert page.evaluate("Engine.state.cash")==original_cash
     assert page.evaluate("Engine.state.campaignId")==original_campaign
@@ -107,21 +109,22 @@ try:
       page.evaluate("UI.go('saves')")
       page.locator(".fc-save-import input").set_input_files(str(exported))
       page.wait_for_function("SaveSlots.list().slots.length===4")
+      page.locator(".fc-game-dialog [data-yes]").click()
       imported=page.evaluate("SaveSlots.list().slots.find(s=>s.active)")
       assert imported["campaignId"]!=original_campaign
       assert page.evaluate("Engine.getProject(%s).posterCustom"%project_id)==True
       assert page.evaluate("async (id)=>(await PosterStore.missing([id])).length",project_id)==0
     # Switch to pre-v13.7 original, and check that the studio was not overwritten.
     page.evaluate("UI.go('saves')")
-    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Legacy Lantern").get_by_role("button",name="Load campaign").click()
+    page.locator(".fc-game-dialog [data-yes]").click()
     page.wait_for_function("Engine.state?.studio.name==='Legacy Lantern'")
     assert page.evaluate("Engine.state.version")==13
     assert page.evaluate("Engine.state.founder.name")=="Old Director"
     # Delete an inactive branch; the unrelated active studio stays intact.
     page.evaluate("UI.go('saves')")
-    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Director's Alternate").get_by_role("button",name="Delete").click()
+    page.locator(".fc-game-dialog [data-yes]").click()
     page.wait_for_function("SaveSlots.list().slots.length===3")
     assert page.evaluate("Engine.state.studio.name")=="Legacy Lantern"
     # Mobile: library remains inside viewport with useful actions.
@@ -131,9 +134,9 @@ try:
     assert overflow["doc"]<=overflow["viewport"]+2,overflow
     page.screenshot(path="/tmp/finalcut-save-library-mobile.png",animations="disabled")
     # Returning to title must preserve active campaign instead of deleting it.
-    page.once("dialog",lambda d:d.accept())
-    page.evaluate("UI.quit()")
-    assert page.evaluate("Engine.state===null")
+    page.evaluate("void UI.quit()")
+    page.locator(".fc-game-dialog [data-yes]").click()
+    page.wait_for_function("Engine.state===null")
     assert page.evaluate("Engine.hasSave()")==True
     assert page.evaluate("SaveSlots.list().slots.length")==3
     assert not errors,errors

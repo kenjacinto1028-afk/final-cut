@@ -1,0 +1,37 @@
+name: FinalCut v14.6 lifecycle and followers QA
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate project JS and v14.6 gameplay regressions
+        run: |
+          node --check content.js
+          node --check engine.js
+          node --check ui.js
+          node tests/v14_6_regression.js
+          node tests/v14_5_regression.js
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Validate v14.6 film UI and new in-game confirmations
+        run: |
+          python -m py_compile tests/v14_6_browser.py
+          python tests/v14_6_browser.py
