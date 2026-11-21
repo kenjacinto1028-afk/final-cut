@@ -2403,16 +2403,48 @@ var UI = (function () {
   let premiereRendered='';
   function currentPremiereReport(){
     const st=Engine.state;
-    if(!st || st.gameOver || st.pending || tutorialStep>=0 || currentYearEndReport())return null;
+    if(!st || st.gameOver || st.pending || currentYearEndReport())return null;
     if(premiereReplayId!=null)return st.projects.find(p=>p.id===premiereReplayId&&p.releaseWeek!=null)||null;
     if(!Array.isArray(st.premierePresented))return null;
     return st.projects.filter(p=>p.releaseWeek!=null&&!st.premierePresented.includes(p.id))
       .sort((a,b)=>a.releaseWeek-b.releaseWeek||a.id-b.id)[0]||null;
   }
+  function currentEndRunReport() {
+    const st=Engine.state;
+    if(!st || st.gameOver || st.pending || currentYearEndReport() || !Array.isArray(st.endRunPresented))return null;
+    return st.projects.filter(p=>p.stage==='done'&&p.releaseWeek!=null&&!st.endRunPresented.includes(p.id))
+      .sort((a,b)=>(a.releaseWeek||0)-(b.releaseWeek||0)||a.id-b.id)[0]||null;
+  }
+  function renderEndRunReport(p){
+    const root=$('premiere-report');
+    const reach=p.format==='short'?Engine.shortAudience(p):
+      p.format==='feature'?Engine.filmAdmissions(p):p.estimatedHouseholdImpressions;
+    root.hidden=false;
+    root.innerHTML='<div class="fc-premiere-shade"><section class="fc-premiere-card" role="dialog" aria-modal="true" aria-labelledby="fc-premiere-title">'+
+      '<div class="fc-premiere-mast"><small>FINAL CUT · RELEASE WRAP-UP</small><button type="button" onclick="UI.closePremiereReport()" aria-label="Close release summary">✕</button></div>'+
+      '<div class="fc-premiere-content"><div class="fc-premiere-titlebar"><div class="fc-premiere-poster">'+posterFor(p)+'</div>'+
+      '<div><small>'+esc(mediaName(p))+' · Screening run complete</small><h2 id="fc-premiere-title">'+esc(p.title)+'</h2>'+
+      '<p>Final screening outcomes. Festival judging and other rights opportunities may continue afterward.</p></div></div>'+
+      '<div class="fc-premiere-stats"><div><small>Quality</small><strong>'+Math.round(p.quality||0)+'/100</strong></div>'+
+      '<div><small>Studio receipts</small><strong>'+money(p.revenue||0)+'</strong></div>'+
+      '<div><small>Direct P/L</small><strong>'+money((p.revenue||0)-(p.spent||0))+'</strong></div></div>'+
+      '<div class="fc-premiere-reach"><strong>Recorded reach</strong><p>'+
+      (Number.isFinite(reach)?compactCount(reach):'—')+
+      (p.format==='feature'?' estimated ticket visits':p.format==='short'?' estimated screening visits':' estimated household impressions')+
+      ' · These are not verified unique viewers.</p></div>'+
+      '<p>Screenings have ended; awards, festivals and later rights can continue where eligible.</p>'+
+      '<div class="fc-premiere-actions"><button type="button" class="primary" onclick="UI.closePremiereReport()">Close & continue</button>'+
+      '<button type="button" onclick="UI.viewPremiereFilm('+p.id+')">Open Film Hub</button></div></div></section></div>';
+    const focus=root.querySelector('.fc-premiere-mast button');if(focus)focus.focus();
+  }
   function renderPremiereReport(){
     const root=$('premiere-report');if(!root)return;
     const p=currentPremiereReport();
-    if(!p){root.hidden=true;root.innerHTML='';premiereRendered='';return;}
+    if(!p){
+      const end=currentEndRunReport();
+      if(end){premiereRendered='wrap:'+end.id;renderEndRunReport(end);return;}
+      root.hidden=true;root.innerHTML='';premiereRendered='';return;
+    }
     const key=p.id+':'+p.releaseWeek+':'+(premiereReplayId!=null?'replay':'new');
     if(premiereRendered===key&&!root.hidden)return;
     premiereRendered=key;
@@ -2448,7 +2480,11 @@ var UI = (function () {
   }
   function closePremiereReport(){
     const p=currentPremiereReport();
-    if(!p)return;
+    if(!p){
+      const end=currentEndRunReport();if(!end)return;
+      const st=Engine.state;st.endRunPresented.push(end.id);Engine.save();
+      premiereRendered='';renderPremiereReport();return;
+    }
     if(premiereReplayId!=null)premiereReplayId=null;
     else{
       const s=Engine.state;s.premierePresented=s.premierePresented||[];
@@ -2960,6 +2996,7 @@ var UI = (function () {
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
     tutorialReturnFocus = null;
     renderYearEndHonors();
+    renderPremiereReport();
   }
   function tutorialKeydown(e) {
     if (tutorialStep < 0) return false;
