@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v13.7 — Multiple saved studios
+FinalCut now supports multiple browser-local save slots. Use **Saved Games** in the sidebar or **Manage saved games** on the title screen. Create independent campaigns, autosave the active one, switch, rename, delete, or **Make a copy** (including custom poster artwork). Imported backups create new slots without overwriting existing campaigns. The original `backlot_save` format and save version 13 remain compatible. For protection across devices or browser resets, export a full backup. See `docs/CHANGELOG_V13_7.md`.
+
 ## v13.6 — Sitewide Cinematic A+B interface
 The entire game now uses the same restrained charcoal, muted teal and brass visual language as the Production Center. The dashboard has a clearer executive layout; all management pages, tables, controls, film/talent drawers, decision dialogs, tutorial and Year-End Honors share the design. Awards reference lists are collapsed by default. Existing game logic and save version 13 are unchanged. See `docs/CHANGELOG_V13_6.md` and `tests/v13_6_sitewide_browser.py`.
 
