@@ -1,5 +1,13 @@
 # Final Cut — Studio Tycoon
 
+## v14 — Filmmaking stories, competition and earned studio identity
+
+Film projects now develop as persistent, connected stories: discover three quarterly screenplay opportunities or write your own, choose a creative vision, resolve meaningful production tradeoffs, compete with rival release dates, and follow theatrical or catalog opportunities after release. Routine work still advances automatically.
+
+**Studio Profile** shows a classification earned from your films, genre/story focus, awards, collaborators and financial track record, plus optional ambitions and delegation preferences. Rivals are evaluated by the same evidence and can contest scripts or release dates. All new financial costs and earnings use the original accounting engine.
+
+Original v13 saves and independent saved-game slots remain compatible. See `docs/CHANGELOG_V14.md`. Cinematic A+B colors, custom posters, talent records, awards, and the existing festival and release systems remain intact.
+
 ## v13.9 — A longer life for short films
 The **Project Monitor** and Production Center now show film quality, opening hype, real weekly receipts, and transparently estimated reach: feature ticket admissions, short-film screening visits, or TV household impressions (not unique people). Shorts earn screening receipts each week across a **3–12 week** quality-sensitive circuit rather than a one-off lump sum, while the original overall screening-revenue target is preserved. Even after screenings finish, you can follow the festival calendar and optionally fund one festival press kit or one four-week encore screening run. These limited choices have real expenses; awards and profits are not guaranteed. Old v13 save slots stay compatible. See `docs/CHANGELOG_V13_9.md`.
 
