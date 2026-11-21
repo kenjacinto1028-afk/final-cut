@@ -1475,7 +1475,7 @@ var Engine = (function () {
     const roles = {};
     SLOTS.forEach(slot => { roles[slot] = Math.round(slotSkill(p, slot) * T.weights[slot] * 10) / 10; });
     // Allocated stage resources, not the fixed old tier, determine new films' craft.
-    const production=p.budgetPlan?clamp(7+Math.log10(Math.max(250,p.budget)/1000)*3+
+    const production=p.budgetPlan?clamp(7+Math.log10(Math.max(250,v144EffectiveBudget(p))/1000)*3+
       (p.budgetPlan.qualityEffect||0),-7,24):tier.quality * prodQualityMult(p.budget, p.fees || 0);
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
@@ -2141,6 +2141,14 @@ var Engine = (function () {
     if(p.dna&&p.format==='short'&&v14UseOffer('festival',p))
       p.v14FestivalConnection=2;
     p.quality = computeQuality(p);
+    // Pilots commit release/platform-pitch funding, without buying a pickup.
+    if(p.budgetPlan&&p.format==='pilot'){
+      const outreach=Math.min(v144Available(p,'distribution'),state.cash);
+      if(outreach&&v144Pay(p,'distribution',outreach)){
+        p.distributionCost=(p.distributionCost||0)+outreach;
+        p.hypeMod=clamp((p.hypeMod||0)+Math.min(4,Math.round(7*Math.sqrt(outreach/Math.max(1,p.budget)))),-80,80);
+      }
+    }
     // Marketing planned for shorts and pilots executes automatically at launch.
     if(p.budgetPlan&&p.format!=='feature'){
       const due=Math.min(state.cash,v144Available(p,'marketing'));
@@ -2242,11 +2250,12 @@ var Engine = (function () {
       p.market = { genre: m.genre, taste: m.taste, topic: m.topic, season: m.season, cycle: m.cycle, competitors: m.competitors, pressure: m.pressure, mult: m.mult,
         rivals: m.rivals.map(r => r.studio + ': ' + r.title) };
       const ref = TUNING.boxOfficeRefBudget;
-      const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
+      const economicBudget=v144EffectiveBudget(p);
+      const scale = ref * Math.pow(economicBudget / ref, TUNING.boxOfficeBudgetExp);
       // v14.1: a tentpole can command wider attention, but rising budget and
       // a studio's repeated same-genre launches compete for a finite audience.
       // Only previous released films count; old receipts remain untouched.
-      const premium=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const premium=Math.max(0,Math.log2(Math.max(1,economicBudget)/TUNING.boxOfficeRefBudget));
       const budgetAttention=1/(1+Math.min(.25,premium*.046));
       const repeatedGenre=state.projects.filter(x=>x!==p&&x.format==='feature'&&x.genre===p.genre&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
@@ -2255,13 +2264,13 @@ var Engine = (function () {
       // only mid/high-budget features and leaves small independent films alone.
       const recentStudioFeatures=state.projects.filter(x=>x!==p&&x.format==='feature'&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
-      const slateAttention=p.budget>=TUNING.boxOfficeRefBudget?
+      const slateAttention=economicBudget>=TUNING.boxOfficeRefBudget?
         Math.max(.92,1-Math.min(4,recentStudioFeatures)*.02):1;
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
         m.mult * rollout.openingMult * budgetAttention * genreAttention * slateAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
       // automatic profitability; their higher budgets and marketing costs remain.
-      const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const budgetMultiple=Math.max(0,Math.log2(Math.max(1,economicBudget)/TUNING.boxOfficeRefBudget));
       const cap=audienceCap()*(1+Math.min(.28,budgetMultiple*TUNING.bigFilmAudienceCapPerDoubling));
       p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)) * (p.dna?v14ReleasePlan(p).opening:1));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
@@ -2642,6 +2651,14 @@ var Engine = (function () {
 
 // ===== SECTION: FINANCE =====
   function loanCap() { return TUNING.loanBaseCap + Math.floor(state.studio.fame) * TUNING.loanCapPerFame; }
+  function v144EffectiveBudget(p){
+    if(!p.budgetPlan)return p.budget;
+    const a=p.budgetPlan.allocation,spent=p.budgetPlan.spent;
+    // Budget not yet committed to actual production (reserve/unused cap) cannot
+    // create fictitious production values or theatrical opening demand.
+    return Math.max(250,(p.fees||0)+(p.scriptFee||0)+
+      Math.min(a.prep,spent.prep)+Math.min(a.shoot,spent.shoot)+Math.min(a.post,spent.post));
+  }
   function v144Bucket(stage){return stage==='development'||stage==='preproduction'?'prep':stage;}
   function v144StageCost(p){
     if(!p.budgetPlan)return p.weekly;
@@ -3642,7 +3659,7 @@ var Engine = (function () {
     p.stage = 'done';
     if (Math.random() < chance) {
       if(isWeb)p.estimatedOnlineViews=0;else p.estimatedHouseholdImpressions=0;
-      const epCost = p.budgetPlan?Math.round(p.budget*(p.mediaVariant==='web'?.63:.73)):
+      const epCost = p.budgetPlan?Math.round(v144EffectiveBudget(p)*(p.mediaVariant==='web'?.78:.92)):
         Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
       const pilotFee = Math.round(p.budget * T.pilotFeeShare);
