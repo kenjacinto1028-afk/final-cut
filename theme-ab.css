@@ -803,3 +803,18 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
  .tutorial-actions button{min-height:44px;touch-action:manipulation}
  .tutorial-card{overscroll-behavior:contain}
 }
+
+/* v14.3a — film actions remain discoverable even outside their eligibility windows. */
+.fc-filmhub-guide{border:1px solid var(--fc-edge,#52615f);border-radius:8px;background:#253334;color:var(--fc-text,#f0ece5);padding:13px 15px;margin:12px 0 18px}
+.fc-filmhub-guide h2{font:normal 20px Georgia,Cambria,serif;margin:5px 0;color:#eee9dd}
+.fc-filmhub-guide p{font-size:12px;line-height:1.6;color:#c4d3ce;margin:8px 0}
+.fc-filmhub-checklist{list-style:none;padding:0;margin:9px 0;display:grid;gap:6px}
+.fc-filmhub-checklist li{display:grid;grid-template-columns:minmax(128px,.8fr) minmax(0,2fr);gap:9px;padding:10px 9px;background:#2f3f3e;border:1px solid #4c625b;border-radius:6px;font-size:12px;line-height:1.5}
+.fc-filmhub-checklist strong{color:#e5e5d7}.fc-filmhub-checklist span{color:#bdc9c4;overflow-wrap:anywhere}
+.fc-filmhub-checklist .fc-option-ready{color:#b7e7c7;font-weight:650}
+.fc-filmhub-open button{white-space:normal;min-height:44px;text-align:left;line-height:1.4}
+.fc-illustrative-still{margin:12px 0;border:1px solid #56605e;border-radius:6px;padding:9px}
+.fc-illustrative-still>summary{cursor:pointer;color:#d1d7d0;font-size:12px}
+.fc-custom-poster-loading{display:grid;gap:8px;align-content:center;background:#293737;border:1px dashed #70887b;min-height:100px;max-width:200px;padding:15px;font-size:12px;color:#e4ebdf}
+.fc-custom-poster-loading small{font-size:10px;color:#b2c2b9}
+@media(max-width:530px){.fc-filmhub-checklist li{grid-template-columns:1fr;gap:3px}.fc-filmhub-open button{width:100%}}

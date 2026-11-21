@@ -39,6 +39,7 @@ jobs:
       - name: Real browser interactions and mobile responsiveness
         run: |
           python tests/v14_browser.py
+          python tests/v14_3a_filmhub_browser.py
           python tests/v14_2_tutorial_browser.py
           python tests/v13_6_sitewide_browser.py
           python tests/v13_7_multi_save_browser.py

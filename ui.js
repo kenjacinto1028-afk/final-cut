@@ -55,8 +55,13 @@ var UI = (function () {
   function posterFor(f) {
     const id = f.projectId == null ? (typeof f.id === 'number' ? f.id : null) : f.projectId;
     const p = id == null ? null : Engine.getProject(id);
-    const u = p && p.posterCustom && typeof PosterStore !== 'undefined' ? PosterStore.url(p.id) : null;
-    return u ? '<img class="poster-custom" alt="Custom poster for ' + esc(f.title) + '" src="' + esc(u) + '">' : (hasMedia() ? Media.posterSVG(p || f) : '');
+    const custom = !!(p && p.posterCustom && typeof PosterStore !== 'undefined');
+    const url = custom ? PosterStore.url(p.id) : null;
+    // Never briefly replace an uploaded poster with an unrelated generated
+    // design during an asynchronous IndexedDB lookup or save-slot reload.
+    if(custom)return url ? '<img class="poster-custom" alt="Custom poster for '+esc(f.title)+'" src="'+esc(url)+'">' :
+      '<div class="fc-custom-poster-loading" role="status">Custom poster loading…<small>If it stays missing, restore its poster backup from the original browser.</small></div>';
+    return hasMedia() ? Media.posterSVG(p || f) : '';
   }
   // Three curated design alternatives; can always restore the seeded default.
   function designChoices(p) {
@@ -1507,9 +1512,13 @@ var UI = (function () {
   function filmDrawer(f) {
     let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
     h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
-    if(hasMedia() && f.genre) h += '<div class="film-still">' + Media.filmStillSVG(f) + '</div>';
-    if(f.projectId != null) h += posterActions(Engine.getProject(f.projectId));
-    if(f.projectId!=null)h+=v14StoryPanel(Engine.getProject(f.projectId),false);
+    const original=f.projectId!=null?Engine.getProject(f.projectId):null;
+    if(hasMedia() && f.genre && !(original&&original.posterCustom))
+      h += '<details class="fc-illustrative-still"><summary>Optional illustrative still · not the film poster</summary><div class="film-still">'+Media.filmStillSVG(f)+'</div></details>';
+    if(original){
+      h += '<p class="fc-filmhub-open"><button class="primary" onclick="UI.openProject('+original.id+')">Open Film Hub — decisions, weekly performance & future options</button></p>';
+      h += posterActions(original)+v14StoryPanel(original,false)+filmLifecycleGuide(original);
+    }
     if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
       '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
     if (f.projectId != null && Engine.sequelEligibility(f.projectId).ok) h += '<button class="primary" onclick="UI.beginSequel('+f.projectId+')">Develop a sequel</button>';
@@ -1601,6 +1610,47 @@ var UI = (function () {
         '<p class="muted">The next production decisions will shape this film’s history.</p>')+
       '</section>';
   }
+  // v14.3a: every Film Hub always explains the current stage and the
+  // eligibility of future options. The engine quote remains authoritative.
+  function filmLifecycleGuide(p){
+    if(!p)return '';
+    const released=p.releaseWeek!=null,short=p.format==='short',
+      feature=p.format==='feature',pilot=p.format==='pilot';
+    const describe=(title,reason,ready)=>'<li><strong>'+esc(title)+'</strong><span class="'+(ready?'fc-option-ready':'')+'">'+esc(reason)+'</span></li>';
+    let entries=[];
+    entries.push(describe('Story & decisions',p.stage==='done'?
+      'Production choices are recorded in the Film Story and Log.':
+      Engine.state.pending&&Engine.state.pending.projectId===p.id?
+      'A production decision is waiting. Close this Film Hub to respond to the event.':
+      'Production advances automatically; a major event appears only when it happens.',false));
+    entries.push(describe('Release & performance',!released?
+      (feature?'Theatrical performance becomes available after the feature premieres.':
+        short?'Weekly screening revenue and estimated visits begin when your short starts screening.':
+        'TV household reach becomes available only after the pilot is picked up and episodes air.'):
+      (feature?'The weekly theatrical ledger and estimated admissions are in this Film Hub below.':
+        short?'Weekly screening receipts and estimated visits are in this Film Hub below.':
+        'Network revenue and household impressions (when aired) are in this Film Hub below.'),released));
+    if(short){
+      const press=Engine.shortPostReleaseQuote(p.id,'press'),
+        encore=Engine.shortPostReleaseQuote(p.id,'encore');
+      entries.push(describe('Festival press kit',press.ok?
+        'Available now · '+money(press.cost)+' · future festival jury merit +4, not a guaranteed selection.':
+        press.reason||'No eligible remaining festival jury.',press.ok));
+      entries.push(describe('Encore screening run',encore.ok?
+        'Available now · '+money(encore.cost)+' for four additional weeks, revenue uncertain.':
+        encore.reason||'Requires quality 60+ or a festival selection, after the original screenings finish.',encore.ok));
+    }else if(feature){
+      const opts=['license','retrospective','cult'].map(kind=>Engine.v14AfterlifeQuote(p.id,kind));
+      const names=['Early catalog license','Curated retrospective','Fan-led screening tour'];
+      opts.forEach((q,i)=>entries.push(describe(names[i],q.ok?
+        'Available now. '+(q.cost?'Cost '+money(q.cost)+'. ':'')+q.description:
+        q.reason||'Not eligible yet.',q.ok)));
+    }else if(pilot)entries.push(describe('TV & later rights','Check the TV tab for pickup and episodes; there are no theatrical catalog actions for a pilot.',false));
+    return '<section class="fc-filmhub-guide"><div class="fc-v14-section-heading"><div><small>YOUR FILM HUB</small><h2>What can I do next?</h2></div></div>'+
+      '<p>Choose the film in Projects or My Filmography. Available choices appear in their sections below; unavailable choices explain when they may unlock.</p>'+
+      '<ul class="fc-filmhub-checklist">'+entries.join('')+'</ul>'+
+      '<p class="muted">Festival judging and already-contracted licensing can continue automatically after release. Not every film qualifies for a paid second life.</p></section>';
+  }
   function v14ReleaseControls(p){
     if(!p||!p.dna||p.format!=='feature')return '';
     let h='';
@@ -1669,7 +1719,7 @@ var UI = (function () {
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
     if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
     h += awardIcons(p);   // 8.3
-    h += v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
+    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
