@@ -36,7 +36,8 @@ try:
   assert page.locator('#tutorial').is_visible()
   page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
   page.evaluate('UI.closeTutorial()')
-  page.evaluate('UI.go("projects");UI.toggleFilmMonitor(true)')
+  page.evaluate('UI.go("projects")')
+  if not page.locator('#film-monitor').is_visible(): page.evaluate('UI.toggleFilmMonitor()')
   # Monitor directly exposes project details while screening is ongoing.
   assert page.locator('#film-monitor').get_by_role('button',name='Project Details · Film Hub').count()>=1
   page.evaluate("""(id)=>{
