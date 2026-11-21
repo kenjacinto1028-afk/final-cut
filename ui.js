@@ -1075,13 +1075,13 @@ var UI = (function () {
     });
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
-    const detailed=mine&&!ranked;
+    const detailed=!ranked,ownDetails=mine&&!ranked;
     const heads=(ranked?'<th>World #</th>'+(mine?'<th>Studio #</th>':''):'')+
-      (detailed?'<th>Studio #</th><th>World #</th>':'')+
+      (ownDetails?'<th>Studio #</th><th>World #</th>':'')+
       '<th>Film</th>'+(mine?'':'<th>Studio</th>')+'<th>Year</th><th>Format / Genre / Topic</th><th class="num">Critics</th>'+
       (detailed
         ? '<th class="num" title="Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.">Box office</th>'+
-          '<th class="num" title="Money retained by the studio: box-office share, screenings, pilot fees and later rights payments.">Studio receipts</th>'+
+          '<th class="num" title="Money retained by the studio: box-office share, screening visits, pilot contracts, sponsorship and later rights payments.">Studio receipts</th>'+
           '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
           '<th class="num" title="Features: estimated ticket visits. Shorts: estimated screening visits. TV: household episode impressions. Not verified unique people.">Reach (est.)</th>'
         : '<th class="num">Box office</th>')+
@@ -1094,11 +1094,11 @@ var UI = (function () {
           f.format==='short'&&Number.isFinite(f.estimatedScreeningViewers)?compactCount(f.estimatedScreeningViewers)+' visits':
           f.format==='pilot'&&Number.isFinite(f.estimatedHouseholdImpressions)?compactCount(f.estimatedHouseholdImpressions)+' HH imp.':'—';
         const financial=detailed
-          ?'<td class="num">'+(f.format==='feature'?money(f.gross||0):'<span class="muted" title="No theatrical ticket sales for this format">—</span>')+'</td>'+
-           '<td class="num">'+money(f.revenue||0)+'</td><td class="num">'+c+'</td>'+
+          ?'<td class="num">'+(f.format==='feature'&&f.gross!=null?money(f.gross):'<span class="muted" title="No theatrical gross recorded for this format">—</span>')+'</td>'+
+           '<td class="num">'+(f.revenue==null?'<span class="muted">—</span>':money(f.revenue))+'</td><td class="num">'+c+'</td>'+
            '<td class="num" title="Modeled reach, not counted unique viewers">'+reach+'</td>'
           :'<td class="num">'+money(f.gross||0)+'</td>';
-        return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(detailed?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
+        return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(ownDetails?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
           '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
           (mine?'':'<td>'+esc(f.studio)+'</td>')+
@@ -1106,7 +1106,7 @@ var UI = (function () {
           '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
           '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
       }).join('')+
-      (!page.length?'<tr><td colspan="'+(detailed?12:(ranked?10:9))+'" class="muted">No films match these filters yet.</td></tr>':'')+
+      (!page.length?'<tr><td colspan="'+(ranked?8:(mine?11:10))+'" class="muted">No films match these filters yet.</td></tr>':'')+
       '</tbody></table></div>';
     if (maxPage) h += '<div class="archive-pages"><button onclick="UI.filmPage(-1)" ' + (filmBrowse.page===0?'disabled':'') + '>Previous</button>' +
       '<span>Page ' + (filmBrowse.page+1) + '/' + (maxPage+1) + '</span><button onclick="UI.filmPage(1)" ' + (filmBrowse.page===maxPage?'disabled':'') + '>Next</button></div>';
@@ -1148,7 +1148,7 @@ var UI = (function () {
   }
   function viewArchive() {
     const h=Engine.state.filmArchive;
-    return '<h1>World Film Archive</h1><p class="muted">Player and AI films remain here even when their studios close. ' +
+    return '<h1>World Film Archive</h1><p class="muted">All films across the industry, with direct studio receipts and estimated reach alongside theatrical gross. Shorts and TV do not have theatrical box office; missing historical totals display — rather than fabricated $0 values. Player and AI films remain here even when their studios close. ' +
       (h && h.incompleteBefore != null ? 'Older imported saves may have incomplete early AI credits and releases.' : 'New films have persistent historical records.') +
       '</p>' + filmFilters(false) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }

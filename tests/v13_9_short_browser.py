@@ -75,8 +75,10 @@ try:
   quote=page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press')",result['id'])
   if quote['ok']:
    current=page.evaluate('Engine.state.cash')
-   page.once('dialog',lambda d:d.accept())
+   # In-game film campaign dialog replaces native browser confirm.
    page.locator('.fc-center .fc-short-choice',has_text='festival press kit').get_by_role('button').click()
+   assert page.locator('#film-action-modal [role="dialog"]').is_visible()
+   page.locator('#film-action-confirm').click()
    page.wait_for_function("(id)=>!!Engine.getProject(id).shortFestivalPressKit",arg=result['id'])
    assert page.evaluate('Engine.state.cash')==current-quote['cost']
    assert page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press').ok",result['id'])==False
@@ -85,8 +87,10 @@ try:
   page.evaluate("(id)=>{Engine.getProject(id).quality=80;UI.go('projects')}",result['id'])
   encore=page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'encore')",result['id'])
   assert encore['ok'],encore
-  page.once('dialog',lambda d:d.accept())
+  # In-game film campaign dialog replaces native browser confirm.
   page.locator('.fc-center .fc-short-choice',has_text='encore screenings').get_by_role('button').click()
+  assert page.locator('#film-action-modal [role="dialog"]').is_visible()
+  page.locator('#film-action-confirm').click()
   page.wait_for_function("(id)=>!!Engine.getProject(id).shortEncore",arg=result['id'])
   total=page.evaluate("(id)=>Engine.getProject(id).revenue",result['id'])
   after=page.evaluate("""(id)=>{
