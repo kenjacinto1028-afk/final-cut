@@ -105,3 +105,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Memory polish: explicit saves cancel obsolete active weekly worker to prevent two competing multi-MB encoders; FCP2 title metadata fast path only, older FCP1/plain archives still perform strict index repair.
 - [x] Merged tested v14.2 branch through PR #8 into `main` at `9d175561d`; seven v13/v14 regression suites and dedicated v14.2 mobile/Node tests passed on PR. Physical Android/iPhone validation remains explicitly outstanding.
 - [x] Verified main release checkpoint `08103ecf`: Pages #44868786379 and integrated v14 gameplay + legacy browser QA #44868787074 both passed. PR #8 dedicated v14.2 tests and the separate 12×61-year v14.1 economic balance gate also passed; the economic rules are unchanged.
+
+## v14.2 tutorial refresh (November 21, 2026)
+- [x] Review tutorial against approved v14/v14.1/v14.2 mechanics and preserve nonmodal interaction.
+- [ ] Expand walkthrough for scripts, production, releases, rivalry, studio classification, finance, awards and saves.
+- [ ] Add browser acceptance for every tutorial step, page navigation, preview, minimized mode, mobile/reduced motion and no accidental gameplay mutation.
+- [ ] Run legacy/new test workflows, merge to main and verify live deployment.
