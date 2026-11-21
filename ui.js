@@ -398,6 +398,56 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_DASHBOARD =====
   // 8.3: era backdrop banner on top. 8.5: gross of films in theaters counts up (cu).
+  let wireTab='news',wireTrendKind='genres';
+  function setWireTab(tab){if(!['news','rivals','trends'].includes(tab))return;wireTab=tab;render();}
+  function setWireTrendKind(kind){if(!['genres','topics'].includes(kind))return;wireTrendKind=kind;render();}
+  function wireRivalReleases(){
+    const upcoming=Engine.v14ReleaseCalendar().flatMap(w=>w.rivals.map(f=>({...f,week:w.week}))).slice(0,8);
+    if(!upcoming.length)return '<p class="fc-wire-empty">No announced rival films in the next 12 weeks.</p>';
+    return '<div class="fc-wire-release-list">'+upcoming.map(f=>{
+      const clash=!!((f.sameWeek||[]).length||(f.genreMatches||[]).length||(f.topicMatches||[]).length);
+      return '<article class="fc-wire-release'+(clash?' fc-wire-clash':'')+'"><small>'+esc(dateLabel(f.week))+' · Feature film</small>'+
+        '<strong>'+esc(f.title)+'</strong><span>'+esc(f.studio)+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+
+        (f.topic?' / '+esc(nameOf(CONTENT.TOPICS,f.topic)):'')+'</span>'+
+        (clash?'<em>Potential clash'+(f.sameWeek?.length?' · Same release week':'')+
+          (f.genreMatches?.length?' · Genre overlap':'')+(f.topicMatches?.length?' · Topic overlap':'')+'</em>':'')+
+        '</article>';
+    }).join('')+'</div>';
+  }
+  function wireMarketTrends(){
+    const m=Engine.demandMovers(wireTrendKind);
+    let h='<div class="fc-wire-filters fc-wire-trend-kind" role="group" aria-label="Trend category">'+
+      [['genres','Genres'],['topics','Topics']].map(([id,name])=>
+        '<button type="button" class="'+(wireTrendKind===id?'is-active':'')+'" aria-pressed="'+(wireTrendKind===id)+
+        '" onclick="UI.setWireTrendKind(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</div>';
+    if(!m.valid)return h+'<p class="fc-wire-empty">Insufficient trend history. Demand changes appear after eight played weeks.</p>';
+    const group=(items,rising)=>'<div class="fc-wire-movers"><small>'+(rising?'TOP RISING':'TOP FALLING')+'</small>'+
+      (items.length?items.map(x=>'<div class="fc-wire-mover"><span>'+esc(x.name)+'</span><strong class="'+
+        (rising?'fc-positive':'neg')+'">'+(rising?'▲ +':'▼ ')+x.delta+' pts</strong></div>').join(''):
+        '<p class="muted">No '+(rising?'rising':'falling')+' demand this period.</p>')+'</div>';
+    return h+'<p class="fc-wire-interval">Demand change · last '+m.weeks+' weeks</p>'+
+      group(m.risers,true)+group(m.fallers,false);
+  }
+  function studioWire(){
+    let h='<aside class="studio-wire"><div class="fc-wire-header"><h2>The Studio Wire</h2></div>'+
+      '<div class="fc-wire-tabs" role="group" aria-label="Studio Wire sections">'+
+      [['news','News'],['rivals','Rival Releases'],['trends','Market Trends']].map(([id,name])=>
+        '<button type="button" class="'+(wireTab===id?'is-active':'')+'" aria-pressed="'+(wireTab===id)+
+        '" onclick="UI.setWireTab(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</div>';
+    if(wireTab==='news'){
+      h+='<div class="fc-wire-filters" role="group" aria-label="Filter studio news">'+
+        [['all','All'],['release','Release'],['economy','Economy'],['market','Market']].map(([id,label])=>
+        '<button type="button" class="'+(wireFilter===id?'is-active':'')+'" aria-pressed="'+(wireFilter===id)+
+        '" onclick="UI.setWireFilter(&quot;'+id+'&quot;)">'+label+'</button>').join('')+
+        '</div>'+newsList(wireNews(Engine.news(null,Engine.TUNING.news.headlines)))+
+        '<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;news&quot;)">Full News Feed</button></div>';
+    }else if(wireTab==='rivals'){
+      h+=wireRivalReleases()+'<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;calendar&quot;)">Full Rivals Calendar</button></div>';
+    }else{
+      h+=wireMarketTrends()+'<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;market&quot;)">Full Market Details</button></div>';
+    }
+    return h+'</aside>';
+  }
   let wireFilter='all';
   function wireNews(items) {
     if(wireFilter==='all')return items;
@@ -469,12 +519,7 @@ var UI = (function () {
         '<button onclick="UI.go(\'filmography\')">Browse film history</button></div>';
     }
     h += viewLegacyActions(legacy);
-    h += '</section><aside class="studio-wire"><div class="fc-wire-header"><h2>The Studio Wire</h2>'+
-      '<div class="fc-wire-filters" role="group" aria-label="Filter studio news">'+
-      [['all','All'],['release','Release'],['economy','Economy'],['market','Market']].map(([id,label])=>
-      '<button type="button" class="'+(wireFilter===id?'is-active':'')+'" aria-pressed="'+(wireFilter===id)+'" onclick="UI.setWireFilter(&quot;'+id+'&quot;)">'+label+'</button>').join('')+
-      '</div></div>'+newsList(wireNews(Engine.news(null, Engine.TUNING.news.headlines)))+
-      '<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;news&quot;)">Browse all studio news</button></div></aside></div>';
+    h += '</section>'+studioWire()+'</div>';
     return h;
   }
   function viewLegacyActions(l) {
@@ -3520,7 +3565,7 @@ var UI = (function () {
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
-    toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter, promoteFilm: promoteFilm,
+    toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
