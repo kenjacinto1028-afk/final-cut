@@ -1403,11 +1403,41 @@ var UI = (function () {
   function openProject(id) { drawer = { kind: 'project', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
   function openFilm(id) { drawer = { kind: 'film', id: id }; drawerMsg = ''; renderDrawer(); }
+
+  // v14a: project-specific Film DNA, not generic genre marketing prose.
+  // Empty legacy records are explained rather than reconstructed as "facts".
+  function filmDNAPanel(subject){
+    if(!subject)return '';
+    const dna=subject.filmDNA||Engine.filmDNASummary(subject);
+    const cfg=CONTENT.FILM_DNA,stories=(dna.story||[]).slice(-8).reverse();
+    if(dna.legacy && !stories.length)
+      return '<details class="fc-film-dna"><summary>Film DNA & creative history</summary>'+
+        '<p class="muted">This film predates Film DNA tracking. Earlier creative intent and choices were not recorded.</p></details>';
+    const term=(dict,k)=>k&&dict[k]?dict[k]:'Not recorded';
+    const tags=dna.legacy?'Earlier script origin not recorded':
+      [term(cfg.strengths,dna.strengths[0]),term(cfg.strengths,dna.strengths[1]),
+       term(cfg.risks,dna.risk)].map(x=>'<span>'+esc(x)+'</span>').join('');
+    const timeline=stories.length?'<ol class="fc-film-story">'+stories.map(e=>{
+      const effects=[e.quality?'Quality '+(e.quality>0?'+':'')+e.quality:null,
+        e.hype?'Hype '+(e.hype>0?'+':'')+e.hype:null,
+        e.weeks?'Schedule '+(e.weeks>0?'+':'')+e.weeks+' wk':null,
+        e.cost?'Cost '+money(e.cost):null].filter(Boolean);
+      return '<li><small>'+esc(dateLabel(e.week))+' · '+esc(e.stage||e.type)+'</small>'+
+        '<p>'+esc(e.text)+'</p>'+(effects.length?'<em>'+esc(effects.join(' · '))+'</em>':'')+'</li>';
+    }).join('')+'</ol>':'<p class="muted">No recorded milestones yet.</p>';
+    return '<details class="fc-film-dna" open><summary>Film DNA & creative history</summary>'+
+      (dna.hook?'<p class="fc-film-hook">'+esc(dna.hook)+'</p>':'<p class="muted">Earlier script premise not recorded.</p>')+
+      '<div class="fc-dna-tags">'+tags+'</div>'+
+      (dna.legacy?'':'<p class="fc-film-dna-meta"><strong>Creative direction:</strong> '+
+        esc(term(cfg.intents,dna.intent))+' · <strong>Audience:</strong> '+esc(term(cfg.lanes,dna.lane))+'</p>')+
+      '<h4>Production story</h4>'+timeline+'</details>';
+  }
   function filmDrawer(f) {
     let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
     h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
     if(hasMedia() && f.genre) h += '<div class="film-still">' + Media.filmStillSVG(f) + '</div>';
     if(f.projectId != null) h += posterActions(Engine.getProject(f.projectId));
+    if(f.projectId!=null)h+=filmDNAPanel(f);
     if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
       '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
     if (f.projectId != null && Engine.sequelEligibility(f.projectId).ok) h += '<button class="primary" onclick="UI.beginSequel('+f.projectId+')">Develop a sequel</button>';
@@ -1492,6 +1522,7 @@ var UI = (function () {
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
     if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
     h += awardIcons(p);   // 8.3
+    h+=filmDNAPanel(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
