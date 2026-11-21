@@ -1,0 +1,39 @@
+name: FinalCut v14.7 palette design QA
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate game and palette JS
+        run: |
+          node --check design-theme-v14_7.js
+          node --check ui.js
+          node --check engine.js
+          node tests/v14_6_regression.js
+      - name: Install Playwright
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify six palettes in real game
+        run: |
+          python -m py_compile tests/v14_7_design_browser.py
+          python tests/v14_7_design_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finalcut-v14-7-design-screenshots
+          path: |
+            /tmp/finalcut-v14-7-desktop.png
+            /tmp/finalcut-v14-7-mobile-*.png
+          if-no-files-found: ignore
