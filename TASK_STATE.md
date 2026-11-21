@@ -100,6 +100,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14.2 — Targeted polish (2026-11-21)
 - [x] Scope frozen: remove long-history UI stalls from manual save, save-slot switch, copy and import while retaining sync fallback, legacy archives, poster separation and save version 13.
 - [x] Implemented awaitable off-main-thread large manual saves, slot archiving, copy and import; retain unchanged synchronous SaveSlots.manualSave/Engine.save for compatibility. Fixed rollback references to the newest archived active save. All UI exits wait for confirmed storage success before switching/closing.
-- [ ] Mobile 320/390px and reduced-motion usability plus save progress indicator.
+- [x] Mobile polish: readable accessible live save status, 44px tap targets, safe-area paddings, narrow 320px save cards and reduced motion; title-screen active-save metadata cache avoids decoding 2MB+ archives after an already verified manual save. Browser acceptance pending.
 - [ ] Chromium and Node targeted QA; existing v13/v14 CI and 12-carrier econometric smoke unchanged.
 - [ ] Merge v14.2 to main and verify live Pages; physical Android/iPhone validation remains explicitly outstanding.
