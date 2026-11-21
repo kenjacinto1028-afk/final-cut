@@ -1,0 +1,36 @@
+name: FinalCut v14.8 Studio Wire and QoL
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate v14.8 code and demand regression
+        run: |
+          node --check ui.js
+          node --check engine.js
+          node tests/v14_8_regression.js
+          node tests/v14_6_regression.js
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test new QoL end-to-end at desktop and mobile sizes
+        run: |
+          python -m py_compile tests/v14_8_browser.py
+          python tests/v14_8_browser.py
