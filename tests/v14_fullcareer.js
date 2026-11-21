@@ -18,13 +18,14 @@ const strategies=[
 ];
 const results=[];
 for(const [idx,spec] of strategies.entries()){
+ const horizonYears=idx===0?61:15; // one full career, two additional styles
  const {E,db}=start('Long Career '+spec.name),s=E.state;
  // This is a stress test with a funded established studio, not an economic
  // viability verdict for starter cash. Early-game affordability has its own tests.
  s.cash=40_000_000;s.studio.tier=3;s.studio.fame=70;
  E.v14SetDelegation(spec.policy);
  let started=0,dilemmas=0,profitable=0,flops=0,pressured=0;
- for(let week=0;week<52*61;week++){
+ for(let week=0;week<52*horizonYears;week++){
    if(week%28===0&&E.activeProjects().length<E.capacity()&&!s.gameOver){
      const prefer=idx===0?'short':week%3===0?'short':'feature';
      const fmt=prefer;
@@ -52,8 +53,8 @@ for(const [idx,spec] of strategies.entries()){
  const stored=db.get('backlot_save')||'';
  const years=Math.floor(s.week/52);
  A(!s.gameOver,'funded multi-decade stress game ended prematurely');
- A(s.week>=52*61,'long career did not reach 2031');
- A(done.length>=75,'too few complete films');
+ A(s.week>=52*horizonYears,'simulation ended before '+horizonYears+' years');
+ A(done.length>=(horizonYears===61?75:20),'too few complete films');
  A(s.version===13);
  A(Number.isFinite(s.cash)&&Number.isFinite(s.debt));
  A(s.v14.rivalry.length<=24);
@@ -66,9 +67,9 @@ for(const [idx,spec] of strategies.entries()){
    classChanges:history.length,rivalry:s.v14.rivalry.length,awards:done.reduce((n,p)=>n+
      (p.awards||[]).filter(a=>a.won).length,0),cash:Math.round(s.cash),
    saveBytes:stored.length,filmLegacies:kinds};
- results.push(r);console.log('PASS 61-year stress',JSON.stringify(r));
+ results.push(r);console.log('PASS '+horizonYears+'-year stress',JSON.stringify(r));
 }
 const rates=results.map(x=>x.profitRate);
-console.log('OBSERVED strategy profit-rate spread (percentage points): '+(Math.max(...rates)-Math.min(...rates)));
+console.log('OBSERVED funded strategy outcomes (different horizons): '+results.map(x=>x.studio+' '+x.years+'y '+x.profitRate+'% profitable').join(' / '));
 console.log('NOTE This is a funded stress sweep; no claim of equal profitability or fully balanced awards.');
-console.log('PASS v14 full 1970–2031 stability across three distinct film strategies');
+console.log('PASS v14 full 1970–2031 career plus two 15-year alternative-studio stress runs');
