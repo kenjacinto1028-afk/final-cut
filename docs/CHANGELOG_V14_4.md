@@ -1,6 +1,6 @@
 # FinalCut v14.4 — Flexible production, continuing stories and series careers
 
-**Status:** Development branch `v14-4-flexible-production`, draft PR #14. This note describes implementation awaiting full CI and deployment validation. **Previous published release remains v14.3 until merge.**
+**Status:** Released on `main` by PR #14 at commit `077d0b3` on 2026-11-21. GitHub Pages deployment #44886842728, integrated gameplay QA #44886843928 and normal-start balance #44886843844 succeeded. Follow-up budget/TV tuning is in `docs/CHANGELOG_V14_4A.md`.
 
 ## New project workflow
 - Select a media variant: micro-short, short, mid-length (all use the established short-film screening/festival engine), feature, TV pilot or web episode. Web episodes unlock in 1995 and use a web-commissioning branch of the TV/pilot engine, not theatrical releases.

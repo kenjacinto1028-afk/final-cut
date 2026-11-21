@@ -131,6 +131,15 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added cross-media franchise continuations with separate results; TV/web episode count, tiered sponsor offers, fame-driven salary raises, re-cast/lean choices, signed-income-only season feasibility.
 - [x] New tests in tests/v14_4_budget.js and Chromium/legacy CI workflow v14_4.yml; first full v14.4 engine+browser test passed #44885627778.
 - [x] Created draft PR #14 and docs/CHANGELOG_V14_4.md/HANDOFF.md; safety of old v13 saves preserved by opting new projects in only.
-- [ ] Verify latest branch head's full prior v13/v14/long-career and new v14.4 checks; remedy regressions. Historical CI check failures on intermediate commits were debugged and fixed before continuing.
-- [ ] Only after green regression and release validation: finalize README, merge PR #14 into main, confirm Pages deployment and record live release SHA.
+- [x] Latest v14.4 PR head 29018fa passed nine regression, balance and Chromium workflows; past intermediate failures fixed.
+- [x] PR #14 merged to main as 077d0b3; Pages deployment #44886842728, integrated v14 QA #44886843928 and normal-start balance #44886843844 all succeeded.
 - [ ] Physical Android/iPhone device check remains manually outstanding.
+
+## v14.4a — post-merge economy and series balance
+- [x] Reviewed prior 8×61-year real-start results, including blockbuster/careful/rival-quality outliers; avoid risky v14.1 overcorrection.
+- [x] Corrected flexible pilot fees, bounded TV audience bonus and negotiated ratings-based network renewal fees in engine.js; existing saves/series retain legacy rules.
+- [x] Prevented high unused caps from generating sponsor windfalls; film promotion quotes use actual planned spending, not idle reserve.
+- [x] Added tests/v14_4a_balance.js plus v14_4.yml coverage; sponsor/pilot/renewal and four eight-year normal-start samples passed engine + Chromium on PR branch #44887308737.
+- [x] Created docs/CHANGELOG_V14_4A.md and PR #15; full compatibility gates await final branch head.
+- [ ] Verify all PR #15 workflows pass on final head, merge and confirm Pages deployment.
+- [ ] Physical iPhone/Android performance and broader multi-seed TV-series strategy balance remain future checks.

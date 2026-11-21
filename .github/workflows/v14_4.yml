@@ -19,6 +19,7 @@ jobs:
           node --check engine.js
           node --check ui.js
           node tests/v14_4_budget.js
+          node tests/v14_4a_balance.js
           node tests/v14_gameplay.js
           node tests/v13_compat_regression.js
           node tests/v13_9_short_engagement.js

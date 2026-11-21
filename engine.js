@@ -2093,7 +2093,11 @@ var Engine = (function () {
     if(!state||state.gameOver||p.releaseWeek!=null||p.stage==='done')
       return {ok:false,reason:'Pre-release film promotion closes when the film premieres.'};
     if(p.promotionCampaign)return {ok:false,reason:'This film has already used its one optional pre-release campaign.'};
-    const cost=Math.max(plan.minimum,Math.round(p.budget*plan.share/5)*5);
+    // Flexible campaigns price the resources intentionally planned for use, not
+    // contingency that can be retained or reallocated. Legacy campaigns unchanged.
+    const campaignBase=p.budgetPlan?(p.fees||0)+(p.scriptFee||0)+
+      FinalCutBudget.KEYS.filter(k=>k!=='reserve').reduce((sum,k)=>sum+(p.budgetPlan.allocation[k]||0),0):p.budget;
+    const cost=Math.max(plan.minimum,Math.round(campaignBase*plan.share/5)*5);
     if((p.marketingSpend||0)+cost>p.budget*.55)
       return {ok:false,reason:'Existing marketing spending has already reached this film’s planned budget limit.'};
     if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for this campaign.',cost};
@@ -2143,7 +2147,11 @@ var Engine = (function () {
       fame>=43&&(r.buzz||0)>=17?2:1;
     const source=FILM_SPONSORS[(p.id+String(p.genre||'').length+tier)%FILM_SPONSORS.length];
     const fit=source.genres.includes(p.genre);
-    const amount=Math.max(50,Math.round(Math.min(p.budget*(.024+tier*.011),tier*40000)/25)*25);
+    // Sponsor investment tracks resources already put into the production. A
+    // large but unused budget cap must never mint sponsorship cash.
+    const sponsorBase=p.budgetPlan?v144EffectiveBudget(p)+
+      (p.budgetPlan.spent.marketing||0)+(p.budgetPlan.spent.distribution||0):p.budget;
+    const amount=Math.max(50,Math.round(Math.min(sponsorBase*(.024+tier*.011),tier*40000)/25)*25);
     const hypeLift=fit?Math.min(4,tier+1):1;
     const criticRisk=Math.min(5,(fit?0:2)+Math.max(1,tier-1));
     return {ok:true,name:source.name,brand:source.brand,tier,
@@ -3730,6 +3738,9 @@ var Engine = (function () {
   function pilotResult(p) {
     const T = TUNING.tv, em = eraMods();
     const score = pilotScore(p);
+    // Unspent contingency is neither a produced episode nor earned licensing value.
+    // Preserve legacy TV contracts, but price new flexible pilots on funded work.
+    const financedBudget=p.budgetPlan?v144EffectiveBudget(p):p.budget;
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
     const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
     // Web commissions have their own era-appropriate audience access, while
@@ -3742,7 +3753,7 @@ var Engine = (function () {
       const epCost = p.budgetPlan?Math.round(v144EffectiveBudget(p)*(p.mediaVariant==='web'?.78:.92)):
         Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
-      const pilotFee = Math.round(p.budget * T.pilotFeeShare);
+      const pilotFee = Math.round(financedBudget * T.pilotFeeShare);
       p.result = 'Picked up';
       p.revenue += pilotFee;
       earn(pilotFee);
@@ -3761,7 +3772,7 @@ var Engine = (function () {
       addLog((isWeb?'The online platform commissioned ':'The network picked up ')+'"'+p.title+'": '+
         s.episodes+' episodes at '+fmtMoney(fee)+' each (cost '+fmtMoney(epCost)+'). Initial fee '+fmtMoney(pilotFee)+'.','tv');
     } else {
-      const devFee = Math.round(p.budget * T.passFeeShare);
+      const devFee = Math.round(financedBudget * T.passFeeShare);
       p.result = 'Passed';
       p.revenue += devFee;
       if(isWeb)p.estimatedOnlineViews=null;else p.estimatedHouseholdImpressions=null;
@@ -3834,7 +3845,9 @@ var Engine = (function () {
       const r = clamp(Math.round((prev * 0.6 + base * 0.4) * rnd(0.9, 1.1) * 10) / 10, 0.5, 30);
       s.ratings.push(r);
       s.aired++;
-      const bonus = r > T.bonusThreshold ? Math.round((r - T.bonusThreshold) * s.epCost * T.bonusPerPoint) : 0;
+      // Flexible shows have bounded audience bonuses; legacy contracts are unchanged.
+      const earnedBonusRate=Math.max(0,(r-T.bonusThreshold)*T.bonusPerPoint);
+      const bonus=Math.round(s.epCost*(s.flexibleSeries?Math.min(.22,earnedBonusRate):earnedBonusRate));
       // Signed sponsorship pays per actual aired episode, never upfront or twice.
       const sponsorPay=s.sponsor&&s.sponsor.season===s.season?s.sponsor.perEpisode:0;
       revenue += s.fee + bonus+sponsorPay;
@@ -3907,8 +3920,13 @@ var Engine = (function () {
       s.season++;
       s.aired = 0;
       s.episodes=s.flexibleSeries?(s.nextEpisodeCount||s.episodes):rint(T.episodes[0],T.episodes[1]);
-      s.fee=Math.round(s.fee*(1+T.renewFeeRaise));
+      const previousFee=s.fee;
+      s.fee=Math.round(previousFee*(1+T.renewFeeRaise));
       if(s.flexibleSeries){
+        // Proven audience demand earns a limited fee raise but cannot remove
+        // the financial decision between keeping stars, going lean or recasting.
+        const ratingsPremium=Math.min(.16,Math.max(0,avg-T.renewAvg)*.018);
+        s.fee=Math.round(previousFee*(1+T.renewFeeRaise+ratingsPremium));
         // Fame + proven demand create sharply rising quotes; only unsigned
         // renewals renegotiate. Premium is bounded by the first season's cost.
         const stars=(s.castIds||[]).map(id=>getTalent(id)).filter(Boolean);
