@@ -1,0 +1,38 @@
+name: FinalCut v14.9 dedicated mobile UI
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  mobile-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate unchanged game logic and UI syntax
+        run: |
+          node --check ui.js
+          node --check engine.js
+          node tests/v14_8_regression.js
+      - name: Install Playwright Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Phone-first title and dashboard validation
+        run: |
+          python -m py_compile tests/v14_9_mobile_browser.py
+          python tests/v14_9_mobile_browser.py
+      - name: Legacy responsive dashboard regression
+        run: python tests/v14_8a_layout_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finalcut-v14-9-phone-ui-screenshots
+          path: /tmp/finalcut-v14-9-*.png
+          if-no-files-found: ignore

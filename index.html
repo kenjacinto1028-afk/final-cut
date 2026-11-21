@@ -11,16 +11,25 @@
 <link rel="stylesheet" href="theme-ab.css">
 <link rel="stylesheet" href="budget-v14_4.css">
 <link rel="stylesheet" href="design-v14_7.css">
+<link rel="stylesheet" href="mobile-v14_9.css">
 </head>
 <body>
 <div id="app">
   <nav id="nav"></nav>
   <div id="content">
-    <button id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="nav" onclick="UI.toggleMobileNav()">☰ Menu</button>
+    <div class="fc-mobile-header"><div class="fc-mobile-brand">Final Cut<small>STUDIO TYCOON</small></div><button id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="nav" onclick="UI.toggleMobileNav()">☰ Menu</button></div>
     <header id="topbar"></header>
     <main id="main"></main>
     <aside id="film-monitor" aria-label="Live project monitor" hidden></aside>
   </div>
+  <nav id="mobile-bottom-nav" aria-label="Mobile primary navigation" hidden>
+    <button type="button" data-mobile-section="overview" onclick="UI.go('dashboard')"><span class="fc-mobile-icon" aria-hidden="true">⌂</span>Overview</button>
+    <button type="button" data-mobile-section="productions" onclick="UI.go('projects')"><span class="fc-mobile-icon" aria-hidden="true">▣</span>Films</button>
+    <button type="button" data-mobile-section="people" onclick="UI.go('roster')"><span class="fc-mobile-icon" aria-hidden="true">♙</span>People</button>
+    <button type="button" data-mobile-section="industry" onclick="UI.go('market')"><span class="fc-mobile-icon" aria-hidden="true">◇</span>Industry</button>
+    <button type="button" data-mobile-section="history" onclick="UI.go('archive')"><span class="fc-mobile-icon" aria-hidden="true">▤</span>History</button>
+  </nav>
+  <div id="mobile-menu-scrim" aria-hidden="true" onclick="UI.toggleMobileNav()"></div>
 </div>
 <div id="scrim" hidden></div>
 <aside id="drawer" aria-hidden="true"></aside>
