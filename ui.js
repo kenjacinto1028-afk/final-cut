@@ -266,6 +266,50 @@ var UI = (function () {
   }
 
 // ===== SECTION: VIEW_START =====
+  // Browser-local campaign library. The current slot autosaves exactly as it did
+  // before v13.7; archived slots live in IndexedDB and are not overwritten.
+  function viewSaveLibrary() {
+    if(typeof SaveSlots==='undefined') return '<h1>Saved games</h1><p class="muted">Save slots are unavailable in this build.</p>';
+    const data=SaveSlots.list();
+    const slots=data.slots.slice().sort((a,b)=>b.updatedAt-a.updatedAt);
+    let h='<section class="fc-save-library"><div class="fc-save-header"><div><small>STUDIO ARCHIVES / CAMPAIGN MANAGEMENT</small>'+
+      '<h1>Saved games</h1><p>Run multiple independent studios. The active slot autosaves each week; other campaigns remain untouched.</p></div>'+
+      '<div class="fc-save-header-actions">'+(Engine.state
+        ? '<button class="primary" onclick="UI.saveNow()">Save current</button><button onclick="UI.copySave()">Save a copy</button>'
+        : '<button onclick="UI.go(&quot;dashboard&quot;)">Return to title</button>')+
+      '</div></div>';
+    if(!slots.length) h+='<div class="fc-save-empty"><h2>No saved studios yet</h2><p>Create a studio to begin your first campaign.</p>'+
+      '<button onclick="UI.quit()">Start a studio</button></div>';
+    else {
+      h+='<div class="fc-save-list">';
+      h+=slots.map(s=>{
+        const active=s.active;
+        const id=esc(s.id);
+        const stamp=s.updatedAt?new Date(s.updatedAt).toLocaleString():'Existing save';
+        return '<article class="fc-save-card'+(active?' fc-save-active':'')+'">'+
+          '<div class="fc-save-head"><div><small>'+(active?'ACTIVE AUTOSAVE':'ARCHIVED CAMPAIGN')+'</small>'+
+          '<h2>'+esc(s.name)+'</h2><p>'+esc(s.studio)+(s.name!==s.studio?' · studio':'')+'</p></div>'+
+          '<span class="fc-save-status">'+(active?'Playing':'Stored')+'</span></div>'+
+          '<div class="fc-save-details"><span><strong>'+esc(String(s.year))+'</strong> In-game year</span>'+
+          '<span><strong>'+esc(String(s.releases))+'</strong> Releases</span>'+
+          '<span><strong>'+esc(stamp)+'</strong> Last saved</span></div>'+
+          '<div class="fc-save-actions">'+(active
+            ? '<button class="primary" onclick="UI.saveNow()">Save now</button>'
+            : '<button class="primary" onclick="UI.openSave(&quot;'+id+'&quot;)">Load campaign</button>')+
+          '<button onclick="UI.renameSave(&quot;'+id+'&quot;)">Rename</button>'+
+          (active?'<button onclick="UI.copySave()">Make a copy</button>':'')+
+          '<button class="fc-delete-save" onclick="UI.deleteSave(&quot;'+id+'&quot;)">Delete</button>'+
+          '</div></article>';
+      }).join('');
+      h+='</div>';
+    }
+    h+='<div class="fc-save-footer"><div><h2>Backups and new campaigns</h2>'+
+      '<p>Saves are stored only in this browser on this device. Export a backup if you want to move or protect a studio, including its uploaded posters.</p></div>'+
+      '<div class="fc-save-actions">'+(Engine.state?'<button onclick="UI.exportBackup()">Export active studio + posters</button>':'')+
+      '<label class="poster-upload fc-save-import">Import backup as new save<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>'+
+      '<button onclick="UI.quit()">Return to title / New studio</button></div></div></section>';
+    return h;
+  }
   function viewStart() {
     const saves=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
     const active=saves&&saves.slots.find(s=>s.active);
