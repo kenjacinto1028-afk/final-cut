@@ -54,7 +54,7 @@ try:
   page.locator('.fc-v14-ambitions article').first.get_by_role('button',name='Choose ambition').click()
   assert page.evaluate("!!Engine.v14Ambitions().active")
   page.screenshot(path='/tmp/finalcut-v14-studio-identity.png',animations='disabled')
-  page.evaluate("UI.go('rivals')")
+  page.evaluate("UI.go('calendar')")
   assert page.locator('.fc-v14-calendar>div').count()==12
   assert page.locator('.fc-v14-calendar').get_by_text('No announced rival opening').count()>=0
   page.screenshot(path='/tmp/finalcut-v14-rival-calendar.png',animations='disabled')
@@ -72,7 +72,7 @@ try:
   assert result['stage']=='done' and result['version']==13
   assert any(x['kind']=='production' for x in result['story'])
   assert page.locator('.fc-finance-table tbody tr').count()>=1
-  page.evaluate("(id)=>UI.openProject(id)",result['id'])
+  page.evaluate("(id)=>{UI.closePremiereReport();UI.openProject(id);UI.filmHubSelect('production')}",result['id'])
   assert page.locator('#drawer.open').count()==1
   assert page.locator('#drawer .fc-v14-film-story').count()==1
   page.screenshot(path='/tmp/finalcut-v14-film-legacy-drawer.png',animations='disabled')

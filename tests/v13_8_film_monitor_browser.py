@@ -69,6 +69,10 @@ try:
     return {id:f.project.id,gross:f.project.gross,tickets:Engine.filmAdmissions(f.project)};
   }""")
   assert result['gross']>0 and result['tickets']>0,result
+  # Multiple premieres may have queued during direct engine simulation.
+  for _ in range(10):
+   if not page.locator('#premiere-report').is_visible():break
+   page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
   assert page.locator('#film-monitor').is_visible()
   assert page.locator('.fc-monitor-card').count()>=1
   assert page.locator('#film-monitor').get_by_text('Cinema Rising').count()==1
@@ -94,6 +98,7 @@ try:
   # Studio film drawer: weekly graph and modeled audience; on top of the dock.
   page.locator('.fc-monitor-card',has_text='Cinema Rising').get_by_role('button',name='Cinema Rising').click()
   assert page.locator('#drawer.open').count()==1
+  page.evaluate("UI.closePremiereReport();UI.filmHubSelect('performance')")
   assert page.locator('#drawer .fc-performance-board').count()==1
   layers=page.evaluate("""()=>{
      const drawer=parseInt(getComputedStyle(document.getElementById('drawer')).zIndex);

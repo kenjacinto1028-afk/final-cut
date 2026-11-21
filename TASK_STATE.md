@@ -143,3 +143,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Created docs/CHANGELOG_V14_4A.md and PR #15; full compatibility gates await final branch head.
 - [x] All nine PR #15 workflows on b82a8ff passed; merged to main as d0e8cb7 and GitHub Pages deployment #44887771506 succeeded.
 - [ ] Physical iPhone/Android performance and broader multi-seed TV-series strategy balance remain future checks.
+
+## v14.5 implementation — checklist (2026-11-21)
+- [x] Created isolated branch feature/v14-5-ui-and-premiere-20261121 from main 6f38d6f; audited current UI, release engine and workflows.
+- [x] Consolidate sidebar navigation and local subtabs; preserve route IDs. — ui.js + style.css commits c1d7f10/c750bd2; tutorial selector regression to verify in QA.
+- [x] Consolidate Film Hub with clear short-tab detail sections. — ui.js 1d7d8f5 and style.css d75dc99; unified released project/archive six-tab hub, QA pending.
+- [x] Premiere report and critic classifications, sequential dismissal and saved replay. — engine.js a7ba9a5; ui.js ebc82be; index.html a418da6; style.css 72b3363; engine/UI QA pending.
+- [x] Add grounded broad-market release reach and region/reach/period/media ranking filters. — engine.js d2f220b, ui.js bb878f4; exact city/country charts remain unsupported until real submarket modeling.
+- [x] Strengthen marketplace script vs original screenplay differentiation. — engine.js 059a3b0/75e9569, ui.js 95ff6bd; paid scripts gain 1–2 craft readiness, originals retain free rights and flexibility.
+- [ ] Add QA coverage, run workflows, fix regressions and review UI on mobile. — new tests/v14_5_regression.js, tests/v14_5_browser.py and workflow v14_5.yml; browser test migration underway; CI pending.
+- [ ] Update release documentation and merge validated branch.

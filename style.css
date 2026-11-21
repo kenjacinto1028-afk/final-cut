@@ -592,3 +592,105 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
 @media(max-width:760px){.fc-grid{grid-template-columns:1fr}.fc-slate{display:flex;gap:7px;flex-wrap:wrap}.fc-slate h2{width:100%}.fc-title{flex:1 1 145px;width:auto}.fc-notes{grid-template-columns:1fr}.fc-pulse{grid-template-columns:1fr}.fc-feature{padding:17px}.fc-milestones{overflow-x:auto;grid-template-columns:repeat(6,84px)}}
 @media(max-width:480px){.fc-intro{align-items:flex-start;flex-direction:column}.fc-top{padding:17px}.fc-intro h1{font-size:29px}.fc-feature-art{width:65px;height:99px}.fc-feature h2{font-size:23px}.fc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.fc-pulse-list{grid-template-columns:1fr}.fc-strip span{flex:1 1 48%;padding:9px}}
 @media(prefers-reduced-motion:reduce){.fc-center *{animation:none!important;transition:none!important}}
+
+
+/* ===== V14.5 · FOCUSED NAVIGATION & PROGRESSIVE DISCLOSURE ===== */
+.fc-primary-nav{display:grid;gap:7px}
+#nav .fc-main-nav{font-size:14px;font-weight:700;border-radius:7px;min-height:42px}
+#nav .fc-main-nav span:last-child{opacity:.7;font-size:19px}
+#nav .fc-nav-create{border-radius:7px;margin:14px 0 8px;background:#b9d6ca;color:#192622;justify-content:center;font-weight:800}
+#nav .fc-nav-create:hover{background:#e1eee8;color:#16251d}
+#nav .fc-nav-tools{width:100%;border-radius:6px}
+#nav .fc-nav-tools>summary{padding:12px 10px;list-style-position:inside;cursor:pointer;font-size:12px;font-weight:700;color:#c8d1d3}
+#nav .fc-nav-tools[open]>summary{background:#202626}
+#nav .fc-nav-tool-content{display:grid;gap:3px;padding:4px}
+#nav .fc-nav-tool-content .sound{margin-top:8px;padding-top:10px;border-top:1px solid #3c4242}
+.fc-section-tabs{display:flex;flex-wrap:wrap;gap:6px;position:sticky;top:54px;z-index:4;margin:-12px 0 22px;padding:10px 0;background:var(--panel,#fff);border-bottom:1px solid var(--line)}
+.fc-section-tabs button{min-height:36px;border:1px solid transparent;background:transparent;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--muted)}
+.fc-section-tabs button:hover{background:#e8eeed;color:#172622}
+.fc-section-tabs button.is-active{border-color:#8aa499;background:#d8e5e0;color:#203b32}
+.fc-page-prelude{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fc-page-prelude .fc-page-context{font-size:12px}
+.fc-compact-page-info{margin:8px 0 16px;color:var(--muted);font-size:12px}
+.fc-disclosure{border:1px solid var(--line);border-radius:9px;padding:13px 16px;margin:15px 0}
+.fc-disclosure>summary{cursor:pointer;font-weight:750}
+.fc-disclosure>summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.fc-disclosure h2:first-child{margin-top:7px}
+@media(max-width:800px){
+  .fc-primary-nav{display:flex;flex-wrap:wrap;gap:4px}
+  #nav .fc-main-nav{width:auto;min-width:120px;flex:1 1 auto;justify-content:center;gap:6px;font-size:12px;min-height:40px}
+  #nav .fc-nav-create{margin:0;min-height:40px}
+  #nav .nav-foot{flex:1 1 100%}
+  .fc-section-tabs{position:relative;top:auto;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;white-space:nowrap;max-width:100%;margin:-2px 0 18px;padding:7px 0}
+  .fc-section-tabs button{flex:0 0 auto;min-height:43px}
+}
+@media(max-width:560px){
+  #nav .fc-main-nav{min-width:95px}
+  #main{overflow-x:hidden}
+  #main .tbl-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .fc-page-prelude .fc-page-context{display:none}
+}
+
+
+/* ===== V14.5 · UNIFIED RELEASE HUB ===== */
+.fc-hub-hero{display:grid;grid-template-columns:100px minmax(0,1fr);gap:15px;padding:10px 0 13px;align-items:start}
+.fc-hub-poster{width:100px;height:150px;overflow:hidden;border:1px solid #8c948f;border-radius:5px;background:#212826}
+.fc-hub-poster img,.fc-hub-poster svg{width:100%;height:100%;object-fit:cover}
+.fc-hub-intro>small{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.fc-hub-intro>h2{margin:4px 0;padding:0;border:0;font:700 24px/1.12 Georgia,serif}
+.fc-hub-intro>p{font-size:12px;line-height:1.4;color:var(--muted);margin:6px 0 10px}
+.fc-hub-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.fc-hub-numbers>span{display:grid;border:1px solid var(--line);border-radius:6px;padding:7px 4px;min-width:0;text-align:center}
+.fc-hub-numbers small{font-size:10px;color:var(--muted)}
+.fc-hub-numbers strong{font-size:13px;white-space:nowrap}
+.fc-hub-tabs{display:flex;gap:4px;overflow-x:auto;padding:5px 0 10px;margin:2px 0 14px;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.fc-hub-tabs button{flex:0 0 auto;border:1px solid transparent;color:var(--muted);border-radius:6px;white-space:nowrap;padding:8px 10px;font-size:11px;font-weight:750}
+.fc-hub-tabs button.is-active{background:#dce8e1;border-color:#a2b8ad;color:#193628}
+.fc-hub-panel{min-height:180px}
+.fc-hub-panel>h3:first-child{margin:8px 0 10px}
+.fc-hub-panel dl{margin:12px 0;max-width:100%}
+.fc-hub-panel .fc-film-press{margin-top:12px}
+.fc-reach-list{padding:4px 0 5px 17px;font-size:13px}
+.fc-reach-list li{padding:5px 0}
+@media(max-width:480px){.fc-hub-hero{grid-template-columns:70px minmax(0,1fr);gap:10px}.fc-hub-poster{width:70px;height:105px}.fc-hub-intro>h2{font-size:20px}.fc-hub-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}.fc-hub-tabs button{min-height:42px}}
+
+
+/* ===== V14.5 · RELEASE REPORT OVERLAY ===== */
+#premiere-report[hidden]{display:none}
+#premiere-report{position:fixed;inset:0;z-index:28}
+.fc-premiere-shade{position:absolute;inset:0;background:rgba(11,15,21,.81);display:grid;place-items:center;padding:16px}
+.fc-premiere-card{width:min(740px,100%);max-height:94dvh;overflow:auto;border:2px solid #b69e72;border-radius:12px;box-shadow:0 20px 90px #000b;background:#f8f5ed;color:#202621}
+.fc-premiere-mast{display:flex;justify-content:space-between;align-items:center;background:#202b2a;color:#f1e5c9;padding:12px 20px}
+.fc-premiere-mast small{font-size:10px;font-weight:800;letter-spacing:.15em}
+.fc-premiere-mast button{border:1px solid #b3ac97;background:transparent;color:#f1e5c9;border-radius:5px;padding:3px 10px}
+.fc-premiere-content{padding:16px 22px 7px}
+.fc-premiere-titlebar{display:grid;grid-template-columns:93px minmax(0,1fr);gap:16px;align-items:center}
+.fc-premiere-poster{width:93px;height:139px;overflow:hidden;border:1px solid #898d81;background:#25312e}
+.fc-premiere-poster svg,.fc-premiere-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.fc-premiere-titlebar h2{font:700 clamp(25px,4vw,36px)/1.14 Georgia,serif;border:0;padding:0;margin:4px 0 7px}
+.fc-premiere-titlebar small{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#5d695e;font-weight:700}
+.fc-premiere-titlebar p{font-size:13px;color:#465047;line-height:1.5}
+.fc-premiere-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:18px 0}
+.fc-premiere-stats>div{border:1px solid #c5c9bc;border-radius:7px;text-align:center;padding:10px 5px;background:#fff}
+.fc-premiere-stats small{display:block;color:#667568;font-size:10px;text-transform:uppercase}
+.fc-premiere-stats strong{font:800 21px/1.25 'Archivo',sans-serif}
+.fc-premiere-reach{border-left:3px solid #6a9181;padding:10px 13px;background:#e5eee7;font-size:13px}
+.fc-premiere-reach p{font-size:12px;margin:4px 0}
+.fc-premiere-content>h3{margin:15px 0 6px;font-size:15px}
+.fc-premiere-reviews{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fc-premiere-reviews article{background:#fff;border:1px solid #d9d7c8;border-radius:7px;padding:10px}
+.fc-premiere-reviews article>div{display:flex;justify-content:space-between;gap:7px;font-size:12px}
+.fc-premiere-reviews article>div span{font-weight:800;white-space:nowrap}
+.fc-premiere-reviews small{font-size:10px;color:#5d675d}
+.fc-premiere-reviews p{font-size:12px;margin:4px 0 0;line-height:1.45}
+.fc-premiere-impact{font-size:11px;color:#617060}
+.fc-premiere-actions{display:flex;justify-content:flex-end;gap:8px;padding:13px 22px;position:sticky;bottom:0;border-top:1px solid #d3d4c9;background:#f8f5ed}
+@media(max-width:530px){
+  .fc-premiere-shade{padding:6px}.fc-premiere-content{padding:12px}
+  .fc-premiere-mast{padding:11px 12px}.fc-premiere-titlebar{grid-template-columns:62px minmax(0,1fr);gap:10px}
+  .fc-premiere-poster{width:62px;height:93px}
+  .fc-premiere-reviews{grid-template-columns:1fr}
+  .fc-premiere-stats{gap:3px}.fc-premiere-stats strong{font-size:15px}
+  .fc-premiere-actions{padding:11px;flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.fc-premiere-card{animation:none!important}}

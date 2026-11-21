@@ -442,7 +442,8 @@ var Engine = (function () {
     const vision=V14_VISIONS[o.vision]?o.vision:(pitch?pitch.vision:'mainstream');
     return {pitchId:pitch?pitch.id:null,hook:pitch?pitch.hook:('An original '+o.genre+' story about '+o.topic+'.'),
       strengths,risk,vision,lane:vision==='prestige'?'arthouse':vision==='bold'?'genre':'mainstream',
-      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',choiceFlags:[]};
+      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',
+      scriptVision:pitch?pitch.vision:null,choiceFlags:[]};
   }
   function v14PitchById(id){return v14State().pitches.find(p=>p.id===String(id))||null;}
   // Authored combinations, not incoherent free-text procedural descriptions.
@@ -606,6 +607,7 @@ var Engine = (function () {
       filmArchive: { rivals: [], incompleteBefore: null },
       annualReviews: [],
       yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
+      premierePresented: [], // Release reports are presentation only, one per film with saved dismissal.
       reputation: { buzz: 5, currentPrestige: 0, lifetimeLegacy: 0, prestigeEvents: [] },
       world: { yearbook: [], decadeChampions: [], leadershipEvents: [] },
       legacyPlay: { milestones: [], initiative: null, nextInitiativeWeek: 0, reissues: [], lastReissueWeek: -999, industryShift: null, shiftHistory: [] },
@@ -1555,10 +1557,13 @@ var Engine = (function () {
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
     const staff = deptBonus('development'), era = eraQuality(p.genre),
+      // Authored paid scripts have modest readiness (+1; +2 when the creative
+      // vision stays aligned). The outcome is still driven by craft and luck.
+      scriptReadiness = p.scriptFee>0&&p.dna?.origin==='marketplace' ? (p.dna.scriptVision===p.dna.vision?2:1) : 0,
       decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
-    const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
+    const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + scriptReadiness + variance;
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
-    p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
+    p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, scriptReadiness, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
     return result;
   }
   function castFame(p, slot) { const v = p.cast[slot]; const t = typeof v === 'number' ? getTalent(v) : null; return t ? t.fame : 0; }
@@ -2687,7 +2692,8 @@ var Engine = (function () {
       pressReviews:(p.pressReviews||[]).slice(),pressHypeDelta:p.pressHypeDelta||0,sponsor:p.sponsor||null,
       gross: p.gross || 0, revenue: p.revenue || 0, reissueRevenue:p.reissueRevenue||0, profit: p.revenue - p.spent,
       estimatedAdmissions:filmAdmissions(p), estimatedScreeningViewers:shortAudience(p),
-      estimatedHouseholdImpressions:estimatedTvHouseholds(p),
+      estimatedHouseholdImpressions:estimatedTvHouseholds(p), estimatedOnlineViews:p.estimatedOnlineViews||null,
+      mediaVariant:p.mediaVariant||null,
       performanceHistory:(p.performanceHistory||[]).slice(-32),
       result: p.result || 'In release', stage: p.stage, franchiseId:p.franchiseId||null, sequelOf:p.sequelOf==null?null:'player:'+p.sequelOf, installment:p.installment||1, franchiseName:p.franchiseName||null, region: state.studio.homeRegion || 'northamerica',
       regions: p.regions || [], regionalGross: p.regionalGross || {},
@@ -2707,7 +2713,7 @@ var Engine = (function () {
   }
   function filmById(id) { return filmHistory().find(f => f.id === String(id)) || null; }
   // The rating uses one stable formula for both studio-only and world rankings.
-  function filmScore(f, criterion) {
+  function filmScore(f, criterion, region) {
     const awards = (f.awards || []).reduce((n, a) => n + (a.won ? 4 : 1), 0);
     const festivals = (f.festResults || []).reduce((n, a) => n +
       (/prize|grand|won|winner/i.test(a.result || '') ? 3 + Math.min(3, a.tierRank || 1) :
@@ -2716,7 +2722,9 @@ var Engine = (function () {
     const eraYears = Math.max(0, (f.year || TUNING.startYear) - TUNING.startYear);
     const eraScaleValue = Math.pow(1 + TUNING.market.audienceGrowth, eraYears);
     const reach = Math.min(100, 35 * Math.log10(1 + (f.gross || 0) / (Math.max(25000, f.budget || 25000) * 0.4)));
-    if (criterion === 'gross') return Math.round((f.gross || 0) / eraScaleValue);
+    if (criterion === 'gross') return Math.round((region ? (f.regionalGross?.[region]||0) : (f.gross||0)) / eraScaleValue);
+    if (criterion === 'audience') return f.audience == null ? -1 : f.audience;
+    if (criterion === 'reach') return f.format==='feature' ? (f.estimatedAdmissions||0) : f.format==='short' ? (f.estimatedScreeningViewers||0) : (f.mediaVariant==='web' ? f.estimatedOnlineViews||0 : f.estimatedHouseholdImpressions||0);
     if (criterion === 'critics') return f.critic == null ? -1 : f.critic;
     if (criterion === 'awards') return Math.round((awards + festivals) * 100) / 100;
     return Math.round((0.4 * (f.critic == null ? f.quality || 0 : f.critic) +
@@ -2724,14 +2732,24 @@ var Engine = (function () {
   }
   function filmRankings(opts) {
     opts = opts || {};
-    const criterion = opts.criterion || 'overall';
+    const criterion = opts.criterion || 'overall', currentYear=dateOf().year;
     const filter = f => f.stage === 'done' &&
-      (opts.format ? f.format === opts.format : f.format === 'feature') &&
+      (opts.format==='web' ? f.format==='pilot'&&f.mediaVariant==='web' :
+        opts.format==='pilot' ? f.format==='pilot'&&f.mediaVariant!=='web' :
+        f.format===(opts.format||'feature')) &&
       (!opts.genre || f.genre === opts.genre) && (!opts.topic || f.topic === opts.topic) &&
       (!opts.decade || Math.floor(f.year / 10) * 10 === Number(opts.decade)) &&
+      (!opts.period || opts.period==='all' ||
+        (opts.period==='year'&&f.year===currentYear) ||
+        (opts.period==='five'&&f.year>=currentYear-4&&f.year<=currentYear)) &&
       (!opts.region || (f.regions || []).includes(opts.region)) &&
+      (!opts.reach || (opts.reach==='home' ? (f.regions||[]).length===1 :
+        opts.reach==='international' ? (f.regions||[]).length>=2 :
+        (f.regions||[]).length>=4)) &&
+      // A region's gross chart only includes films with recorded local receipts.
+      (!(criterion==='gross'&&opts.region) || Number.isFinite(f.regionalGross?.[opts.region])) &&
       (!opts.awarded || (f.awards || []).some(a => a.won) || (f.festResults || []).some(a => /prize|grand|won|winner/i.test(a.result)));
-    const all = filmHistory().filter(filter).map(f => Object.assign({}, f, { score: filmScore(f, criterion) }));
+    const all = filmHistory().filter(filter).map(f => Object.assign({}, f, { score: filmScore(f, criterion, opts.region) }));
     all.sort((a, b) => b.score - a.score || (b.critic || 0) - (a.critic || 0) || a.releaseWeek - b.releaseWeek || String(a.id).localeCompare(String(b.id)));
     return all.map((f, i) => Object.assign({}, f, { worldRank: i + 1 })).filter(f => !opts.mine || f.projectId != null)
       .map((f, i) => Object.assign({}, f, { studioRank: opts.mine ? i + 1 : null }));
@@ -5253,6 +5271,9 @@ var Engine = (function () {
     // Existing saves already have historic annual reviews; don't replay those old
     // popups on migration. New games persist dismissed years as they are viewed.
     state.yearEndPresented = Array.isArray(state.yearEndPresented) ? state.yearEndPresented : state.annualReviews.map(r => r.year);
+    // Legacy studios already saw their historical releases. Do not replay all premieres after upgrade.
+    state.premierePresented = Array.isArray(state.premierePresented) ? state.premierePresented :
+      state.projects.filter(p => p.releaseWeek != null).map(p => p.id);
     state.reputation = state.reputation || migrateReputation(state);
     state.world = state.world || {yearbook:[],decadeChampions:[],leadershipEvents:[]};
     state.legacyPlay = state.legacyPlay || {milestones:[],initiative:null,nextInitiativeWeek:0,reissues:[],lastReissueWeek:-999,industryShift:null,shiftHistory:[]};

@@ -53,8 +53,9 @@ try:
   }""",data['id'])
   assert outcome['stage']=='release'
   assert outcome['reviews']>=1
+  page.evaluate("UI.filmHubSelect('reviews')")
   assert page.locator('#drawer .fc-film-review-list article').count()==outcome['reviews']
-  assert page.locator('#drawer .fc-film-press').get_by_text('Tier',exact=False).count()>0
+  assert 'Local Critic' in page.locator('#drawer .fc-film-press').inner_text() or 'Regional Critic' in page.locator('#drawer .fc-film-press').inner_text()
   for width in (320,390):
    page.set_viewport_size({'width':width,'height':810})
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+3'),width

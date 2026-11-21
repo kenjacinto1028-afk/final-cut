@@ -35,6 +35,7 @@ try:
     UI.go('projects');UI.openProject(r.project.id);
     return {id:r.project.id,year:Engine.dateOf().year};
   }""")
+  page.evaluate("UI.closePremiereReport();UI.filmHubSelect('performance')")
   assert page.locator('#drawer .fc-chart-summary').count()>=1
   assert page.locator('#drawer .fc-pulse-column').count()>=2
   bar=page.locator('#drawer .fc-pulse-column').last
@@ -69,13 +70,13 @@ try:
   assert row.count()==1
   assert row.locator('td').nth(5).inner_text().strip()=='—','Short must not be shown as a $0 theatrical film'
   assert '$' in row.locator('td').nth(6).inner_text(),'Short studio screening receipts should be visible'
-  page.evaluate('UI.go("rivals")')
+  page.evaluate('UI.go("calendar")')
   assert page.locator('.fc-v14-calendar>div').count()==12
   if page.locator('.fc-v14-rival').count():
    assert 'Feature film' in page.locator('.fc-v14-calendar').inner_text()
   for width in (320,390):
    page.set_viewport_size({'width':width,'height':780})
-   for view in ('rivals','archive','projects'):
+   for view in ('calendar','rivals','archive','projects'):
     page.evaluate('(v)=>UI.go(v)',view)
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+3'),(width,view)
   assert not errors,errors

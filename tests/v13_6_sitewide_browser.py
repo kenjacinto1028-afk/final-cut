@@ -84,7 +84,8 @@ with sync_playwright() as p:
         assert page.locator("#mobile-nav-toggle").is_visible()
         page.locator("#mobile-nav-toggle").click()
         assert page.locator("#nav").is_visible()
-        page.locator("#nav").get_by_role("button",name="Finance",exact=True).click()
+        page.locator("#nav [data-section='overview']").click()
+        page.locator("#main .fc-section-tabs [data-view='finance']").click()
         assert not page.locator("#nav").is_visible()
         assert page.get_by_role("heading",name="Finance",exact=True).is_visible()
         # The page can contain horizontally scrolling tables, but the document cannot.
