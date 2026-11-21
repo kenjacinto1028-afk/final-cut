@@ -18,7 +18,7 @@ var SaveSlots=(function(){
     try {
       const x=JSON.parse(ls.getItem(INDEX));
       if(!x||x.version!==VERSION||!Array.isArray(x.slots))throw Error('No index');
-      const slots=x.slots.filter(s=>s&&typeof s.id==='string'&&s.id.length<100)
+      const slots=x.slots.filter(s=>s&&typeof s.id==='string'&&/^s[a-z0-9-]{4,99}$/.test(s.id))
         .map(s=>({id:s.id,name:cleanName(s.name,s.studio),studio:String(s.studio||'Untitled Pictures'),
           year:Number(s.year)||1970,week:Number(s.week)||0,updatedAt:Number(s.updatedAt)||0,
           campaignId:typeof s.campaignId==='string'?s.campaignId:null,version:Number(s.version)||13,releases:Number(s.releases)||0}));
@@ -48,7 +48,7 @@ var SaveSlots=(function(){
   // Repair crash/restart gaps by matching the actual active campaign ID rather
   // than blindly trusting the index. Legacy saves get a named entry untouched.
   function ensure(){
-    const x=readIndex(),ls=storage(),raw=ls&&ls.getItem(ACTIVE),info=raw&&summary(raw);
+    const x=readIndex(),ls=storage(),raw=ls&&ls.getItem(ACTIVE),info=Engine.state?summaryFromState():(raw&&summary(raw));
     if(!info)return x;
     const active=x.slots.find(s=>s.id===x.activeId);
     if(active&&(!active.campaignId||!info.campaignId||active.campaignId===info.campaignId))return x;
