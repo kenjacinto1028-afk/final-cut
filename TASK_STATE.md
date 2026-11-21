@@ -57,8 +57,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Read approved `FinalCut_V14_Gameplay_Design_Proposal.md` and existing FinalCut v13.9 checkpoints; branch from correct `final-cut/main`.
 - [x] v14a foundation: `engine.js` adds compact Film DNA, creative vision, ordered causal film story, additive `state.v14` hydration; existing save version 13 unchanged (commit 92b60bf). Partnership mechanics follow in v14d.
 - [x] v14b engine: three authored quarterly pitches, safe early short, risk/fee, conditional rival interest and acquisition on greenlight; no infinite reroll, separate script cost, retained custom/sequels (`engine.js`, commit 2e0804b). UI selection and real AI bidding continue in v14f/h.
-- [ ] v14c: Implement contextual production dilemmas, meaningful consequences, limited decision pacing and delegation.
-- [ ] v14d: Add sparse director/writer partnerships and repeat-collaborator effects without actor-profile expansion.
+- [x] v14c engine: one Film DNA-specific production dilemma, three distinct choices, persistent consequences and one-at-a-time queue, simple ask/director/commercial delegation; existing cut decision retained.
+- [x] v14d engine: bounded (36 pairs) director/writer relationship histories, creative-trust consequences, modest capped craft effect, sequel/return continuity still intact; no actor career profile.
 - [ ] v14e: Implement forecast release competition, strategic positioning and bounded mid-run choices.
 - [ ] v14f: Extend rival behavior and causal industry news driven by real film and personnel competition.
 - [ ] v14g: Implement film afterlives, studio ambitions and earned evidence-backed classifications (player and AI).
