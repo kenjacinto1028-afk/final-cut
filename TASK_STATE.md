@@ -23,3 +23,12 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Themed all major screens, reference panels, drawer, modal, nonmodal tutorial and year-end honors; Awards page prioritizes live campaigns/trophies while collapsing reference/historical lists.
 - [x] Passed node/game regressions and 18-screen Chromium UI test, desktop/390px/360px, dialog/tutorial/drawer/navigation checks; real screenshots attached to GitHub Actions #44840730135. Documented in `docs/CHANGELOG_V13_6.md`.
 - [x] PR #2 merged into `main` (`3e659bea37f5`); sitewide UI and original gameplay CI passed (GitHub Actions #44840917513 and #44840917523); GitHub Pages deployment #44841003956 completed successfully.
+
+## v13.7 — Multiple save slots and campaign library (2026-11-21)
+- [x] Inspected existing single autosave `backlot_save`, lossless pack/migration, UI start/quit/backup flows and campaign-scoped IndexedDB posters.
+- [ ] Add safe Engine save-summary/pack helpers and session close, preserving save schema v13 and legacy `backlot_save`.
+- [ ] Implement IndexedDB save library: legacy registration, archived slots, autosave active, switch, duplicate, rename, delete and rollback protection.
+- [ ] Integrate title screen, Saves screen, sidebar and new-game/import/export handling; reset campaign-scoped poster caches.
+- [ ] Style save manager in A+B theme and add user documentation.
+- [ ] Add automated legacy + multiple-save + poster-isolation + backup + mobile/browser tests.
+- [ ] Gate merge on passing tests, merge FinalCut and verify GitHub Pages deployment.
