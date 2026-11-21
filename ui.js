@@ -2053,6 +2053,14 @@ var UI = (function () {
         money(budget.spent[k])+' spent / '+money(budget.allocation[k])+' planned').join('<br>'));
       h+=dl('Unspent reserve',money(budget.stageRemaining.reserve));
       h+='<p class="fc-budget-ledger">The project budget is a cap, not money paid twice. Routine production charges vary by stage. Unused funds stay in studio cash; studio overhead and payroll are separate.</p>';
+      if(['development','preproduction','shoot','post'].includes(p.stage)){
+        h+='<div class="fc-actions"><strong>Optional production budget review</strong>';
+        if(budget.stageRemaining.reserve>=50&&['development','preproduction','shoot'].includes(p.stage))
+          h+='<button onclick="UI.v144Shift('+p.id+',\'reserve\',\'shoot\')">Move $50 reserve to filming</button>';
+        if(budget.stageRemaining.reserve>=50)
+          h+='<button onclick="UI.v144Shift('+p.id+',\'reserve\',\'post\')">Move $50 reserve to post</button>';
+        h+='<button onclick="UI.v144Extra('+p.id+')">Approve $250 additional contingency cap</button></div>';
+      }
     }
     h += dl('Talent fees', money(p.fees || 0));
     h += dl('Spent', money(p.spent) + ' <div class="bar"><div style="width:' + pct + '%"></div></div>');
@@ -2068,7 +2076,12 @@ var UI = (function () {
       if(fst)h+=dl('Festival exposure',fst.selections+' recognitions · '+fst.judged+'/'+fst.planned+' judged'+
         (fst.next?' · next: '+esc(fst.next.name)+' '+dateLabel(fst.next.week):''));
     }
-    if(p.format==='pilot')h+=dl('Est. TV household impressions',compactCount(Engine.estimatedTvHouseholds(p)));
+    if(p.format==='pilot'){
+      if(p.mediaVariant==='web')h+=dl('Est. online episode views',compactCount(p.estimatedOnlineViews||0));
+      else h+=dl('Est. TV household impressions',compactCount(Engine.estimatedTvHouseholds(p)));
+      if(p.seriesRevenue!=null)h+=dl('Series revenue / expenses',
+        money(p.seriesRevenue)+' / '+money(p.seriesSpend||0)+' · tracked separately from pilot spend');
+    }
     if (p.format === 'feature') h += dl('Gross', cu('gross-' + p.id, p.gross));
     h += dl('Revenue', cu('revenue-' + p.id, p.revenue));
     h += dl('Profit', profit == null ? '–' : '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>');
@@ -2944,6 +2957,14 @@ var UI = (function () {
       draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
       draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
+  function v144Shift(id,from,to){
+    const r=Engine.v144Reallocate(id,from,to,50);
+    setFlash(r.ok?'Moved $50 of unspent project funds.':r.reason);render();
+  }
+  function v144Extra(id){
+    const r=Engine.v144IncreaseCap(id,250,'reserve');
+    setFlash(r.ok?'Approved a $250 higher cap; no cash charged until spent.':r.reason);render();
+  }
   function seriesPlan(id,kind){const r=Engine.seriesPlan(id,kind);if(!r.ok)setFlash(r.reason);render();}
   function seriesEpisodeCount(id,n){
     const s=Engine.getSeries(id);if(!s)return;
@@ -3133,6 +3154,7 @@ var UI = (function () {
     tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     setMediaVariant:setMediaVariant,setScope:setScope,setBudgetCap:setBudgetCap,
+    v144Shift:v144Shift,v144Extra:v144Extra,
     seriesPlan:seriesPlan,seriesEpisodeCount:seriesEpisodeCount,seriesScope:seriesScope,seriesSponsor:seriesSponsor,
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
