@@ -2620,7 +2620,7 @@ var UI = (function () {
     "section": "Get started",
     "title": "Welcome to your studio",
     "view": "dashboard",
-    "target": "#nav [data-view=\"dashboard\"]",
+    "target": "#nav [data-section=\"overview\"]",
     "location": "Dashboard",
     "text": "Follow a real first film from script to release and financial results. The guide never plays the game for you. Minimize, skip or browse reference instructions at any time."
   },
@@ -2636,8 +2636,8 @@ var UI = (function () {
     "section": "Plan a film",
     "title": "Open New Project",
     "view": "newproject",
-    "target": "#nav [data-view=\"newproject\"]",
-    "location": "Studio → New project",
+    "target": "#nav .fc-nav-create",
+    "location": "Productions → New Project (or + New Project)",
     "text": "Click New project to see script opportunities, affordable short films, budgets and talent.",
     "visit": "newproject"
   },
@@ -2671,8 +2671,8 @@ var UI = (function () {
     "section": "Produce",
     "title": "Go to Production Center",
     "view": "projects",
-    "target": "#nav [data-view=\"projects\"]",
-    "location": "Studio → Projects",
+    "target": "#nav [data-section=\"productions\"]",
+    "location": "Productions → Production Center",
     "text": "Open Projects. Your active film progresses automatically, but a genuine decision may interrupt.",
     "visit": "projects"
   },
@@ -2680,9 +2680,9 @@ var UI = (function () {
     "section": "Produce",
     "title": "Open its Film Hub",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Projects → Open project details",
-    "text": "Open the project details. Explore Film DNA, promotion choices, any sponsorship offer and locked future actions. The guide waits until the Film Hub is open.",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Project Monitor → Project Details",
+    "text": "Open Project Details directly from the Project Monitor to inspect the active film in the Film Hub. Keep the tutorial visible while using the game.",
     "goal": "hub"
   },
   {
@@ -2725,9 +2725,9 @@ var UI = (function () {
     "section": "Release",
     "title": "Open release performance",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Projects → Open project details → Weekly performance",
-    "text": "Open the Film Hub again. Compare Film quality, opening Hype, critic reviews, studio receipts and modeled audience reach.",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Project Monitor → Project Details → Performance tab",
+    "text": "When your film premieres, read the opening report, then use Project Monitor → Project Details → Performance for live weekly numbers. The end-of-run report arrives later.",
     "goal": "hubReleased"
   },
   {
@@ -2743,18 +2743,18 @@ var UI = (function () {
     "section": "Release",
     "title": "Read direct profit or loss",
     "view": "projects",
-    "target": "#main .fc-center",
-    "location": "Film Hub → Weekly performance and Direct P/L",
+    "target": "#film-monitor .fc-monitor-card button",
+    "location": "Film Hub → Performance → Direct P/L",
     "text": "Open your Film Hub and read receipts less film spending. Direct P/L excludes shared overhead. Gross theatrical receipts and studio earnings are not the same.",
     "goal": "hubReleased"
   },
   {
     "section": "Your catalog",
-    "title": "Visit My Filmography",
+    "title": "Visit My Releases",
     "view": "filmography",
-    "target": "#nav [data-view=\"filmography\"]",
-    "location": "Studio → My Filmography",
-    "text": "Open My Filmography to find your released movie, studio revenue, P/L and estimated audience.",
+    "target": "#main .fc-section-tabs [data-view=\"filmography\"]",
+    "location": "Productions → My Releases (My Filmography)",
+    "text": "Open Productions, then My Releases. All released films should appear in My Filmography; reset filters using All My Films.",
     "visit": "filmography"
   },
   {
@@ -2762,7 +2762,7 @@ var UI = (function () {
     "title": "Open your released film",
     "view": "filmography",
     "target": "#main .fc-finance-table",
-    "location": "My Filmography → select your film title",
+    "location": "Productions → My Releases → All My Films → select the title",
     "text": "Click the released film title. It shows the actual custom poster, cast, critic opinions, festival history and a link back to Film Hub.",
     "goal": "film"
   },
@@ -2771,15 +2771,15 @@ var UI = (function () {
     "title": "Understand a film's second life",
     "view": "filmography",
     "target": "#main .fc-finance-table",
-    "location": "Film record → Open Film Hub",
+    "location": "My Releases → select a film → Film Hub",
     "text": "Short films may qualify for festival press kits and encore screenings, normally quality 60+ or a selection. Features may later license rights or screen again. Locked actions explain why; none are automatic windfalls."
   },
   {
     "section": "The industry",
-    "title": "Explore World Film Archive",
+    "title": "Explore Film Archive",
     "view": "archive",
-    "target": "#nav [data-view=\"archive\"]",
-    "location": "World → World Film Archive",
+    "target": "#nav [data-section=\"history\"]",
+    "location": "History → Film Archive",
     "text": "Compare historical releases from player and rival studios. Shorts show screening receipts rather than misleading $0 theatrical gross.",
     "visit": "archive"
   },
@@ -2796,8 +2796,8 @@ var UI = (function () {
     "section": "Your studio",
     "title": "Review studio identity",
     "view": "studio_profile",
-    "target": "#nav [data-view=\"studio_profile\"]",
-    "location": "Studio → Studio Profile",
+    "target": "#nav [data-section=\"overview\"]",
+    "location": "Overview → Studio",
     "text": "Company classification follows your real film portfolio. Growing Lifetime Fame, Buzz and Prestige also attracts more sponsor offers and higher-tier critic coverage.",
     "visit": "studio_profile"
   },
@@ -2805,17 +2805,17 @@ var UI = (function () {
     "section": "Keep playing",
     "title": "Save your career",
     "view": "saves",
-    "target": "#nav [data-view=\"saves\"]",
-    "location": "Studio → Saved Games",
-    "text": "Save Now and automatic saves protect your progress. Export a backup with posters before switching phones or browsers; saves do not cloud-sync automatically.",
+    "target": "#nav .fc-nav-tools summary",
+    "location": "Settings & saves → Saved Games",
+    "text": "Open Saved Games from Settings & saves, or use the navigation when the guide opens the section for you.",
     "visit": "saves"
   },
   {
     "section": "Keep playing",
     "title": "Start your next picture",
     "view": "newproject",
-    "target": "#nav [data-view=\"newproject\"]",
-    "location": "Studio → New project",
+    "target": "#nav .fc-nav-create",
+    "location": "Productions → New Project",
     "text": "You have followed a real movie to release and reviewed its results. Try a new genre, an ambitious feature, a sequel or a future catalog opportunity. Reopen the guide any time."
   }
 ];
