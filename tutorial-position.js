@@ -60,14 +60,14 @@
       const candidates = [[margin,maxY],[margin,margin],[maxX,margin],[maxX,maxY]];
       const important = [...document.querySelectorAll('#main button.primary, #drawer button.primary, .tutorial-target, #mobile-nav-toggle')]
         .filter(el => el.getClientRects().length && !el.closest('#tutorial'))
-        .map(el => el.getBoundingClientRect())
-        .filter(r => r.width < innerWidth * .75 && r.height < innerHeight * .55);
+        .map(el => ({rect: el.getBoundingClientRect(), weight: el.classList.contains('tutorial-target') || el.id === 'mobile-nav-toggle' ? 100 : 1}))
+        .filter(item => item.rect.width < innerWidth * .75 && item.rect.height < innerHeight * .55);
       function overlap(x,y,r) {
         return Math.max(0,Math.min(x+width,r.right+12)-Math.max(x,r.left-12)) *
           Math.max(0,Math.min(y+height,r.bottom+12)-Math.max(y,r.top-12));
       }
-      candidates.sort((a,b) => important.reduce((s,r)=>s+overlap(a[0],a[1],r),0) -
-        important.reduce((s,r)=>s+overlap(b[0],b[1],r),0));
+      candidates.sort((a,b) => important.reduce((s,item)=>s+item.weight*overlap(a[0],a[1],item.rect),0) -
+        important.reduce((s,item)=>s+item.weight*overlap(b[0],b[1],item.rect),0));
       node.style.left = candidates[0][0] + 'px';
       node.style.top = candidates[0][1] + 'px';
       node.style.right = 'auto';
