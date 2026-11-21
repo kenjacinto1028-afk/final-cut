@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.7)
+# Final Cut — Current Handoff (v13.8)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -64,3 +64,10 @@ Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Sy
 - `ui.js`/ `theme-ab.css`: Save Library screen and actions, safe New Game, load/save/rename/delete/copy, and new-slot full-backup imports.
 - `tests/v13_7_multi_save_browser.py` uses a real localhost Chromium origin and IndexedDB, and `.github/workflows/multi-saves.yml` verifies the old v13 regression suites too.
 - Clearing site/browser storage still deletes local slots; full backups are the transfer/recovery path. See `docs/CHANGELOG_V13_7.md`.
+
+## v13.8 — Project Monitor and film-level weekly metrics
+- `engine.js` adds simulated-ticket-price conversion, `filmAdmissions` and bounded (32 entries) project weekly ledger. It never adjusts historic accounting or fabricates old weekly records. A one-time film publicity push costs real studio cash, changes direct project spending and modestly boosts future demand.
+- `ui.js` clearly separates **theatrical box office**, **studio receipts**, **direct project P/L**, and **estimated admissions**; shares compact weekly receipt/box-office charts between Filmography, Production Center, project/film drawers, and the pinned side Project Monitor.
+- `index.html` mounts `#film-monitor`, and `theme-ab.css` styles a collapsible charcoal/sage/brass right-side dock above main navigation and below drawers/modals. Default open on wide desktop, manual toggle on narrow screens.
+- `tests/v13_8_film_finance.js` checks engine-side reconciliation and old saves; `tests/v13_8_film_monitor_browser.py` checks actual UI, browser reload, responsive dock, screenshots; workflow `.github/workflows/film-performance-v13_8.yml` also reruns existing regression suites.
+- Existing save schema **v13** and IndexedDB multi-save library are unchanged. Model-estimated ticket admissions are never presented as measured actual viewers; for shorts/pilots no attendance count is invented.
