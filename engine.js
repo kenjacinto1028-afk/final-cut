@@ -3876,6 +3876,158 @@ var Engine = (function () {
     addLog('Classic reissue: "'+p.title+'" returns to screens for '+fmtMoney(received)+' nostalgia revenue on '+fmtMoney(q.cost)+' spend.','release');
     save();emit('reissue',p);return {ok:true,cost:q.cost,revenue:received};
   }
+
+  function v14FilmLegacy(p){
+    if(!p||p.releaseWeek==null)return null;
+    const profit=(p.revenue||0)-(p.spent||0),critic=p.critic||0,audience=p.audience||0;
+    const ratio=(p.gross||0)/Math.max(1,p.budget||1);
+    let kind='Completed film';
+    if(p.format==='short')kind=(p.festResults||[]).some(x=>x.kind==='winner')?'Festival favorite':'Festival circuit film';
+    else if(p.format==='pilot')kind=p.result==='Picked up'?'Television launch':'Unpicked pilot';
+    else if(ratio>=2.5&&profit>0)kind='Franchise foundation';
+    else if(critic>=75&&ratio<1.5&&audience>=65)kind='Cult critical favorite';
+    else if(critic>=77)kind='Critical standout';
+    else if(audience>=72&&profit>=0)kind='Audience favorite';
+    else if(profit<0)kind='Commercial disappointment';
+    return {kind,profit,critics:critic,audience,decisions:v14Storyboard(p),
+      awards:(p.awards||[]).filter(a=>a.won).length,
+      festivalWins:(p.festResults||[]).filter(a=>a.kind==='winner').length,
+      afterlife:p.afterlifeChoices||[]};
+  }
+  function v14AfterlifeQuote(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.format!=='feature'||p.stage!=='done'||p.releaseWeek==null)
+      return {ok:false,reason:'An eligible completed feature is required.'};
+    const age=state.week-p.releaseWeek,prev=p.afterlifeChoices||[];
+    if(age<4||age>52*9)return {ok:false,reason:'The catalog opportunity is not currently active.'};
+    if(prev.length>=2||prev.some(x=>state.week-x.week<52))
+      return {ok:false,reason:'This film has already had a recent catalog opportunity.'};
+    if(kind==='license'){
+      if(prev.some(x=>x.kind==='license'))return {ok:false,reason:'Rights already licensed.'};
+      const future=(p.windows||[]).reduce((a,w)=>a+Math.max(0,w.total-w.paid),0);
+      if(future<Math.max(300,p.budget*.015))return {ok:false,reason:'Too little remaining unsold rights value.'};
+      const upfront=Math.round(future*.27),futureLoss=Math.round(future*.34);
+      return {ok:true,kind,name:'Early catalog license',cost:0,upfront,futureLoss,
+        description:'Receive '+fmtMoney(upfront)+' now, forfeiting approximately '+fmtMoney(futureLoss)+
+          ' in projected future rights payouts. Existing windows keep their original dates.'};
+    }
+    if(kind==='retrospective'){
+      if((p.critic||0)<68)return {ok:false,reason:'Requires proven critical recognition (critics 68+).'};
+      const cost=Math.max(400,Math.round(p.budget*.018/100)*100);
+      if(state.cash<cost)return {ok:false,reason:'Not enough cash for the retrospective.',cost};
+      return {ok:true,kind,name:'Curated retrospective',cost,
+        forecast:Math.min(p.budget*.055,(p.gross||0)*.045),
+        description:'Fund a small archival screening and critical retrospective. Limited attendance and recognition are uncertain.'};
+    }
+    if(kind==='cult'){
+      if((p.audience||0)<68||!['bold','prestige'].includes(p.dna.vision))
+        return {ok:false,reason:'This film has not established the audience or cult credentials.'};
+      const cost=Math.max(300,Math.round(p.budget*.012/100)*100);
+      if(state.cash<cost)return {ok:false,reason:'Not enough cash for the fan screenings.',cost};
+      return {ok:true,kind,name:'Fan-led screening tour',cost,
+        forecast:Math.round(Math.min(p.budget*.09,(p.gross||0)*.065)),
+        description:'Book a three-week fan tour. Costs are certain, attendance and added receipts are not.'};
+    }
+    return {ok:false,reason:'Unknown catalog opportunity.'};
+  }
+  function v14AfterlifeAction(id,kind){
+    const q=v14AfterlifeQuote(id,kind);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    p.afterlifeChoices=p.afterlifeChoices||[];
+    if(q.cost){state.cash-=q.cost;state.finance.q.production+=q.cost;p.spent+=q.cost;
+      recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);}
+    let outcome='';
+    if(kind==='license'){
+      // Trade off the exact booked rights liability; no new recurring stream.
+      (p.windows||[]).forEach(w=>{
+        const future=Math.max(0,w.total-w.paid);
+        w.total=w.paid+Math.round(future*.66);
+      });
+      earn(q.upfront);p.revenue+=q.upfront;outcome='Received upfront rights payment '+fmtMoney(q.upfront)+
+        ' in exchange for future royalties.';
+      recordProjectPulse(p,state.week,0,q.upfront,0,p.stage,0);
+    }else {
+      p.v14AfterlifeRun={kind,from:state.week+1,weeks:kind==='cult'?3:2,
+        estimated:q.forecast||0,received:0};
+      outcome='Booked '+q.name.toLowerCase()+'; upcoming returns are uncertain.';
+    }
+    p.afterlifeChoices.push({week:state.week,kind,cost:q.cost,upfront:q.upfront||0});
+    filmStory(p,'afterlife',outcome);
+    addLog('Catalog decision for "'+p.title+'": '+outcome,'release');
+    save();emit('film_afterlife',p);return {ok:true};
+  }
+  function v14AfterlifeTick(){
+    let sum=0;
+    state.projects.forEach(p=>{
+      const run=p.v14AfterlifeRun;if(!run||state.week<run.from||run.completed)return;
+      const elapsed=state.week-run.from+1;
+      const total=Math.max(0,Math.round(run.estimated*(
+        .58+(p.audience||50)/175)*(.86+rnd(-.15,.19))));
+      const pay=elapsed>=run.weeks?Math.max(0,total-run.received):
+        Math.max(0,Math.round(total/run.weeks));
+      run.received+=pay;sum+=pay;p.revenue+=pay;
+      if(elapsed>=run.weeks){
+        run.completed=true;
+        filmStory(p,'legacy',run.kind==='cult'?'A small fan community returned for '+fmtMoney(run.received)+' in screenings.':
+          'The retrospective ended with '+fmtMoney(run.received)+' in new interest and receipts.');
+        addLog('Afterlife report for "'+p.title+'": '+fmtMoney(run.received)+
+          ' receipts against direct campaign expenses.','release');
+      }
+    });
+    return sum;
+  }
+  const V14_AMBITIONS=[
+    {id:'newvoices',name:'Launch a new voice',desc:'Release a film with a developing writer and earn critics 67+.',years:2,
+      reward:'Early access to a trusted writer’s next script'},
+    {id:'prestige',name:'Acclaimed and solvent',desc:'Make a feature with critics 75+ and positive direct film P/L.',years:2,
+      reward:'An industry introduction to prestige scripts'},
+    {id:'genre',name:'Build a genre following',desc:'Release two profitable films in the same genre.',years:3,
+      reward:'A specialist writer brings a new idea'},
+    {id:'global',name:'Reach new regions',desc:'Release a feature in three or more regions.',years:2,
+      reward:'Foreign distributors invite future pitches'},
+    {id:'festival',name:'Festival reputation',desc:'Earn two official festival selections or prizes.',years:3,
+      reward:'A modest festival relationship opens'},
+    {id:'tv',name:'Build a television foothold',desc:'Get a pilot picked up by a network.',years:2,
+      reward:'A meeting with a network commissioning team'}
+  ];
+  function v14Ambitions(){
+    const v=v14State(),year=dateOf().year;
+    const slots=[V14_AMBITIONS[(year*5)%V14_AMBITIONS.length],
+      V14_AMBITIONS[(year*5+2)%V14_AMBITIONS.length],
+      V14_AMBITIONS[(year*5+4)%V14_AMBITIONS.length]];
+    return {active:v.ambition||null,options:slots.map(x=>({...x})),
+      recent:(v.offers||[]).slice(-5)};
+  }
+  function v14PickAmbition(id){
+    const options=v14Ambitions(),def=options.options.find(x=>x.id===id);
+    if(!def)return {ok:false,reason:'Choose one of the currently available ambitions.'};
+    if(options.active&&options.active.expiresWeek>state.week&&!options.active.completed)
+      return {ok:false,reason:'Your studio already has an active ambition.'};
+    v14State().ambition={id:def.id,name:def.name,startWeek:state.week,
+      expiresWeek:state.week+def.years*52,completed:false,reward:def.reward};
+    save();emit('ambition',v14State().ambition);return {ok:true};
+  }
+  function v14AmbitionTick(){
+    const a=v14State().ambition;if(!a||a.completed||a.expiresWeek<state.week)return;
+    const films=state.projects.filter(p=>p.releaseWeek!=null&&p.releaseWeek>=a.startWeek);
+    const complete=(id)=>{
+      if(id==='newvoices')return films.some(f=>f.critic>=67&&f.cast.writer!=='founder'&&
+        (f.talentSnapshot?.writer?.fame||100)<35);
+      if(id==='prestige')return films.some(f=>f.format==='feature'&&f.critic>=75&&f.revenue>f.spent);
+      if(id==='global')return films.some(f=>f.format==='feature'&&(f.regions||[]).length>=3);
+      if(id==='tv')return films.some(f=>f.format==='pilot'&&f.result==='Picked up');
+      if(id==='festival')return films.reduce((n,f)=>n+(f.festResults||[]).filter(x=>x.kind==='selection'||x.kind==='winner').length,0)>=2;
+      if(id==='genre')return films.some(f=>films.filter(g=>g!==f&&g.genre===f.genre&&g.stage==='done'&&g.revenue>g.spent&&f.revenue>f.spent&&f.stage==='done').length>=1);
+      return false;
+    };
+    if(!complete(a.id))return;
+    a.completed=true;a.completedWeek=state.week;
+    const v=v14State();v.offers.push({id:a.id,week:state.week,expiresWeek:state.week+104,reward:a.reward,used:false});
+    if(v.offers.length>8)v.offers.shift();
+    addLog('Studio ambition achieved: '+a.name+'. '+a.reward+'.','studio');
+    state.stopFlag=true;emit('ambition_complete',a);
+  }
+
   const DECADE_SHIFTS=[
     {year:1980,name:'Home-video and genre boom',genres:['horror','comedy'],mult:1.15},
     {year:1990,name:'International multiplex expansion',genres:['action','scifi'],mult:1.16},
@@ -4081,6 +4233,7 @@ var Engine = (function () {
     state.projects.forEach(p => { if (p.stage === 'release') revenue += releaseIncome(p); });
     revenue += windowsTick();
     revenue += shortEncoreTick();
+    revenue += v14AfterlifeTick();
     const tv = tvTick();
     revenue += tv.revenue;
     production += tv.cost;
@@ -4106,6 +4259,8 @@ var Engine = (function () {
     shiftTick();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
+    if(state.week%13===0)v14ClassificationTick();
+    v14AmbitionTick();
     if (dateOf().week === TUNING.weeksPerYear) annualReview();
     checkBankruptcy();
     // Track actual booked project income, expenses, and release reach; keep
@@ -4314,6 +4469,8 @@ var Engine = (function () {
     v14ReleasePlans:()=>V14_RELEASE_PLANS, v14SetReleasePlan:v14SetReleasePlan, v14ReleaseCalendar:v14ReleaseCalendar,
     v14ReleaseResponseQuote:v14ReleaseResponseQuote, v14ReleaseResponse:v14ReleaseResponse,
     v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote,
-    v14Rivalry:()=>v14State().rivalry.slice(-15), v14Identity:v14Identity
+    v14Rivalry:()=>v14State().rivalry.slice(-15), v14Identity:v14Identity,
+    v14FilmLegacy:v14FilmLegacy, v14AfterlifeQuote:v14AfterlifeQuote,v14AfterlifeAction:v14AfterlifeAction,
+    v14Ambitions:v14Ambitions,v14PickAmbition:v14PickAmbition
   };
 })();
