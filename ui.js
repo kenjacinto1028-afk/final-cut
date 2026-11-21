@@ -1133,9 +1133,9 @@ var UI = (function () {
   }
 
 // ===== SECTION: FILM_ARCHIVES =====
-  const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', format: 'all', query: '', page: 0 };
+  const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', reach:'', period:'all', format: 'all', query: '', page: 0 };
   const rankTypes = [['overall','Best Overall'],['genre','Best by Genre'],['topic','Best by Topic'],
-    ['gross','Top Grossing'],['critics','Critics’ Favorites'],['awards','Award Leaders']];
+    ['gross','Top Grossing'],['critics','Critics’ Favorites'],['audience','Audience Favorites'],['reach','Most Viewed'],['awards','Award Leaders']];
   function setFilmFilter(field, value) {
     if (Object.prototype.hasOwnProperty.call(filmBrowse, field)) filmBrowse[field] = value;
     if (field === 'criterion' && value === 'genre' && !filmBrowse.genre) filmBrowse.genre = CONTENT.GENRES[0].id;
@@ -1148,16 +1148,23 @@ var UI = (function () {
       options.map(o => '<option value="' + esc(o[0]) + '"' + (String(filmBrowse[key]) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>';
     let h = '<div class="archive-filters">';
     if (includeRank) h += select('criterion', rankTypes);
-    h += select('format', includeRank ? [['feature','Features'],['short','Short films']] : [['all','All formats'],['feature','Features'],['short','Short films'],['pilot','TV pilots']]);
+    h += select('format', includeRank ? [['feature','Features'],['short','Short films'],['pilot','TV pilots'],['web','Web productions']] : [['all','All formats'],['feature','Features'],['short','Short films'],['pilot','TV pilots'],['web','Web productions']]);
     h += select('genre', [['','All genres']].concat(CONTENT.GENRES.map(g => [g.id,g.name])));
     h += select('topic', [['','All topics']].concat(CONTENT.TOPICS.map(t => [t.id,t.name])));
-    h += select('region', [['','All release markets']].concat(CONTENT.REGIONS.map(r => [r.id,r.name])));
+    if(!['pilot','web'].includes(filmBrowse.format)){
+      h += select('region', [['','All release markets']].concat(CONTENT.REGIONS.map(r => [r.id,r.name])));
+      h += select('reach', [['','Any coverage'],['home','Home territory only'],['international','International distribution'],['worldwide','Worldwide (4+ markets)']]);
+    }
+    if(includeRank)h += select('period', [['all','All time'],['year','This year'],['five','Past five years']]);
     h += select('decade', [['','All decades']].concat([1970,1980,1990,2000,2010,2020,2030].map(y => [y,String(y)+'s'])));
     return h + '</div>';
   }
   function filmLabel(f) { return '<a href="#" onclick="UI.openFilm(\'' + esc(f.id) + '\');return false">' + esc(f.title) + '</a>'; }
   function rankOptions(mine) {
-    const opts = { mine: !!mine, format: filmBrowse.format === 'all' || filmBrowse.format === 'pilot' ? 'feature' : filmBrowse.format, decade: filmBrowse.decade || null, region: filmBrowse.region || null };
+    const opts = { mine: !!mine, format: filmBrowse.format === 'all' ? 'feature' : filmBrowse.format,
+      decade: filmBrowse.decade || null, region: ['pilot','web'].includes(filmBrowse.format)?null:filmBrowse.region || null,
+      reach: ['pilot','web'].includes(filmBrowse.format)?null:filmBrowse.reach || null,
+      period:filmBrowse.period };
     if (filmBrowse.genre) opts.genre = filmBrowse.genre;
     if (filmBrowse.topic) opts.topic = filmBrowse.topic;
     if (filmBrowse.criterion === 'genre' && !opts.genre) opts.genre = CONTENT.GENRES[0].id;
@@ -1188,7 +1195,7 @@ var UI = (function () {
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
     const detailed=!ranked,ownDetails=mine&&!ranked;
-    const heads=(ranked?'<th>World #</th>'+(mine?'<th>Studio #</th>':''):'')+
+    const heads=(ranked?'<th>'+(filmBrowse.region?'Market #':'Rank #')+'</th>'+(mine?'<th>Studio #</th>':''):'')+
       (ownDetails?'<th>Studio #</th><th>World #</th>':'')+
       '<th>Film</th>'+(mine?'':'<th>Studio</th>')+'<th>Year</th><th>Format / Genre / Topic</th><th class="num">Critics</th>'+
       (detailed
@@ -1209,7 +1216,8 @@ var UI = (function () {
           ?'<td class="num">'+(f.format==='feature'&&f.gross!=null?money(f.gross):'<span class="muted" title="No theatrical gross recorded for this format">—</span>')+'</td>'+
            '<td class="num">'+(f.revenue==null?'<span class="muted">—</span>':money(f.revenue))+'</td><td class="num">'+c+'</td>'+
            '<td class="num" title="Modeled reach, not counted unique viewers">'+reach+'</td>'
-          :'<td class="num">'+money(f.gross||0)+'</td>';
+          :'<td class="num">'+(f.format==='feature'?money(filmBrowse.region&&f.regionalGross?.[filmBrowse.region]!=null?f.regionalGross[filmBrowse.region]:f.gross||0):
+           f.format==='short'?money(f.revenue||0)+' screenings':compactCount(f.mediaVariant==='web'?f.estimatedOnlineViews||0:f.estimatedHouseholdImpressions||0)+' impressions')+'</td>';
         return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(ownDetails?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
           '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
@@ -1235,9 +1243,14 @@ var UI = (function () {
     let films = Engine.filmHistory().filter(f => !my || f.projectId != null);
     if (filmBrowse.genre) films = films.filter(f=>f.genre === filmBrowse.genre);
     if (filmBrowse.topic) films = films.filter(f=>f.topic === filmBrowse.topic);
-    if (filmBrowse.region) films = films.filter(f=>(f.regions||[]).includes(filmBrowse.region));
+    if (filmBrowse.region && !['pilot','web'].includes(filmBrowse.format)) films = films.filter(f=>(f.regions||[]).includes(filmBrowse.region));
+    if (filmBrowse.reach && !['pilot','web'].includes(filmBrowse.format)) films = films.filter(f=>{
+      const n=(f.regions||[]).length;
+      return filmBrowse.reach==='home'?n===1:filmBrowse.reach==='international'?n>=2:n>=4;
+    });
     if (filmBrowse.decade) films = films.filter(f=>Math.floor(f.year/10)*10 === Number(filmBrowse.decade));
-    if (filmBrowse.format && filmBrowse.format !== 'all') films = films.filter(f=>f.format === filmBrowse.format);
+    if (filmBrowse.format && filmBrowse.format !== 'all') films = films.filter(f=>filmBrowse.format==='web'?f.format==='pilot'&&f.mediaVariant==='web':
+      filmBrowse.format==='pilot'?f.format==='pilot'&&f.mediaVariant!=='web':f.format === filmBrowse.format);
     films.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
     return filmTable(films,false,my);
   }
@@ -1252,7 +1265,7 @@ var UI = (function () {
       '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
       '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
-    return '<h1>My Filmography</h1><p class="muted">All releases and direct film financials. Shorts earn screening income and pilots earn network income, not theatrical gross. Feature ticket counts are estimates, not actual attendance records.</p>'+dashboard+
+    return '<h1>My Releases</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
 
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
@@ -1265,8 +1278,8 @@ var UI = (function () {
       '</p>' + filmFilters(false) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
   function viewRankings() {
-    if (filmBrowse.format === 'all' || filmBrowse.format === 'pilot') filmBrowse.format = 'feature';
-    return '<h1>Film Rankings</h1><p class="muted">Worldwide lists include every archived studio film; merit balances reviews, production quality, era-adjusted reach and recognition. Short films have a separate ranking.</p>' +
+    if (filmBrowse.format === 'all') filmBrowse.format = 'feature';
+    return '<h1>Film Rankings</h1><p class="fc-compact-page-info">Compare completed releases by format, broad distribution market, audience, critics and date. Regional gross charts use recorded market receipts; no fictional city/country rankings.</p>' +
       filmFilters(true) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
 
