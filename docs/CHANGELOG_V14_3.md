@@ -1,6 +1,6 @@
 # FinalCut v14.3 — Film lifecycle, promotion, critics and guided first film
 
-Implementation staged across PRs #10–#13. Stage A, B and C merged and tested; Stage D waits for final acceptance.
+Released through merged PRs #10–#13 on November 21, 2026. All four stages are on main; v14.3d merged at 0c24bd5. The real-film guided tutorial passed integrated Chromium QA #44876187273, and prior stages passed their Node/Chromium and multi-decade balance gates.
 
 ## Film Hub: v14.3a
 Players can open project decisions and weekly financial results from Projects and My Filmography. The Film Hub explains locked or available festival kits, encore screenings, feature licensing, retrospectives and fan tours. Shorts usually need quality 60+ or a festival selection for encores. Feature afterlife requires actual eligibility and typically starts four weeks after release. Custom uploaded posters no longer display an unrelated synthetic movie still underneath.

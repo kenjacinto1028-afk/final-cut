@@ -1,6 +1,6 @@
 # Final Cut — Studio Tycoon
 
-**Current v14.3 implementation:** [v14.3 film lifecycle, promotions, sponsorship, critics and guided first film](docs/NEXT_UPDATE_V14_3_PLAN.md). All stage-specific code is maintained in the documented release branches, and is subject to browser/balance release gates.
+**Current release: FinalCut v14.3.** [See the release notes](docs/CHANGELOG_V14_3.md) for Film Hub, marketing, reputation-gated sponsors, tiered critics, a truthful release calendar, accessible performance charts, World Archive receipts, and the interactive 23-step first-film tutorial. Stages shipped through PRs #10–#13 with automated compatibility tests.
 
 ## Guided First Film — v14.3
 Open **? Tutorial** or **How to play**. The state-aware 23-step guide now requires real script choice, actual greenlighting, clicking **Next week** and **Advance to next decision**, responding to genuine events, reaching a premiere, opening the real earnings ledger, and visiting Filmography and World Film Archive. It never simulates those actions for you, and may be minimized or skipped. Returning players can **Browse feature reference** without mandatory spending or follow an existing film. Browser acceptance: `python tests/v14_2_tutorial_browser.py`.
