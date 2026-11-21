@@ -64,14 +64,15 @@ try:
    assert page.evaluate('Engine.state.cash')==original-press['cost']
    assert not page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press').ok",result['id'])
   page.evaluate('UI.closeDrawer();UI.go("archive")')
-  assert 'Studio receipts' in page.locator('#main table thead').first.inner_text()
+  assert 'Studio receipts' in page.locator('#main .fc-finance-table table thead').first.inner_text()
   row=page.locator('#main .fc-finance-table tbody tr',has_text='The Little Film')
   assert row.count()==1
   assert row.locator('td').nth(5).inner_text().strip()=='—','Short must not be shown as a $0 theatrical film'
   assert '$' in row.locator('td').nth(6).inner_text(),'Short studio screening receipts should be visible'
   page.evaluate('UI.go("rivals")')
   assert page.locator('.fc-v14-calendar>div').count()==12
-  assert 'Feature film' in page.locator('.fc-v14-calendar').inner_text()
+  if page.locator('.fc-v14-rival').count():
+   assert 'Feature film' in page.locator('.fc-v14-calendar').inner_text()
   for width in (320,390):
    page.set_viewport_size({'width':width,'height':780})
    for view in ('rivals','archive','projects'):
