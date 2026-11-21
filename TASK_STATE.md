@@ -233,3 +233,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Added Node demand-history/save compatibility suite (`tests/v14_8_regression.js`), Chromium Studio Wire/film/QoL/mobile suite (`tests/v14_8_browser.py`) and `.github/workflows/v14_8.yml`.
 - [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
   - [x] First regression sweep identified obsolete two-button dashboard test and a postmortem hidden on Film Hub Performance only; updated sitewide test for four real controls and surfaced postmortem in Film Hub Overview (`tests/v13_6_sitewide_browser.py`, `ui.js`).
+  - [x] Studio Wire tab, trend kind and per-film Film Hub subtab now persist in session storage (while per-studio filter state remains isolated); fallback safe when browser storage unavailable (`ui.js`, 882c099).
