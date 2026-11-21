@@ -33,10 +33,10 @@ var Engine = (function () {
     studioShare: 0.5,
     boxOfficeBase: 0.5,
     boxOfficeRefBudget: 350000,
-    boxOfficeBudgetExp: 0.89,
+    boxOfficeBudgetExp: 0.86, // v14.1: diminishing returns for tentpoles; small films retain access
     bigFilmAudienceCapPerDoubling: 0.055, smallFilmAudienceLegsBonus: 0.035,
     boxOfficeQualityExp: 1.3,
-    boxOfficeLuck: [0.7, 1.3],
+    boxOfficeLuck: [0.64, 1.3], // v14.1: occasional demand misses even with high-quality casts
     legs: { base: 0.6, perQuality: 0.0028, max: 0.85 }, // v13.5 stronger, bounded word of mouth
     softCap: { quality: 70, hype: 65, room: 30 },
     maxReleaseWeeks: 20, // v13.5: longer theatrical tail for successful films
@@ -215,7 +215,7 @@ var Engine = (function () {
     sameGenreWeight: 0.5, bigFilmWeight: 0.5,
     holdPenalty: 0.03,
     boxMult: 1.25, share: 0.65,
-    fameHype: 0.3, talentQuality: 2, talentQualityMax: 8,
+    fameHype: 0.3, talentQuality: 2.2, talentQualityMax: 10, // v14.1: reward funded rival staffing
     tierQuality: 4, tierHype: 5,
     focusChance: 0.7,
     lossSwitchQuarters: 3,
@@ -268,7 +268,7 @@ var Engine = (function () {
   TUNING.awards = {
     ceremonyWeek: 10,
     nominees: 4, maxPerStudio: 2, minScore: 60,
-    goldenWinMin: 111, otherWinMin: 104, criticsWinMin: 106, indieWinMin: 92, audienceWinMin: 104,
+    goldenWinMin: 113, otherWinMin: 107, criticsWinMin: 109, indieWinMin: 94, audienceWinMin: 107,
     goldenMaxWinsPerStudio: 1, otherMaxWinsPerStudio: 1, festivalWinFloorBonus: 8, festivalMaxWinsPerFilm: 2, festivalMaxStudioWinsPerYear: 2,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
@@ -2010,8 +2010,22 @@ var Engine = (function () {
         rivals: m.rivals.map(r => r.studio + ': ' + r.title) };
       const ref = TUNING.boxOfficeRefBudget;
       const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
+      // v14.1: a tentpole can command wider attention, but rising budget and
+      // a studio's repeated same-genre launches compete for a finite audience.
+      // Only previous released films count; old receipts remain untouched.
+      const premium=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const budgetAttention=1/(1+Math.min(.25,premium*.046));
+      const repeatedGenre=state.projects.filter(x=>x!==p&&x.format==='feature'&&x.genre===p.genre&&
+        x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
+      const genreAttention=Math.max(.84,1-Math.min(4,repeatedGenre)*.04);
+      // Larger slates compete for attention even across genres. This affects
+      // only mid/high-budget features and leaves small independent films alone.
+      const recentStudioFeatures=state.projects.filter(x=>x!==p&&x.format==='feature'&&
+        x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
+      const slateAttention=p.budget>=TUNING.boxOfficeRefBudget?
+        Math.max(.92,1-Math.min(4,recentStudioFeatures)*.02):1;
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
-        m.mult * rollout.openingMult * (1 + deptBonus('distribution')) * eraMods().boxOffice;
+        m.mult * rollout.openingMult * budgetAttention * genreAttention * slateAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
       // automatic profitability; their higher budgets and marketing costs remain.
       const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
@@ -2909,7 +2923,11 @@ var Engine = (function () {
     // Rival talent is measured by actual craft, not name recognition; leading studios
     // are stronger when making films within the genre they know best.
     const craft = role => { const arr=rivalTalent(r).filter(t=>t.role===role); return arr.length?Math.max(...arr.map(t=>t.skill||50)):50; };
-    const skillCraft=(craft('director')-50)*.12+(craft('writer')-50)*.09+(craft('actor')-50)*.06;
+    const skillCraft=(craft('director')-50)*.17+(craft('writer')-50)*.13+(craft('actor')-50)*.10+(craft('crew')-50)*.045;
+    // v14.1: only studios that have actually grown, delivered pictures and
+    // invested in productions acquire sustained craft infrastructure.
+    const earnedCraft=Math.min(6,Math.max(0,r.tier-1)*1.0+
+      Math.min(2,Math.floor((r.releases||0)/25))+(r.industryLeader?1:0));
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
     const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
     const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);
@@ -2932,7 +2950,7 @@ var Engine = (function () {
       dna:pitch?{hook:pitch.hook,strengths:pitch.strengths.slice(),risk:pitch.risk,vision:pitch.vision,lane:pitch.vision==='bold'?'genre':'arthouse',origin:'marketplace'}:null,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
-      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
+      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + earnedCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
       hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype + (sequelSource ? 7 : 0)), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);
@@ -4369,7 +4387,7 @@ var Engine = (function () {
       if(gross||revenue||spent||screenings||households||old.stage!==p.stage||ACTIVE_STAGES.includes(p.stage)||p.stage==='release')
         recordProjectPulse(p,state.week,gross,revenue,spent,p.stage,admissions,screenings,households);
     });
-    save();
+    scheduleTurnSave();
     emit('turn');
     return true;
   }
@@ -4494,7 +4512,67 @@ var Engine = (function () {
       Object.prototype.hasOwnProperty.call(reverse, key) ? '"' + reverse[key] + '":' : match);
     return JSON.parse(json);
   }
+  // v14.1: weekly autosaves for history-heavy browser campaigns encode off
+  // the UI thread. Explicit saves, imports and slot switches remain synchronous.
+  // Every write is tagged, so an older worker result can never overwrite a new
+  // campaign or a more recent manual/weekly save.
+  let largeSaveWorker=null,largeSaveScheduled=null,largeSaveGeneration=0,largeSaveWorkerUnavailable=false,largeSaveWorkerBusy=false,largeSaveNeedsLatest=false;
+  function invalidatePendingLargeSave(){
+    largeSaveGeneration++;
+    if(largeSaveScheduled!==null&&typeof clearTimeout==='function')clearTimeout(largeSaveScheduled);
+    largeSaveScheduled=null;
+    largeSaveNeedsLatest=false;
+  }
+  function scheduleTurnSave(){
+    if(fastSimulationTesting)return true;
+    if(typeof document==='undefined'||typeof Worker==='undefined'||typeof setTimeout!=='function'||
+      largeSaveWorkerUnavailable||!state||((state.filmArchive?.rivals?.length||0)<1600 && (state.projects?.length||0)<340))
+      return save();
+    if(!largeSaveWorker){
+      try{
+        largeSaveWorker=new Worker('save-worker.js');
+        largeSaveWorker.onmessage=event=>{
+          const x=event.data;
+          largeSaveWorkerBusy=false;
+          const current=x&&x.generation===largeSaveGeneration&&state&&x.campaignId===state.campaignId;
+          if(current&&x.type==='encoded'){
+            try{storage()?.setItem(SAVE_KEY,x.payload);}catch(e){console.warn('Large FinalCut autosave could not fit browser storage',e);}
+          }else if(current&&x.type==='failed')console.warn('FinalCut background save failed',x.reason);
+          // At most one in-flight snapshot. A new turn during compression
+          // replaces the queued work instead of accumulating multi-megabyte clones.
+          if(largeSaveNeedsLatest&&state){largeSaveNeedsLatest=false;scheduleTurnSave();}
+        };
+        largeSaveWorker.onerror=event=>{
+          console.warn('FinalCut save worker unavailable; reverting to normal synchronous saving');
+          largeSaveWorkerUnavailable=true;largeSaveWorkerBusy=false;largeSaveNeedsLatest=false;
+          largeSaveWorker.terminate();largeSaveWorker=null;
+          if(state)save();
+        };
+      }catch(e){largeSaveWorkerUnavailable=true;return save();}
+    }
+    invalidatePendingLargeSave();
+    const token=largeSaveGeneration,campaignId=state.campaignId;
+    largeSaveScheduled=setTimeout(()=>{
+      largeSaveScheduled=null;
+      if(!state||largeSaveGeneration!==token||state.campaignId!==campaignId)return;
+      if(largeSaveWorkerBusy){largeSaveNeedsLatest=true;return;}
+      try{
+        largeSaveWorkerBusy=true;
+        largeSaveWorker.postMessage({type:'encode',generation:token,campaignId,snapshot:state});
+      }catch(e){largeSaveWorkerBusy=false;largeSaveWorkerUnavailable=true;save();}
+    },350);
+    return true;
+  }
+  if(typeof document!=='undefined'&&document.addEventListener){
+    // A dirty, queued snapshot must be flushed before a tab is hidden.
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='hidden'&&(largeSaveScheduled!==null||largeSaveWorkerBusy)&&state)save();
+    });
+    if(typeof window!=='undefined'&&window.addEventListener)
+      window.addEventListener('pagehide',()=>{if((largeSaveScheduled!==null||largeSaveWorkerBusy)&&state)save();});
+  }
   function save() {
+    invalidatePendingLargeSave();
     if(fastSimulationTesting)return true; // test-only: persist a real full save at the end of a long simulated career
     const ls = storage();
     if (!ls || !state) return false;
@@ -4579,7 +4657,7 @@ var Engine = (function () {
     emit('load');
     return { ok: true };
   }
-  function clearSave() { try { const ls = storage(); if (ls) ls.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
+  function clearSave() { invalidatePendingLargeSave(); try { const ls = storage(); if (ls) ls.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
   // Save-library helpers: the original active autosave key and save version stay
   // unchanged. IndexedDB holds inactive campaigns; the UI owns slot metadata.
   function inspectSave(raw) {
@@ -4592,7 +4670,7 @@ var Engine = (function () {
         releases:Number(data.studio.releases)||0};
     } catch(e){return null;}
   }
-  function closeSession(){state=null;emit('close');}
+  function closeSession(){invalidatePendingLargeSave();state=null;emit('close');}
 
 // ===== SECTION: PUBLIC_API =====
   return {
