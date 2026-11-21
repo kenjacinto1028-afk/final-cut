@@ -3730,6 +3730,9 @@ var Engine = (function () {
   function pilotResult(p) {
     const T = TUNING.tv, em = eraMods();
     const score = pilotScore(p);
+    // Unspent contingency is neither a produced episode nor earned licensing value.
+    // Preserve legacy TV contracts, but price new flexible pilots on funded work.
+    const financedBudget=p.budgetPlan?v144EffectiveBudget(p):p.budget;
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
     const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
     // Web commissions have their own era-appropriate audience access, while
@@ -3742,7 +3745,7 @@ var Engine = (function () {
       const epCost = p.budgetPlan?Math.round(v144EffectiveBudget(p)*(p.mediaVariant==='web'?.78:.92)):
         Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
-      const pilotFee = Math.round(p.budget * T.pilotFeeShare);
+      const pilotFee = Math.round(financedBudget * T.pilotFeeShare);
       p.result = 'Picked up';
       p.revenue += pilotFee;
       earn(pilotFee);
@@ -3761,7 +3764,7 @@ var Engine = (function () {
       addLog((isWeb?'The online platform commissioned ':'The network picked up ')+'"'+p.title+'": '+
         s.episodes+' episodes at '+fmtMoney(fee)+' each (cost '+fmtMoney(epCost)+'). Initial fee '+fmtMoney(pilotFee)+'.','tv');
     } else {
-      const devFee = Math.round(p.budget * T.passFeeShare);
+      const devFee = Math.round(financedBudget * T.passFeeShare);
       p.result = 'Passed';
       p.revenue += devFee;
       if(isWeb)p.estimatedOnlineViews=null;else p.estimatedHouseholdImpressions=null;
