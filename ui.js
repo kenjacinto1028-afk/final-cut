@@ -455,6 +455,9 @@ var UI = (function () {
     draft[key] = val;
     if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
     if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
+    if(key==='title'&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script'){
+      tutorialScriptChosen=!!String(val||'').trim();renderTutorial(false);
+    }
     if (key !== 'title') render();
   }
   function setCast(slot, val) { draft.cast[slot] = val; render(); }
@@ -499,6 +502,7 @@ var UI = (function () {
     if(!p)return;
     const was=draft.format;
     draft.pitchId=p.id;draft.pitchApproach='standard';
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script')tutorialScriptChosen=true;
     draft.format=p.format;draft.genre=p.genre;draft.topic=p.topic;draft.title=p.title;draft.vision=p.vision;
     draft.releasePosition=p.vision==='prestige'?'prestige':p.vision==='bold'?'targeted':'wide';
     draft.tier=0;delete draft.sequelOf;
@@ -507,7 +511,9 @@ var UI = (function () {
     render();
   }
   function v14CustomScript(){
-    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();render();
+    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script')tutorialScriptChosen=true;
+    render();
   }
   function v14ScriptCards(){
     const pitch=Engine.v14MarketInfo(),v=Engine.v14Strengths(),risks=Engine.v14Risks();
@@ -2410,7 +2416,7 @@ var UI = (function () {
   let tutorialReturnFocus = null;
   let tutorialTargetId = null, tutorialWeekBaseline = null;
   let tutorialUsedNextWeek = false, tutorialUsedAdvance = false;
-  let tutorialMode = 'guided';
+  let tutorialMode = 'guided',tutorialScriptChosen=false;
   function tutorialFilm(){
     return (Engine.state?.projects||[]).find(p=>p.id===tutorialTargetId)||null;
   }
@@ -2425,7 +2431,9 @@ var UI = (function () {
     const p=tutorialFilm(),goal=item.goal;
     if(!goal)return {ok:true,text:'Read this instruction, then select Next.'};
     if(goal==='script'){
-      const ok=!!String(draft.title||'').trim();
+      // The project form auto-fills a random name on first visit. Require a
+      // deliberate script selection or user title edit, not this default.
+      const ok=tutorialScriptChosen&&!!String(draft.title||'').trim();
       return {ok,text:ok?'A story is selected.':'Select a script pitch or Create an original first.'};
     }
     if(goal==='project')return {ok:!!p,text:p?'Following '+p.title+'.':'Start a real film or follow an existing project first.'};
@@ -2529,7 +2537,7 @@ var UI = (function () {
   }
   function openTutorial() {
     tutorialReturnFocus = document.activeElement;
-    tutorialMode='guided';tutorialTargetId=null;
+    tutorialMode='guided';tutorialTargetId=null;tutorialScriptChosen=false;
     tutorialStartStep(0);
     closeMobileNav();
     if (drawer) closeDrawer();
@@ -2546,7 +2554,7 @@ var UI = (function () {
   }
   function tutorialRestartGuided(){
     if(tutorialStep<0)return;
-    tutorialMode='guided';tutorialStartStep(0);renderTutorial(false);
+    tutorialMode='guided';tutorialScriptChosen=false;tutorialStartStep(0);renderTutorial(false);
   }
   function tutorialMove(delta) {
     if(tutorialStep<0)return;
