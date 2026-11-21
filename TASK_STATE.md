@@ -52,3 +52,15 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Styled compact A+B quality/hype and festival engagement panels responsively in `theme-ab.css`; updated `docs/CHANGELOG_V13_9.md`, README and HANDOFF. Save v13 preserved and old completed shorts are not repaid.
 - [x] Passed 2 independent 10-year world simulations (72 shorts, exact screening-revenue reconciliation), engine, festivals, encore, simulated households and legacy v13 tests; full v13.5/13.6/13.7/13.8 regression suites and Chromium/mobile UI checks all green (PR Actions #44853961546/#44853961453/#44853961451/#44853961483/#44853961498). Real screenshots artifact #14686218189.
 - [x] PR #5 merged to `main` (`bd4275830c430c640456b7c8a990ee2f5cfcf702`); all five FinalCut regressions succeeded on PR #5 (#44853961546/#44853961453/#44853961451/#44853961483/#44853961498); GitHub Pages #44854123420 built and deployed successfully. Original save format remains v13.
+
+## v14 — Integrated filmmaking overhaul (2026-11-21)
+- [x] Read approved `FinalCut_V14_Gameplay_Design_Proposal.md` and existing FinalCut v13.9 checkpoints; branch from correct `final-cut/main`.
+- [ ] v14a: Add Film DNA, persistent concise story/partnership context with save v13 compatibility.
+- [ ] v14b: Implement quarterly three-script marketplace, option/commission, affordable early shorts and greenlighting integration.
+- [ ] v14c: Implement contextual production dilemmas, meaningful consequences, limited decision pacing and delegation.
+- [ ] v14d: Add sparse director/writer partnerships and repeat-collaborator effects without actor-profile expansion.
+- [ ] v14e: Implement forecast release competition, strategic positioning and bounded mid-run choices.
+- [ ] v14f: Extend rival behavior and causal industry news driven by real film and personnel competition.
+- [ ] v14g: Implement film afterlives, studio ambitions and earned evidence-backed classifications (player and AI).
+- [ ] v14h: Integrate A+B UI, docs, short/tutorial changes, real-browser tests, save regression and multi-world tuning.
+- [ ] Merge only cohesive validated integration to main and verify deployment.
