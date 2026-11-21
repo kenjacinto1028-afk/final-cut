@@ -30,5 +30,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Implemented `save-slots.js` IndexedDB archive/index, old-save registration, copy/rename/switch/delete/import and rollback; updated `poster-store.js` for custom-poster copy/cleanup.
 - [x] Added `ui.js` title/Save Library/sidebar/topbar controls and safe begin/continue/quit/import handling; `index.html` loads save module before UI.
 - [x] Styled save cards and mobile manager in `theme-ab.css`; documented in `docs/CHANGELOG_V13_7.md`, README and HANDOFF.
-- [ ] Added Chromium IndexedDB integration test `tests/v13_7_multi_save_browser.py` and CI workflow; legacy game suites passed, testing save slot switching with accepted browser confirmations.
+- [x] Chromium IndexedDB test passed end-to-end: legacy migration, 4 slots, custom poster copies, switch/rename/delete, browser reload, full backup import and 390px screen; old gameplay/save tests passed. Actions #44843102726 and #44843131913 succeeded.
 - [ ] Gate merge on passing tests, merge FinalCut and verify GitHub Pages deployment.
