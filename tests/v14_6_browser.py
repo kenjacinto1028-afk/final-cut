@@ -16,7 +16,7 @@ try:
   page=browser.new_page(viewport={'width':1366,'height':840})
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto('http://127.0.0.1:%s/'%server.server_port,wait_until='domcontentloaded')
-  data=page.evaluate(""" + """"" + """() => {
+  data=page.evaluate("""() => {
     Engine.newGame({studioName:'Followers Test Studio',founderName:'Founder'});
     UI.go('dashboard');UI.openTutorial();
     const r=Engine.startProject({title:'The Quiet Letter',format:'short',tier:0,
@@ -30,7 +30,7 @@ try:
     if(p.releaseWeek==null)throw Error('no premiere');
     UI.render();
     return {id:p.id,stage:p.stage};
-  }""" + """"" + """)
+  }""")
   assert page.locator('#premiere-report').is_visible(),'premiere must appear while tour is active'
   assert 'PREMIERE REPORT' in page.locator('#premiere-report').inner_text()
   assert page.locator('#tutorial').is_visible()
@@ -39,7 +39,7 @@ try:
   page.evaluate('UI.go("projects");UI.toggleFilmMonitor(true)')
   # Monitor directly exposes project details while screening is ongoing.
   assert page.locator('#film-monitor').get_by_role('button',name='Project Details · Film Hub').count()>=1
-  page.evaluate(""" + """"" + """(id)=>{
+  page.evaluate("""(id)=>{
     const p=Engine.getProject(id);let n=0;
     while(p.stage!=='done'&&n++<90){
       if(Engine.state.pending)Engine.choose(Engine.state.pending.choices.length-1);
@@ -47,7 +47,7 @@ try:
     }
     if(p.stage!=='done')throw Error('release did not end');
     UI.render();
-  }""" + """"" + """,data['id'])
+  }""",data['id'])
   assert 'RELEASE WRAP-UP' in page.locator('#premiere-report').inner_text()
   page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
   page.evaluate('UI.go("rankings");UI.setFilmFilter("genre","horror");UI.go("filmography")')
