@@ -205,8 +205,7 @@ var UI = (function () {
     }
     // Allow actual sidebar navigation to complete an instruction; no business state changes.
     if (tutorialStep >= 0 && TUTORIAL_STEPS[tutorialStep].visit === v) {
-      tutorialStep = Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + 1);
-      tutorialMinimized = false;
+      tutorialStartStep(tutorialStep+1);
     }
     setFlash('');
     render();
@@ -269,7 +268,7 @@ var UI = (function () {
         '" onclick="UI.toggleFilmMonitor()">' + (isFilmMonitorOpen()?'Hide':'Show') + ' project monitor</button>' +
       (typeof SaveSlots!=='undefined' ? '<button class="tb-save-slot" onclick="UI.go(&quot;saves&quot;)" title="Manage saved studios">' + esc(SaveSlots.activeName()||'Saved Games') + '</button>' : '') +
       '<span class="spacer"></span>' +
-      '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
+      '<button data-guide="week" ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
       '<button data-guide="advance" class="primary" ' + (blocked ? 'disabled' : '') + ' onclick="UI.advance()">Advance to next decision</button>';
   }
 
@@ -456,6 +455,9 @@ var UI = (function () {
     draft[key] = val;
     if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
     if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
+    if(key==='title'&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script'){
+      tutorialScriptChosen=!!String(val||'').trim();renderTutorial(false);
+    }
     if (key !== 'title') render();
   }
   function setCast(slot, val) { draft.cast[slot] = val; render(); }
@@ -500,6 +502,7 @@ var UI = (function () {
     if(!p)return;
     const was=draft.format;
     draft.pitchId=p.id;draft.pitchApproach='standard';
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script')tutorialScriptChosen=true;
     draft.format=p.format;draft.genre=p.genre;draft.topic=p.topic;draft.title=p.title;draft.vision=p.vision;
     draft.releasePosition=p.vision==='prestige'?'prestige':p.vision==='bold'?'targeted':'wide';
     draft.tier=0;delete draft.sequelOf;
@@ -508,7 +511,9 @@ var UI = (function () {
     render();
   }
   function v14CustomScript(){
-    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();render();
+    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='script')tutorialScriptChosen=true;
+    render();
   }
   function v14ScriptCards(){
     const pitch=Engine.v14MarketInfo(),v=Engine.v14Strengths(),risks=Engine.v14Risks();
@@ -1600,9 +1605,17 @@ var UI = (function () {
 // ===== SECTION: DRAWER =====
   let drawer = null;     // { kind: 'project' | 'talent', id } or null
   let drawerMsg = '';
-  function openProject(id) { drawer = { kind: 'project', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
+  function openProject(id) {
+    drawer = { kind:'project',id:Number(id) };drawerMsg='';
+    if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='hub'&&tutorialTargetId==null)
+      tutorialTargetId=Number(id);
+    renderDrawer();renderTutorial(false);
+  }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
-  function openFilm(id) { drawer = { kind: 'film', id: id }; drawerMsg = ''; renderDrawer(); }
+  function openFilm(id) {
+    drawer={kind:'film',id};drawerMsg='';
+    renderDrawer();renderTutorial(false);
+  }
   function filmDrawer(f) {
     let h = drawerHead(f.title, esc(f.studio) + ' · ' + esc(nameOf(CONTENT.GENRES, f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS, f.topic || '')) + ' · ' + f.year);
     h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
@@ -2195,229 +2208,269 @@ var UI = (function () {
   // An expandable, nonmodal guide: page controls remain clickable and clickable
   // navigation steps advance automatically. There is no saved progress or game logic.
   const TUTORIAL_STEPS = [
-      {
-          "section": "Start here",
-          "title": "Welcome to Final Cut",
-          "view": "dashboard",
-          "visit": "dashboard",
-          "target": "#nav [data-view=\"dashboard\"]",
-          "location": "Studio → Dashboard",
-          "text": "Run a film studio from 1970 onward. This guide never blocks other controls: click pages, use Next and Back, or minimize it. You can finish without making a film or spending cash. Select Dashboard to begin."
-      },
-      {
-          "section": "Start here",
-          "title": "Your studio at a glance",
-          "view": "dashboard",
-          "target": "#main .strip",
-          "location": "Dashboard → cash, reputation and projects",
-          "text": "Cash pays for films, staff and debt. Fame is lasting recognition, Current Buzz tracks fresh attention, and Current Prestige reflects recent achievements. Your studio identity changes as your completed films build a reputation."
-      },
-      {
-          "section": "Create films",
-          "title": "Open New Project",
-          "view": "newproject",
-          "visit": "newproject",
-          "target": "#nav [data-view=\"newproject\"]",
-          "location": "Studio → New project",
-          "text": "Choose New project to plan a short, feature or TV pilot. Shorts are a practical first step. Available formats and budgets grow with your studio; you can explore every option without committing."
-      },
-      {
-          "section": "Create films",
-          "title": "Discover scripts and film DNA",
-          "view": "newproject",
-          "target": "#main .fc-v14-script-grid",
-          "location": "New project → script marketplace",
-          "text": "Three script opportunities refresh every 13 game weeks. Each pitch has a hook, strengths, creative risk and possible rival interest. Choose one, make your own original story or develop a sequel. This Film DNA follows your movie throughout its life."
-      },
-      {
-          "section": "Create films",
-          "title": "Trade money for script access",
-          "view": "newproject",
-          "target": "#main .fc-v14-script-grid",
-          "location": "New project → script pitch cards",
-          "text": "A writers' partnership can cost less but carries competition risk; purchasing outright costs more but avoids the rival bid. The opening accessible pitch is free. Fees and bidding risk matter, so do not buy every script."
-      },
-      {
-          "section": "Create films",
-          "title": "Choose your creative direction",
-          "view": "newproject",
-          "target": "#main .fc-v14-creative",
-          "location": "New project → creative vision",
-          "text": "Prestige-first, Accessible Entertainment, Bold Genre and Star Vehicle affect quality, hype, critics and audience fit in different ways. Your vision has tradeoffs, not a guaranteed hit. Later creative decisions can strengthen or compromise it."
-      },
-      {
-          "section": "Create films",
-          "title": "Build a realistic budget",
-          "view": "newproject",
-          "target": "#main .form",
-          "location": "New project → format, budget, marketing and market fit",
-          "text": "Choose format, genre, topic, production scale and marketing within your available cash. Higher budgets can reach more viewers but have diminishing returns and greater downside; closely spaced releases can compete with your own slate. A high-quality film can still flop."
-      },
-      {
-          "section": "Create films",
-          "title": "Cast, collaborations and sequels",
-          "view": "newproject",
-          "target": "#main .form.cast",
-          "location": "New project → cast and crew",
-          "text": "Director and writer craft help quality; actors' fame helps hype. Returning creative partnerships can build trust and modest craft bonuses. Sequels benefit from retaining familiar key talent; replacements can reduce audience excitement. Supporting cast adds costs and benefits."
-      },
-      {
-          "section": "Production",
-          "title": "Open Production Center",
-          "view": "projects",
-          "visit": "projects",
-          "target": "#nav [data-view=\"projects\"]",
-          "location": "Studio → Projects",
-          "text": "Projects shows films in development, shooting, release and completion. Select a film to inspect its story, finances and decisions. If you have not made a movie, the production area can still be explored."
-      },
-      {
-          "section": "Production",
-          "title": "Follow each film's story",
-          "view": "projects",
-          "target": "#main .fc-center",
-          "location": "Projects → Production Center → film details",
-          "text": "A film's story records the screenplay, creative strengths, risks, production choices, premiere and later industry reaction. These memories can affect trust and the film's identity. Older saves keep historical results without invented story events."
-      },
-      {
-          "section": "Production",
-          "title": "Handle creative dilemmas",
-          "view": "projects",
-          "target": "#main .fc-center",
-          "location": "Projects → film decisions",
-          "text": "During shooting, a meaningful dilemma can ask you to protect the vision, spend for a fix or favor wider appeal. Your decision can change time, cost, quality or relationships. Routine production work proceeds automatically."
-      },
-      {
-          "section": "Production",
-          "title": "Advance without micromanaging",
-          "view": "projects",
-          "target": "#topbar [data-guide=\"advance\"]",
-          "location": "Top bar → Advance to next decision",
-          "text": "Next week and Advance to next decision move the calendar. You need not click every production task. Important events, release choices and end-of-year honors can interrupt advancement. Studio Profile lets you delegate certain creative issues."
-      },
-      {
-          "section": "The industry",
-          "title": "Study competing studios",
-          "view": "rivals",
-          "visit": "rivals",
-          "target": "#nav [data-view=\"rivals\"]",
-          "location": "Business → Rivals",
-          "text": "Rivals manage actual budgets, talent, scripts and releases. Their own film records drive studio identity and success. Check who is rising, who is struggling and who is positioning an opening against your films."
-      },
-      {
-          "section": "The industry",
-          "title": "Read the release calendar",
-          "view": "rivals",
-          "target": "#main .fc-v14-calendar",
-          "location": "Rivals → upcoming release calendar",
-          "text": "The twelve-week calendar shows scheduled competitors and market congestion. Similar genre releases and crowded weeks divide attention. A well-chosen date can help, but rivals may also react or reschedule."
-      },
-      {
-          "section": "Release",
-          "title": "Plan the opening strategy",
-          "view": "projects",
-          "visit": "projects",
-          "target": "#nav [data-view=\"projects\"]",
-          "location": "Projects → select a feature film",
-          "text": "When a feature reaches release, choose wide, targeted, prestige or cautious rollout. These options trade opening strength against later box-office legs and exposure. No strategy guarantees profit; film quality, hype and audience tastes still matter."
-      },
-      {
-          "section": "Release",
-          "title": "Respond after opening week",
-          "view": "projects",
-          "target": "#main .fc-center",
-          "location": "Production Center → theatrical performance",
-          "text": "Use Film Performance to follow weekly gross, studio receipts, estimated admissions and public reaction. After the initial result you may make one limited response—push publicity, focus on receptive viewers, hold course or leave theaters—when eligible. Extra marketing may not pay off."
-      },
-      {
-          "section": "Release",
-          "title": "Shorts, TV and audience reach",
-          "view": "filmography",
-          "visit": "filmography",
-          "target": "#nav [data-view=\"filmography\"]",
-          "location": "Studio → My Filmography",
-          "text": "Short films can screen for several weeks, attract viewers, gain festival exposure and earn encore opportunities. TV pilots track estimated household reach. Audience counts are modeled estimates, not independently measured viewers."
-      },
-      {
-          "section": "Release",
-          "title": "Keep films alive after release",
-          "view": "filmography",
-          "target": "#main",
-          "location": "My Filmography → open a completed film",
-          "text": "Finished features can qualify for later licensing, prestige retrospectives and fan screenings. Each opportunity has timing, cost or rights tradeoffs; it does not change the original box office. Your catalog, direct film P/L and history remain accessible."
-      },
-      {
-          "section": "Your studio",
-          "title": "Earn your company classification",
-          "view": "studio_profile",
-          "visit": "studio_profile",
-          "target": "#nav [data-view=\"studio_profile\"]",
-          "location": "Studio → Studio Profile",
-          "text": "Your company type is earned from completed films: genres, story interests, critics, awards, financial results and collaborators. A sustained trend can establish Prestige, Genre/Cult, Commercial, Independent, TV/Rights or other identities. No one-time selection locks it in."
-      },
-      {
-          "section": "Your studio",
-          "title": "Pick ambitions and delegation",
-          "view": "studio_profile",
-          "target": "#main .fc-v14-profile-section",
-          "location": "Studio Profile → ambitions and delegation",
-          "text": "Optional medium-term ambitions give direction without daily chores. You can also choose Ask me, Trust the director or Trust the business team for some creative dilemmas. Delegation trades control for fewer interruptions, not better outcomes every time."
-      },
-      {
-          "section": "Money",
-          "title": "Understand the new film economy",
-          "view": "finance",
-          "visit": "finance",
-          "target": "#nav [data-view=\"finance\"]",
-          "location": "Business → Finance",
-          "text": "Check weekly burn, cash flow, debt and direct film profitability. Big productions offer higher upside and more commercial risk; careful budgets are safer but not invincible. Theatrical gross is not the same as your studio's revenue. Watch the full cost of your release slate."
-      },
-      {
-          "section": "Recognition",
-          "title": "Awards and year-end honors",
-          "view": "awards",
-          "visit": "awards",
-          "target": "#nav [data-view=\"awards\"]",
-          "location": "World → Awards",
-          "text": "Strong quality, critics, campaigns and competitive rivals affect nominations and wins. Major awards now require stronger results, so expect fewer automatic trophies. Year-end honors summarize recorded results without drawing a second set of awards."
-      },
-      {
-          "section": "Recognition",
-          "title": "Explore industry history",
-          "view": "archive",
-          "visit": "archive",
-          "target": "#nav [data-view=\"archive\"]",
-          "location": "World → World Film Archive",
-          "text": "Study films from your studio and AI studios across the years. Use Film Rankings to compare notable features and shorts. Old releases are preserved, even after a rival closes; the archive does not fabricate missing details from older saves."
-      },
-      {
-          "section": "Saving",
-          "title": "Open your Saved Games",
-          "view": "saves",
-          "visit": "saves",
-          "target": "#nav [data-view=\"saves\"]",
-          "location": "Studio → Saved Games",
-          "text": "Each studio career has its own local save slot. Switch between careers, rename one, or create an independent copy before trying a risky strategy. Copying also keeps campaign-specific custom posters separate."
-      },
-      {
-          "section": "Saving",
-          "title": "Save safely on desktop or phone",
-          "view": "saves",
-          "target": "#main .fc-save-list",
-          "location": "Saved Games → Save now / independent copy / backups",
-          "text": "Weekly autosaves and Save Now preserve your progress. Long saves are compressed in the background; wait for the saved confirmation before leaving. Return to Title saves first. Export a backup when switching browsers or phones: local browser saves and posters do NOT automatically sync between devices."
-      },
-      {
-          "section": "Next steps",
-          "title": "Make your next movie",
-          "view": "newproject",
-          "target": "#nav [data-view=\"newproject\"]",
-          "location": "Studio → New project",
-          "text": "You are ready to create a film, compete for audiences and shape an earned studio identity. Try one affordable project, watch how it develops, then explore rivals and the catalog. Reopen ? Tutorial anytime; no film or money is required to finish this guide."
-      }
-  ];
+  {
+    "section": "Get started",
+    "title": "Welcome to your studio",
+    "view": "dashboard",
+    "target": "#nav [data-view=\"dashboard\"]",
+    "location": "Dashboard",
+    "text": "Follow a real first film from script to release and financial results. The guide never plays the game for you. Minimize, skip or browse reference instructions at any time."
+  },
+  {
+    "section": "Get started",
+    "title": "Check your starting cash",
+    "view": "dashboard",
+    "target": "#main .strip",
+    "location": "Dashboard → cash and weekly costs",
+    "text": "Your studio pays ongoing costs each week. Check your cash and weekly burn before greenlighting. Lifetime Fame is long-term reputation; Buzz and Prestige follow recent results."
+  },
+  {
+    "section": "Plan a film",
+    "title": "Open New Project",
+    "view": "newproject",
+    "target": "#nav [data-view=\"newproject\"]",
+    "location": "Studio → New project",
+    "text": "Click New project to see script opportunities, affordable short films, budgets and talent.",
+    "visit": "newproject"
+  },
+  {
+    "section": "Plan a film",
+    "title": "Choose a screenplay",
+    "view": "newproject",
+    "target": "#main .fc-v14-script-grid",
+    "location": "New project → Develop this script or Create an original",
+    "text": "Click Develop this script on an affordable pitch, or Create an original. The Next button unlocks once you choose. Screenplay strengths and risks shape the film.",
+    "goal": "script"
+  },
+  {
+    "section": "Plan a film",
+    "title": "Pick format, cast and budget",
+    "view": "newproject",
+    "target": "#main .form",
+    "location": "New project → Film form",
+    "text": "Keep the budget affordable. Shorts cost less than full features; choose cast, writer, director and creative vision. Marketing and sponsors will become available in the Film Hub after greenlighting."
+  },
+  {
+    "section": "Plan a film",
+    "title": "Greenlight a real film",
+    "view": "newproject",
+    "target": "#main .form",
+    "location": "New project → Start project",
+    "text": "Click Greenlight. Any real upfront fees are charged now; production expenses continue week by week. If this campaign already has a film, choose Follow my latest existing film instead.",
+    "goal": "project"
+  },
+  {
+    "section": "Produce",
+    "title": "Go to Production Center",
+    "view": "projects",
+    "target": "#nav [data-view=\"projects\"]",
+    "location": "Studio → Projects",
+    "text": "Open Projects. Your active film progresses automatically, but a genuine decision may interrupt.",
+    "visit": "projects"
+  },
+  {
+    "section": "Produce",
+    "title": "Open its Film Hub",
+    "view": "projects",
+    "target": "#main .fc-center",
+    "location": "Projects → Open project details",
+    "text": "Open the project details. Explore Film DNA, promotion choices, any sponsorship offer and locked future actions. The guide waits until the Film Hub is open.",
+    "goal": "hub"
+  },
+  {
+    "section": "Produce",
+    "title": "Click Next week",
+    "view": "projects",
+    "target": "#topbar [data-guide=\"week\"]",
+    "location": "Top bar → Next week",
+    "text": "Close project details if necessary and click the real Next week button. One week of actual cash flow and production will pass.",
+    "goal": "week"
+  },
+  {
+    "section": "Produce",
+    "title": "Use Advance to next decision",
+    "view": "projects",
+    "target": "#topbar [data-guide=\"advance\"]",
+    "location": "Top bar → Advance to next decision",
+    "text": "Click Advance to next decision. Routine weeks run until an event, milestone or interruption; the guide does not press it for you.",
+    "goal": "advance"
+  },
+  {
+    "section": "Produce",
+    "title": "Handle real dilemmas",
+    "view": "projects",
+    "target": "#main .fc-center",
+    "location": "Game decision popup and Production Center",
+    "text": "If the game presents a decision, choose a real option in the event popup. It can change time, cost, quality or reputation. If none is waiting, you can proceed.",
+    "goal": "decision"
+  },
+  {
+    "section": "Release",
+    "title": "Advance until your premiere",
+    "view": "projects",
+    "target": "#topbar [data-guide=\"advance\"]",
+    "location": "Next week / Advance to next decision",
+    "text": "Keep advancing and resolving production decisions until your film actually premieres. Shorts earn screening receipts; features have ticket gross; pilots use TV outcomes.",
+    "goal": "release"
+  },
+  {
+    "section": "Release",
+    "title": "Open release performance",
+    "view": "projects",
+    "target": "#main .fc-center",
+    "location": "Projects → Open project details → Weekly performance",
+    "text": "Open the Film Hub again. Compare Film quality, opening Hype, critic reviews, studio receipts and modeled audience reach.",
+    "goal": "hubReleased"
+  },
+  {
+    "section": "Release",
+    "title": "Advance another screening week",
+    "view": "projects",
+    "target": "#topbar [data-guide=\"week\"]",
+    "location": "Top bar → Next week",
+    "text": "Close the film drawer and press Next week again. Each recorded weekly chart bar can be tapped for receipts and estimated visits.",
+    "goal": "releaseWeek"
+  },
+  {
+    "section": "Release",
+    "title": "Read direct profit or loss",
+    "view": "projects",
+    "target": "#main .fc-center",
+    "location": "Film Hub → Weekly performance and Direct P/L",
+    "text": "Open your Film Hub and read receipts less film spending. Direct P/L excludes shared overhead. Gross theatrical receipts and studio earnings are not the same.",
+    "goal": "hubReleased"
+  },
+  {
+    "section": "Your catalog",
+    "title": "Visit My Filmography",
+    "view": "filmography",
+    "target": "#nav [data-view=\"filmography\"]",
+    "location": "Studio → My Filmography",
+    "text": "Open My Filmography to find your released movie, studio revenue, P/L and estimated audience.",
+    "visit": "filmography"
+  },
+  {
+    "section": "Your catalog",
+    "title": "Open your released film",
+    "view": "filmography",
+    "target": "#main .fc-finance-table",
+    "location": "My Filmography → select your film title",
+    "text": "Click the released film title. It shows the actual custom poster, cast, critic opinions, festival history and a link back to Film Hub.",
+    "goal": "film"
+  },
+  {
+    "section": "Your catalog",
+    "title": "Understand a film's second life",
+    "view": "filmography",
+    "target": "#main .fc-finance-table",
+    "location": "Film record → Open Film Hub",
+    "text": "Short films may qualify for festival press kits and encore screenings, normally quality 60+ or a selection. Features may later license rights or screen again. Locked actions explain why; none are automatic windfalls."
+  },
+  {
+    "section": "The industry",
+    "title": "Explore World Film Archive",
+    "view": "archive",
+    "target": "#nav [data-view=\"archive\"]",
+    "location": "World → World Film Archive",
+    "text": "Compare historical releases from player and rival studios. Shorts show screening receipts rather than misleading $0 theatrical gross.",
+    "visit": "archive"
+  },
+  {
+    "section": "The industry",
+    "title": "Compare rival release dates",
+    "view": "rivals",
+    "target": "#nav [data-view=\"rivals\"]",
+    "location": "Business → Rivals → Calendar",
+    "text": "Rivals have real releases. Your own features, shorts and pilots are marked, with forecast labels where timing is uncertain. Genre/topic collisions are warnings, not certain losses.",
+    "visit": "rivals"
+  },
+  {
+    "section": "Your studio",
+    "title": "Review studio identity",
+    "view": "studio_profile",
+    "target": "#nav [data-view=\"studio_profile\"]",
+    "location": "Studio → Studio Profile",
+    "text": "Company classification follows your real film portfolio. Growing Lifetime Fame, Buzz and Prestige also attracts more sponsor offers and higher-tier critic coverage.",
+    "visit": "studio_profile"
+  },
+  {
+    "section": "Keep playing",
+    "title": "Save your career",
+    "view": "saves",
+    "target": "#nav [data-view=\"saves\"]",
+    "location": "Studio → Saved Games",
+    "text": "Save Now and automatic saves protect your progress. Export a backup with posters before switching phones or browsers; saves do not cloud-sync automatically.",
+    "visit": "saves"
+  },
+  {
+    "section": "Keep playing",
+    "title": "Start your next picture",
+    "view": "newproject",
+    "target": "#nav [data-view=\"newproject\"]",
+    "location": "Studio → New project",
+    "text": "You have followed a real movie to release and reviewed its results. Try a new genre, an ambitious feature, a sequel or a future catalog opportunity. Reopen the guide any time."
+  }
+];
   let tutorialStep = -1;
   let tutorialMinimized = false;
   let tutorialReturnFocus = null;
+  let tutorialTargetId = null, tutorialWeekBaseline = null;
+  let tutorialUsedNextWeek = false, tutorialUsedAdvance = false;
+  let tutorialMode = 'guided',tutorialScriptChosen=false;
+  function tutorialFilm(){
+    return (Engine.state?.projects||[]).find(p=>p.id===tutorialTargetId)||null;
+  }
+  function tutorialStartStep(index){
+    tutorialStep=Math.max(0,Math.min(TUTORIAL_STEPS.length-1,index));
+    tutorialMinimized=false;
+    tutorialUsedNextWeek=false;tutorialUsedAdvance=false;
+    tutorialWeekBaseline=Engine.state?.week??null;
+  }
+  function tutorialGoalStatus(item){
+    if(!Engine.state||tutorialMode==='reference')return {ok:true,text:'Preview / reference mode — no action required.'};
+    const p=tutorialFilm(),goal=item.goal;
+    if(!goal)return {ok:true,text:'Read this instruction, then select Next.'};
+    if(goal==='script'){
+      // The project form auto-fills a random name on first visit. Require a
+      // deliberate script selection or user title edit, not this default.
+      const ok=tutorialScriptChosen&&!!String(draft.title||'').trim();
+      return {ok,text:ok?'A story is selected.':'Select a script pitch or Create an original first.'};
+    }
+    if(goal==='project')return {ok:!!p,text:p?'Following '+p.title+'.':'Start a real film or follow an existing project first.'};
+    if(goal==='hub'||goal==='hubReleased'){
+      const opened=!!(p&&drawer?.kind==='project'&&drawer.id===p.id);
+      const released=goal==='hubReleased'?!!(p&&p.releaseWeek!=null):true;
+      return {ok:opened&&released,text:!p?'Start or follow a film.':
+        !released?'Your film has not premiered yet.':
+        opened?'Film Hub is open.':'Click Open project details for your movie.'};
+    }
+    if(goal==='week')return {ok:tutorialUsedNextWeek&&Engine.state.week>tutorialWeekBaseline,
+      text:tutorialUsedNextWeek&&Engine.state.week>tutorialWeekBaseline?'One game week advanced.':
+        'Press Next week; resolve a pending decision first if necessary.'};
+    if(goal==='advance')return {ok:tutorialUsedAdvance,
+      text:tutorialUsedAdvance?'Advance to next decision was used.':
+        Engine.state.pending?'A production decision is waiting; resolve it before advancing.':
+        'Press Advance to next decision in the top bar.'};
+    if(goal==='decision')return {ok:!Engine.state.pending,
+      text:Engine.state.pending?'Choose one of the real options in the game event popup.':
+        'No decision is waiting. You can continue.'};
+    if(goal==='release')return {ok:!!(p&&p.releaseWeek!=null),
+      text:p&&p.releaseWeek!=null?p.title+' has premiered.':
+        'Your film is still '+(p?.stage||'in production')+'. Keep advancing.'};
+    if(goal==='releaseWeek')return {ok:!!(p&&p.releaseWeek!=null&&
+      (tutorialUsedNextWeek&&Engine.state.week>tutorialWeekBaseline||p.stage==='done')),
+      text:p?.stage==='done'?'Your film has already finished its screening run.':
+        tutorialUsedNextWeek&&Engine.state.week>tutorialWeekBaseline?'Another week of receipts has been recorded.':
+        'Press Next week once more to see actual weekly performance.'};
+    if(goal==='film')return {ok:!!(p&&drawer?.kind==='film'&&Engine.filmById(drawer.id)?.projectId===p.id),
+      text:'Click your movie title in My Filmography to open its permanent record.'};
+    return {ok:true,text:'Continue when ready.'};
+  }
+  function tutorialFollowExistingFilm(){
+    if(!Engine.state?.projects?.length)return;
+    tutorialTargetId=Engine.state.projects[Engine.state.projects.length-1].id;
+    renderTutorial(false);
+  }
   function tutorialClearHighlights() {
     document.querySelectorAll('.tutorial-target').forEach(el => el.classList.remove('tutorial-target'));
   }
@@ -2444,6 +2497,7 @@ var UI = (function () {
     }
     const n = TUTORIAL_STEPS.length, i = Math.max(0, Math.min(n - 1, tutorialStep));
     const item = TUTORIAL_STEPS[i], last = i === n - 1;
+    const goal=tutorialGoalStatus(item);
     el.hidden = false;
     document.body.classList.add('tutorial-open');
     if (tutorialMinimized) {
@@ -2462,23 +2516,29 @@ var UI = (function () {
       '<h2 id="tutorial-title">' + esc(item.title) + '</h2>' +
       '<p id="tutorial-description">' + esc(item.text) + '</p>' +
       '<p class="tutorial-location"><strong>Find it:</strong> ' + esc(item.location) + '</p>' +
+      '<p class="tutorial-live '+(goal.ok?'is-ready':'is-waiting')+'" role="status" aria-live="polite">'+
+      (goal.ok?'✓ Ready · ':'Action required · ')+esc(goal.text)+'</p>' +
+      (Engine.state&&i===5&&Engine.state.projects.length?
+        '<p class="tutorial-note">Already have a film? <button type="button" onclick="UI.tutorialFollowExistingFilm()">Follow my latest existing film</button></p>':'') +
       (!Engine.state ? '<p class="tutorial-note">Preview only — start a new game to explore these sections.</p>' :
         item.visit && !where ? '<p class="tutorial-note">You are already on this page. Click its sidebar link or select Next.</p>' :
         item.visit ? '<p class="tutorial-note">Click the highlighted link to advance automatically, or use Open section.</p>' : '') +
       '<div class="tutorial-actions">' +
       '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">Skip tutorial</button>' +
-      (i === 0 ? '<button type="button" onclick="UI.tutorialJumpToUpdates()">Jump to new features</button>' : '') +
+      (i === 0 ? '<button type="button" onclick="UI.tutorialJumpToUpdates()">Browse feature reference</button>' : '') +
+      (tutorialMode==='reference'?'<button type="button" onclick="UI.tutorialRestartGuided()">Start guided first film</button>':'') +
       (i ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
       (where ? '<button type="button" onclick="UI.tutorialOpenSection()">Open ' + esc(label ? label[1] : 'section') + '</button>' : '') +
-      (last ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Finish · Plan a film</button>' :
-        '<button type="button" class="primary" onclick="UI.tutorialMove(1)">Next</button>') +
+      (last ? '<button type="button" class="primary" onclick="UI.closeTutorial()">Finish guide</button>' :
+        '<button type="button" class="primary" '+(goal.ok?'':'disabled aria-disabled="true"')+
+        ' onclick="UI.tutorialMove(1)">Next</button>') +
       '</div></section>';
     tutorialHighlight(item, scroll);
   }
   function openTutorial() {
     tutorialReturnFocus = document.activeElement;
-    tutorialStep = 0;
-    tutorialMinimized = false;
+    tutorialMode='guided';tutorialTargetId=null;tutorialScriptChosen=false;
+    tutorialStartStep(0);
     closeMobileNav();
     if (drawer) closeDrawer();
     renderTutorial(false);
@@ -2488,19 +2548,29 @@ var UI = (function () {
   // Returning players can skip basic controls without losing the full guide.
   function tutorialJumpToUpdates() {
     if(tutorialStep<0)return;
-    tutorialStep=TUTORIAL_STEPS.findIndex(step=>step.title==='Discover scripts and film DNA');
-    tutorialMinimized=false;
+    tutorialMode='reference';
+    tutorialStartStep(TUTORIAL_STEPS.findIndex(step=>step.title==='Pick format, cast and budget'));
     renderTutorial(true);
   }
+  function tutorialRestartGuided(){
+    if(tutorialStep<0)return;
+    tutorialMode='guided';tutorialScriptChosen=false;tutorialStartStep(0);renderTutorial(false);
+  }
   function tutorialMove(delta) {
-    if (tutorialStep < 0) return;
-    tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStep + delta));
-    tutorialMinimized = false;
+    if(tutorialStep<0)return;
+    if(delta>0&&!tutorialGoalStatus(TUTORIAL_STEPS[tutorialStep]).ok)return;
+    const next=TUTORIAL_STEPS[Math.max(0,Math.min(TUTORIAL_STEPS.length-1,tutorialStep+delta))];
+    // Release the scrim from Film Hub before teaching navigation or a real
+    // top-bar action; otherwise users cannot click the highlighted control.
+    if(drawer&&(next.visit||['week','releaseWeek','advance','release'].includes(next.goal)))
+      closeDrawer();
+    tutorialStartStep(tutorialStep+delta);
     renderTutorial(true);
   }
   function tutorialOpenSection() {
     if (tutorialStep < 0 || !Engine.state) return;
     const item = TUTORIAL_STEPS[tutorialStep];
+    if(item.view&&drawer)closeDrawer();
     if (item.view) go(item.view);
   }
   function tutorialMinimize() {
@@ -2512,6 +2582,7 @@ var UI = (function () {
     if (tutorialStep < 0) return;
     tutorialStep = -1;
     tutorialMinimized = false;
+    tutorialMode='guided';tutorialTargetId=null;
     renderTutorial(false);
     if (planFilm && Engine.state) { tutorialReturnFocus = null; go('newproject'); return; }
     if (tutorialReturnFocus && tutorialReturnFocus.isConnected) tutorialReturnFocus.focus();
@@ -2706,8 +2777,21 @@ var UI = (function () {
     }catch(err){setFlash('Could not finish saving: '+err.message);render();}
     finally{saveBusy=false;}
   }
-  function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
-  function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }
+  function nextWeek(){
+    if(currentYearEndReport())return;
+    const old=Engine.state?.week,advanced=Engine.nextTurn();
+    if(advanced&&Engine.state.week>old&&tutorialStep>=0&&
+      ['week','releaseWeek'].includes(TUTORIAL_STEPS[tutorialStep].goal))
+      tutorialUsedNextWeek=true;
+    render();
+  }
+  function advance(){
+    if(currentYearEndReport())return;
+    const n=Engine.advance();
+    if(n>0&&tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='advance')
+      tutorialUsedAdvance=true;
+    render();
+  }
   function choose(i) { Engine.choose(i); render(); }
   function beginSequel(id) {
     const q=Engine.sequelEligibility(id);
@@ -2726,7 +2810,8 @@ var UI = (function () {
   function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
+      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -2902,7 +2987,9 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates,
+    tutorialRestartGuided:tutorialRestartGuided,tutorialFollowExistingFilm:tutorialFollowExistingFilm,
+    tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,

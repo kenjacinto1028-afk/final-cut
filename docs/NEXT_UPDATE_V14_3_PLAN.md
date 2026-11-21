@@ -1,5 +1,5 @@
 # FinalCut v14.3 — Film Lifecycle, Promotion & Guided First Film
-**Status:** Proposed next update — planning only; no gameplay code implemented or approved for release.
+**Status:** User-approved, implementation staged through PRs #10–#13; final tutorial CI pending. See CHANGELOG_V14_3.md.
 **Baseline:** v14.2 on `kenjacinto1028-afk/final-cut/main` (commit `37d827a`), retaining save schema v13 and v14.1 balance unless measured tuning supports change.
 **Design:** Meaningful film- and studio-management decisions with minimal micromanagement, a living industry, and controls discoverable when unavailable as well as available.
 
