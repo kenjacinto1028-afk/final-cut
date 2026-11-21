@@ -236,3 +236,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Studio Wire tab, trend kind and per-film Film Hub subtab now persist in session storage (while per-studio filter state remains isolated); fallback safe when browser storage unavailable (`ui.js`, 882c099).
   - [x] Timeline now projects rough premiere milestones beyond the 12-week calendar; New Project release comparison explicitly says no rival forecast is available beyond that horizon, instead of claiming no competition (`ui.js`, f4d0dce).
   - [x] v14.8 Node and Playwright suites passed after first fixes; corrected Python indentation of the updated four-control legacy dashboard assertion (`tests/v13_6_sitewide_browser.py`, 938b73d).
+  - [x] Updated `docs/NEXT_UI_POLISH_PLAN.md` from proposed work to accurate v14.8 feature inventory with explicit saved-forecast and legacy-data limits (`8b57c41`).
