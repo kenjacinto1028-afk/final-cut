@@ -189,8 +189,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase 1a: repaired common completed-film hiding from carried-over archive filters; Filmography opens All My Films unfiltered and has reset control (ui.js c974428).
 - [x] Phase 1b: premiere no longer hidden by tutorial; distinct end-of-run report and save migration added (engine.js 668cd2b, ui.js 3b9828b).
 - [x] Phase 1c: audited 23 tutorial steps, replacing legacy paths with current five-section navigation and monitor/film hub access (ui.js 3f8e525).
-- [ ] Phase 1d: add Project Monitor → Project Details link, clear festival kit timing, and consistent in-game confirmations.
-- [ ] Phase 2: broaden film-name generation without unintentional repeats.
+- [x] Phase 1d: added monitor Project Details buttons, future-jury festival disclosure and in-game asynchronous confirm/prompt/alert dialog framework (ui.js d4895b5/7a304ea; theme-ab.css d3afb5d).
+- [x] Phase 2: expanded 33 name patterns, word banks, genre-aware generation, and duplicate avoidance (content.js 3b35875; engine.js b42b9a7).
 - [ ] Phase 3: film-specific following, decay/retention, cult status, and sequel carryover.
 - [ ] Phase 3b: distinct studio fans and bounded effects on new projects.
 - [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
