@@ -1180,11 +1180,15 @@ var Engine = (function () {
   }
   function sequelEligibility(id) {
     const parent=getProject(id);
-    if (!parent || parent.format!=='feature' || parent.stage!=='done' || parent.result!=='Hit')
-      return {ok:false, reason:'Only a completed hit feature can launch a sequel.'};
-    if (state.projects.some(p=>p.sequelOf===parent.id && p.stage!=='done'))
-      return {ok:false, reason:'A sequel to this film is already in development.'};
-    return {ok:true,parent:parent};
+    if(!parent||parent.releaseWeek==null||!['short','feature','pilot'].includes(parent.format))
+      return {ok:false,reason:'Only an already released, player-owned story can be continued.'};
+    const known=parent.result==='Hit'||parent.result==='Picked up'||parent.result==='Won'||
+      (parent.quality||0)>=65||(parent.critic||0)>=68||(parent.audience||0)>=72||
+      (parent.festResults||[]).some(x=>/selection|prize|mention|won/i.test(x.result||''));
+    if(!known)return {ok:false,reason:'This story needs an actual audience, critical, or festival foothold before a continuation.'};
+    if(state.projects.some(p=>p.sequelOf===parent.id&&ACTIVE_STAGES.includes(p.stage)))
+      return {ok:false,reason:'A continuation of this story is already in production.'};
+    return {ok:true,parent};
   }
   // Historical cast links are stable IDs: names alone do not prove a returning artist.
   // Skill is never penalized by an actor change, only opening awareness.
@@ -1261,7 +1265,7 @@ var Engine = (function () {
     else if (state.studio.tier < (tier.minTier || 0)) reason = 'The ' + tier.name + ' budget needs the ' + tierName(tier.minTier) + ' tier.';
     else if (o.format === 'pilot' && tvSlotsUsed() >= growthTier().maxSeries) reason = 'No room for another show (' + growthTier().maxSeries + ' at this tier, pilots included).';
     else if (!o.title || !o.title.trim()) reason = 'Enter a title.';
-    else if (o.sequelOf != null && (o.format!=='feature' || !sequelEligibility(o.sequelOf).ok)) reason = 'This sequel needs a completed, profitable hit feature as its source.';
+    else if (o.sequelOf != null && !sequelEligibility(o.sequelOf).ok) reason=sequelEligibility(o.sequelOf).reason;
     else if (!byId(CONTENT.GENRES, o.genre)) reason = 'Pick a genre.';
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
     else if (!script.ok) reason=script.reason;
@@ -1334,6 +1338,8 @@ var Engine = (function () {
       backgroundCrew:Number(o.backgroundCrew)||0, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
       stage: 'development', stageWeeksLeft: pv.flexible?FinalCutBudget.stageWeeks(pv.mediaVariant).development:f.stages.development, startWeek: state.week,
       sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
+      continuationType:parent?(o.continuationType|| (parent.format!==o.format?'adaptation':'direct')):null,
+      sourceMedia:parent?(parent.mediaVariant||parent.format):null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
@@ -1348,7 +1354,10 @@ var Engine = (function () {
       // Recognition improves opening awareness but increasing installments face diminishing novelty.
       p.hypeMod += Math.max(1, 10-Math.max(0,installment-2)*2);
       p.qualityMod -= Math.max(0,installment-2)*1.5;
-      p.franchiseExpectation = Math.max(0,(parent.critic||0)-60) * .06 + Math.max(0,installment-2)*2;
+      p.franchiseExpectation = Math.max(0,(parent.critic||0)-60) * .08 + Math.max(0,installment-2)*2;
+      // A franchise provides awareness, never an inherited quality score or guaranteed result.
+      if(p.continuationType==='spinoff')p.hypeMod-=2;
+      if(p.continuationType==='adaptation')p.hypeMod-=3;
       p.hypeMod -= Math.max(0,installment-3)*2;
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
