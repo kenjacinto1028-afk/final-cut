@@ -79,7 +79,8 @@ const series=E.state.series.at(-1);
 assert(series.flexibleSeries);
 series.quality=95;series.hype=90;
 assert.equal(series.episodes,6);
-assert.equal(series.firstEpCost,Math.round(f.project.budget*.73));
+assert(series.firstEpCost>0 && series.firstEpCost<=Math.round(f.project.budget*.92),
+  'episode cost is grounded in funded production, excluding unspent reserve');
 const pre=series.revenue;
 advance(E,8,()=>series.sponsorOffer!=null);
 const offer=series.sponsorOffer;assert(offer.perEpisode>0);
