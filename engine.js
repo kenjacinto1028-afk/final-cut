@@ -311,6 +311,54 @@ var Engine = (function () {
   function byId(list, id) { return list.find(x => x.id === id); }
   function fill(text, p, t) { return String(text).replace(/\{title\}/g, p ? p.title : '').replace(/\{name\}/g, t ? t.name : ''); }
   function fmtMoney(n) { const s = '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); return n < 0 ? '-' + s : s; }
+
+  // v14a — source-of-truth Film DNA, intentionally without numerical bonuses.
+  // The old v13 save format stays readable, with unknown history left unknown.
+  const DNA_STORY_LIMIT=16;
+  function filmDNAFor(p){
+    if(p&&p.filmDNA&&p.filmDNA.version===1)return p.filmDNA;
+    return {version:1,origin:'legacy',legacy:true,scriptId:null,hook:null,
+      strengths:[],risk:null,intent:null,lane:null,story:[],flags:{}};
+  }
+  function initialFilmDNA(p,parent){
+    const cfg=CONTENT.FILM_DNA;
+    const strengths=(cfg.genreStrengths[p.genre]||['dialogue','heart']).slice(0,2);
+    const risk=cfg.genreRisks[p.genre]||'narrow';
+    const intent=p.format==='short'?'festival':
+      p.genre==='documentary'||p.genre==='drama'?'prestige':
+      ['horror','thriller','scifi'].includes(p.genre)?'genre':'mainstream';
+    const lane=p.format==='short'||intent==='prestige'?'niche':intent==='genre'?'genre':'mainstream';
+    return {version:1,origin:parent?'sequel':'custom',legacy:false,scriptId:null,
+      hook:cfg.topicHooks[p.topic]||null,strengths,risk,intent,lane,story:[],flags:{}};
+  }
+  function recordFilmStory(p,type,label,detail){
+    if(!p)return;
+    if(!p.filmDNA||p.filmDNA.version!==1)p.filmDNA=filmDNAFor(p);
+    const dna=p.filmDNA;
+    if(!Array.isArray(dna.story))dna.story=[];
+    const item={week:state?state.week:0,stage:String(p.stage||'development').slice(0,24),
+      type:String(type||'note').slice(0,24),text:String(label||'').trim().slice(0,170)};
+    if(detail&&typeof detail==='object'){
+      if(typeof detail.eventId==='string')item.eventId=detail.eventId.slice(0,50);
+      if(Number.isInteger(detail.choice))item.choice=detail.choice;
+      if(Number.isFinite(detail.cost)&&detail.cost>0)item.cost=Math.round(detail.cost);
+      if(Number.isFinite(detail.quality)&&detail.quality)item.quality=Math.round(detail.quality);
+      if(Number.isFinite(detail.hype)&&detail.hype)item.hype=Math.round(detail.hype);
+      if(Number.isFinite(detail.weeks)&&detail.weeks)item.weeks=Math.round(detail.weeks);
+    }
+    const last=dna.story[dna.story.length-1];
+    if(last&&last.week===item.week&&last.type===item.type&&last.eventId===item.eventId&&last.text===item.text)return;
+    dna.story.push(item);
+    if(dna.story.length>DNA_STORY_LIMIT)dna.story.splice(0,dna.story.length-DNA_STORY_LIMIT);
+  }
+  function filmDNASummary(p){
+    const dna=filmDNAFor(p);
+    return {version:1,origin:dna.origin,legacy:!!dna.legacy,scriptId:dna.scriptId||null,
+      hook:dna.hook||null,strengths:(dna.strengths||[]).slice(0,2),
+      risk:dna.risk||null,intent:dna.intent||null,lane:dna.lane||null,
+      flags:Object.assign({},dna.flags||{}),story:(dna.story||[]).slice(-DNA_STORY_LIMIT)};
+  }
+
   function round50(n) { return Math.max(50, Math.round(n / 50) * 50); }
 
 // ===== SECTION: STATE =====
