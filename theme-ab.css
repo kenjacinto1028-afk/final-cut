@@ -630,3 +630,49 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 @media(prefers-reduced-motion:reduce){
  #film-monitor *, .fc-pulse-chart *{transition:none!important;animation:none!important}
 }
+
+
+/* v13.9 — Measured-as-estimate film reach and independent short-film afterlife.
+   Subdued A+B presentation: small metrics, no neon or decorative artwork. */
+.fc-film-health{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:11px}
+.fc-film-health>div{padding:10px 12px;background:#293837;border:1px solid #4c6158;border-radius:6px;min-width:0}
+.fc-film-health small,.fc-short-festivals small{display:block;color:#b4c8ba;font-size:10px;line-height:1.4}
+.fc-film-health strong{display:block;font-size:18px;font-weight:750;color:#efe9dc;margin:4px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fc-film-health em{display:block;color:#a6b7ac;font-size:10px;font-style:normal;line-height:1.4}
+.fc-short-festivals{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 10px}
+.fc-short-festivals>div{border:1px solid #606653;background:#343a33;border-radius:6px;padding:11px 13px;min-width:0}
+.fc-short-festivals>div>strong{display:block;color:#e7ddc6;font-size:12px;margin:5px 0;overflow-wrap:anywhere}
+.fc-short-festivals>div>span{display:block;font-size:11px;color:#c6c6b7;line-height:1.45}
+.fc-short-actions{padding:13px 14px;border-radius:7px;background:#293634;border:1px solid #596956;margin-top:14px}
+.fc-short-actions h3{font:normal 17px Georgia,Cambria,serif;color:#e8e5d9;margin:0 0 4px}
+.fc-short-actions>p{font-size:11px;color:#b8c9bd;margin:0 0 10px}
+.fc-short-choice{display:flex;justify-content:space-between;align-items:center;gap:13px;padding:10px 0;border-top:1px solid #45574d}
+.fc-short-choice:first-of-type{border-top:0}
+.fc-short-choice strong{color:#e7ece3;font-size:12px}
+.fc-short-choice p{color:#bfcac0;font-size:11px;margin:3px 0 0}
+.fc-short-choice button{flex:none;font-size:11px;color:#1a2d25;background:#a7bead;border:1px solid #a7bead;padding:8px 11px}
+.fc-short-choice button:hover{background:#c5d5c9;color:#182920}
+.fc-short-actions-done{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.fc-short-actions-done span{font-size:10px;color:#c9e2c9;border:1px solid #5b7762;background:#354737;border-radius:4px;padding:4px 7px}
+.fc-monitor-health{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+.fc-monitor-health>span{border:1px solid #597469;background:#2f413b;border-radius:4px;padding:3px 7px;color:#bdcdbf;font-size:10px}
+.fc-monitor-health b{font-size:11px;color:#f0ece4;margin-left:3px}
+.fc-monitor-festival{color:#c3ccad;font-size:10px;margin:9px 0 4px;line-height:1.5}
+#film-monitor .fc-monitor-shortaction{display:block;width:100%;padding:8px 9px;margin-top:10px;font-size:10px;
+  background:#455747;color:#f3efdc;border:1px solid #83947c;border-radius:5px}
+#film-monitor .fc-monitor-shortaction:hover{background:#5d7060;color:white}
+.fc-film-substats{display:block;font-size:10px;color:#a6c7b9;margin-top:5px;font-weight:600;white-space:normal}
+#drawer .fc-short-festivals,#drawer .fc-film-health{grid-template-columns:repeat(2,minmax(0,1fr))}
+#drawer .fc-film-health strong{font-size:16px}
+#drawer .fc-short-choice{flex-wrap:wrap}
+@media(max-width:910px){
+ .fc-film-health{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .fc-performance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:540px){
+ .fc-short-festivals{grid-template-columns:1fr}
+ .fc-short-choice{flex-direction:column;align-items:flex-start}
+ .fc-short-choice button{width:100%}
+ .fc-film-health strong{font-size:15px}
+ .fc-film-health>div{padding:9px}
+}
