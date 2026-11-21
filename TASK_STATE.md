@@ -203,3 +203,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Browser tutorial regression showed premiere card blocking Next Week in topbar; docked in-tutorial report bottom-right instead of top-right (`theme-ab.css`, 32995c0).
   - [x] Tutorial regression now explicitly acknowledges premiere before Next Week; game correctly pauses progression until the premiere is dismissed (`tests/v14_2_tutorial_browser.py`, efbf5ce).
   - [x] Aligned end-to-end tutorial expected step labels with renamed My Releases / Film Archive (`tests/v14_2_tutorial_browser.py`, a71d834).
+
+## v14.7: adapt six-palette studio design prototype (branch `feature/v14-7-prototype-design-system`)
+- [ ] Audit current shell, core components, responsive behavior and attached HTML reference; define compatibility-safe design tokens.
+- [ ] Implement six persisted theme palettes and accessible palette selector.
+- [ ] Adopt compact four-zone dark shell (topbar, left nav, central stepped cards, optional monitor) and typography/card/button hierarchy.
+- [ ] Improve dashboard KPI/feed/monitor scanability without duplicated counters or altering gameplay.
+- [ ] Add keyboard/mobile and visual regression tests; run existing CI suites and fix issues.
+- [ ] Merge verified update to main and confirm GitHub Pages deployment.
