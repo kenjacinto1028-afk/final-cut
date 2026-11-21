@@ -251,5 +251,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Implemented `mobile-v14_9.css`, five-section bottom nav and touch drawer (`index.html`, `ui.js`), full-width title, compact dashboard, Studio Wire and mobile action bar on branch `feature/v14-9-dedicated-mobile-ui`.
 - [x] Added `tests/v14_9_mobile_browser.py` and `.github/workflows/v14_9.yml` verifying 320/390/768px phone views and desktop 1440px. Initial monitor close overlap fixed in `mobile-v14_9.css` and covered by explicit click regression (commits `d80abb5` and `7626308`).
 - [x] PR #22 merged to main at `df16a32e`; 14 of 15 final-code head CI workflows passed so far (including v14.9 mobile, v13.8/13.9 film monitor, v14 integrated browser, v14.8a responsive, saves/tutorial). Changelog and README updated under `docs/CHANGELOG_V14_9.md`.
-- [ ] Verify final v14.1 12-career balance job #44918725663 completes successfully and verify GitHub Pages deployment.
+- [x] Final v14.1 12-career balance job #44918725663 succeeded: all 15 of 15 PR workflows passed on final code head `7626308`.
+- [ ] Verify the new GitHub Pages deployment (main is merged; live-site verification was not independently available).
 - [ ] Physical Brave Android/iPhone touch acceptance remains outstanding; disable browser "Desktop site" when checking the true mobile layout.
