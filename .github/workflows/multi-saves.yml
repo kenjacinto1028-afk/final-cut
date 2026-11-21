@@ -1,0 +1,43 @@
+name: FinalCut multiple saves and compatibility
+on:
+  push:
+    branches: [feature/multi-save-library-v13-7]
+  pull_request:
+    branches: [main]
+jobs:
+  saves:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check sources and legacy gameplay compatibility
+        run: |
+          node --check engine.js
+          node --check poster-store.js
+          node --check save-slots.js
+          node --check ui.js
+          node tests/v13_smoke.js
+          node tests/v13_4_honors.js
+          node tests/v13_5_production_center.js
+          node tests/v13_compat_regression.js
+          node tests/v13_1_balance.js
+      - name: Install browser tests
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify multiple campaigns and custom posters
+        run: python tests/v13_7_multi_save_browser.py
+      - name: Upload save manager screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalcut-v13-7-save-library
+          path: |
+            /tmp/finalcut-save-library-desktop.png
+            /tmp/finalcut-save-library-mobile.png
+          if-no-files-found: ignore
