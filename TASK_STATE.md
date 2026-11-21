@@ -52,3 +52,20 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Styled compact A+B quality/hype and festival engagement panels responsively in `theme-ab.css`; updated `docs/CHANGELOG_V13_9.md`, README and HANDOFF. Save v13 preserved and old completed shorts are not repaid.
 - [x] Passed 2 independent 10-year world simulations (72 shorts, exact screening-revenue reconciliation), engine, festivals, encore, simulated households and legacy v13 tests; full v13.5/13.6/13.7/13.8 regression suites and Chromium/mobile UI checks all green (PR Actions #44853961546/#44853961453/#44853961451/#44853961483/#44853961498). Real screenshots artifact #14686218189.
 - [x] PR #5 merged to `main` (`bd4275830c430c640456b7c8a990ee2f5cfcf702`); all five FinalCut regressions succeeded on PR #5 (#44853961546/#44853961453/#44853961451/#44853961483/#44853961498); GitHub Pages #44854123420 built and deployed successfully. Original save format remains v13.
+
+## v14 — Filmmaking overhaul (approved 2026-11-21)
+- [x] Verified correct `final-cut/main` at v13.9; read the approved local v14 design and earned company-classification expansion; no v14 stages previously implemented.
+- [ ] **v14a:** implement compact Film DNA (script hook, strengths, weakness, creative intent, audience lane), causal event history and forward-compatible v13 save handling; test and merge to main.
+- [ ] **v14b:** implement three quarterly pitches, one-time acquisition, custom/sequel fallback and affordable early shorts; test and merge to main.
+- [ ] **v14c:** integrate contextual production dilemmas and persistent consequences; test and merge to main.
+- [ ] **v14d:** implement sparse talent chemistry and return-cast consequences; test and merge to main.
+- [ ] **v14e:** implement tactical release calendar, positioning and mid-run decisions; test and merge to main.
+- [ ] **v14f:** implement responsible rival behaviors and cause-based industry news; test and merge to main.
+- [ ] **v14g:** implement postrelease legacy and earned primary classification, descriptors and standing for player and rivals; test and merge to main.
+- [ ] **v14h:** integrate UI, tutorial and multiyear balance tests; test and merge to main.
+### v14a atomic checkpoints
+- [ ] Inspect game project lifecycle, save/backup and existing reports; establish additive schema and tests.
+- [ ] Implement causal Film DNA creation and compact story history; preserve old saves.
+- [ ] Expose Film DNA in project detail and Studio filmography with restrained A+B design.
+- [ ] Add automated legacy/save/pilot/feature/short tests and browser regression workflow.
+- [ ] Merge v14a only after passing CI and verify production deployment.
