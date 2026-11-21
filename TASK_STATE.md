@@ -215,3 +215,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Fixed legacy headless tests that instantiate `ui.js` without browser-only palette module (`ui.js`, f4a9f78); relaxed visual test cash-runway label to respect uppercase styling (`tests/v14_7_design_browser.py`, 8455990).
   - [x] Fixed desktop Project Monitor overlap by reserving matching 310px content gutter (`design-v14_7.css`, 0a9fb54); new mobile QA now starts a playable campaign after reload before opening the menu (`tests/v14_7_design_browser.py`, edd2805).
   - [x] Browser QA identified visible mobile Menu behind optional fixed monitor; elevated mobile menu/nav stacking above monitor (`design-v14_7.css`, ee9ada8).
+  - [x] Dedicated v14.7 Chromium design QA passed on commit `ee9ada8` (all six palettes/persistence, live wire, mobile 320/390px, monitor and screenshots).
