@@ -75,13 +75,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added additive FCP2 second-stage synchronous LZW compression only for over-3.75m-character FCP1/plain saves; old v13 JSON and FCP1 remain fully readable. Added dedicated Unicode/quota/roundtrip regression. CI #44864678832 verified 8/8 standard-start campaigns now save and reload successfully with FCP2; #44864678975 confirmed full v14 + legacy and real-browser regressions, Pages #44864678165 deployed successfully.
 
 - [x] Final FCP2 save-capacity acceptance: FCP1 5.45m–6.02m chars fell to FCP2 1.84m–2.05m chars, all 8 under 5MiB and roundtripped; direct >17MB synthetic Unicode archive test also passed. No save version change.
-- [ ] Future balance tuning: investigate blockbuster $2bn cash, 0–1 careful-studio flops, 20–26-point player/rival quality gap and major-award density using additional regions/seeds; do not change live rules without regression proof.
-- [ ] Future manual validation: check long-save UI latency on real mobile/browser storage, since the large-save codec was exercised under Node's simulated quota.
+- [x] v14.1 balance tuning: capped blockbuster returns, experience-backed rival quality, gentler slate saturation, commercial risk and modest elite award scarcity; 12×61-year CI compared with earlier benchmark. Additional tuning remains optional.
+- [ ] Future manual validation on physical Android/iPhone hardware: Chromium's 390px mobile browser tests passed, but actual device memory/latency and browser storage limits vary.
 
 ## v14.1 — Balance/mobile staged release (2026-11-21)
 - [x] Stage 1: Profit-risk tuning: less generous premium-budget theater reach, remembered recent same-genre launches, modest wider downside, and stronger returns from actually hired rival talent. Baseline: 8 normal-start 61-year scenarios in V14_BALANCE_FOLLOWUP.md. Targeted assertions in tests/v14_1_balance.js. Await CI before calling tuned/accepted.
 - [x] Stage 2 engine: 350ms coalesced background save after 1,600 rival-archive entries or 340 player films; same lossless codec in isolated Worker; discard stale generations after manual save/load/slot switch. Flush scheduled autosaves on visibility/pagehide. Chromium mobile test next.
-- [ ] Stage 3: Compare multi-seed outcomes against v14 baseline; run all existing v13/v14 browser and economy regressions and merge/deploy.
+- [x] Stage 3: Twelve 61-year standard-start strategy runs in North America, Europe, Asia-Pacific, full v13/v14 regressions, save/mobile Chromium tests accepted via PR #7 (merge 4782808e). The overcorrection was rejected and corrected before merge.
 
 - [x] Stage 3 testing gate: 12 standard-start 61-year region/strategy careers; v13 and v14 economic/award/save regressions; 390px Playwright mobile worker, old save slots and film UI checks. Workflow: .github/workflows/v14_1.yml.
 
@@ -90,3 +90,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Stage 1b evidence-led revision after first 12-career run: large-budget cash was lower, but careful studio flops only 0–2 and rivals still averaged ~65 craft vs player ~90. Added funded studio-experience quality uplift (max 12), 26-week mid/high-budget portfolio crowding, and modest elite-award thresholds (+2/+3). Kept indie films exempt from slate pressure. Seed matrix now shares North America/Europe starting seeds with previous v14 baseline for stronger comparison. Pending CI acceptance.
 
 - [x] Rejected stage 1b overcorrection: 12×61y tests showed blockbuster only ~$16m average cash and ~158 flops; rivals became too dominant (~75 quality and 250 awards/year-long totals). Reduced earned rival craft cap 12 → 6 and high-budget six-month slate penalty 20% → 8%; retain modest elite-award floors. Rechecking before merge.
+
+## v14.1 — Released balance and mobile performance (2026-11-21)
+- [x] Merged PR #7 to `final-cut/main` (`4782808e`); revised parameters were selected using three tested 12-career runs, rejecting over-corrected rival dominance rather than shipping it.
+- [x] Accepted 12×61-year standard-start CI #44866770309 (all save roundtrips); averages: blockbuster $745.3m/99 flops, prestige $222.8m/69, careful $221.9m/5, cheap $29.8m/72; three regions, four strategies.
+- [x] Mobile Chrome/390px performance and full archive/worker ordering QA passed; existing v14 and v13.5–v13.9 compatibility/browser tests green on PR #7.
+- [ ] Confirm final documentation-only main commit Pages build/deployment and main v14 CI, after this documentation checkpoint.

@@ -41,3 +41,7 @@ North America/Europe/Asia-Pacific, four standard-start studio styles, 61 simulat
 ## Second 12-career run rejected (Actions #44866470355)
 
 With the over-aggressive rival experience boost (maximum +12) and a 20% portfolio attention penalty, average blockbuster cash fell to $16m, below the $31m cheap strategy, and blockbuster films suffered ~158 flops in 61 years. Rival average quality reached 75–77 and competitor awards dominated. This is an unacceptable inversion of the blockbuster strategy, even though all simulated saves succeeded. **Do not release those parameters.** Reduced the earned rival experience bonus ceiling to 6 and high-budget all-genre slate penalty to 8%; tests pending. The win eligibility floor adjustment stays modest.
+
+## Accepted v14.1 release — PR #7
+
+Final 12-career acceptance CI #44866770309 passed with normalized sample means: blockbuster $745.3m cash / 99 feature flops, prestige $222.8m / 69, careful $221.9m / 5, and cheap genre $29.8m / 72. All strategies survived, all long saves reloaded and competitors persisted. Rival quality averaged around 69–71 (versus earlier mid-60s). Major trophy wins from high-output successful studios were more restrained. The overcorrection was rejected before merge; see `docs/CHANGELOG_V14_1.md` for final formula caps, tests, browser outcomes and caveats.

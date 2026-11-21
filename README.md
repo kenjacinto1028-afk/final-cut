@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v14.1 — Balance and responsive long-career saving
+The studio economy now applies bounded premium-budget and repeat-slate audience pressure, improves rival filmmaking through genuinely earned studio craft, and slightly raises elite award winner thresholds. Large weekly browser autosaves use a background worker so long campaigns do not block normal navigation; manual/save-slot operations remain synchronous, with original v13, FCP1 and FCP2 saves supported. Twelve 61-year standard-start careers across three regions and mobile Chromium plus legacy tests passed. See [v14.1 changelog](docs/CHANGELOG_V14_1.md).
+
 ## v14 — Filmmaking stories, competition and earned studio identity
 
 Film projects now develop as persistent, connected stories: discover three quarterly screenplay opportunities or write your own, choose a creative vision, resolve meaningful production tradeoffs, compete with rival release dates, and follow theatrical or catalog opportunities after release. Routine work still advances automatically.
