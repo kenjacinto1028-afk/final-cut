@@ -177,3 +177,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 - [x] Planned film-specific active/core followers, cult status, natural decay, occasional resurgence and bounded sequel audience advantages in `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
 - [ ] Future gameplay implementation: add follower/retention state, Film Hub/monitor visibility, sequel continuity effects and long-career regression tests after Filmography visibility repair.
+
+- [x] Audited v14.5 release/festival behavior: `engine.js` premieres on `releaseWeek`, `ui.js` suppresses pending premiere reports while tutorial active; short press kit legitimately remains available after screening if future first-year jury date remains.
+- [x] Added delayed premiere correction, separate end-of-run recap, festival eligibility clarity and studio-wide follower/loyal-fan design to `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
+- [ ] Future implementation: correct tutorial/premiere modal timing; clarify future festival kit dates and eligibility; add studio followers and cross-film loyalty with long-run balancing tests.
