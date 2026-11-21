@@ -644,14 +644,35 @@ var UI = (function () {
     });
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
-    h += '<div class="tbl-wrap"><table><thead><tr>' + (ranked ? '<th>World #</th>' + (mine ? '<th>Studio #</th>' : '') : '') +
-      (mine && !ranked ? '<th>Studio #</th><th>World #</th>' : '') + '<th>Film</th><th>Studio</th><th>Year</th><th>Genre / Topic</th><th class="num">Critics</th><th class="num">Gross</th><th class="num">' + (ranked ? 'Ranking score' : 'Awards') + '</th></tr></thead><tbody>' +
-      page.map(f => '<tr>' + (ranked ? '<td><strong>#' + f.worldRank + '</strong>' + rankMovement(f) + '</td>' + (mine ? '<td>#' + f.studioRank + '</td>' : '') : (mine ? '<td>' + (positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—') + '</td><td>' + (positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—') + '</td>' : '')) +
-        '<td>' + filmLabel(f) + '</td><td>' + esc(f.studio) + (f.projectId != null ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + f.year + '</td>' +
-        '<td>' + esc(nameOf(CONTENT.GENRES,f.genre)) + ' / ' + esc(nameOf(CONTENT.TOPICS,f.topic || '')) + '</td><td class="num">' + (f.critic == null ? '—' : f.critic) +
-        '</td><td class="num">' + money(f.gross || 0) + '</td><td class="num">' + (ranked ? f.score : (f.awards || []).filter(a => a.won).length + (f.festResults || []).filter(a => /prize|grand|winner|won/i.test(a.result || '')).length) +
-        '</td></tr>').join('') +
-      (!page.length ? '<tr><td colspan="10" class="muted">No films match these filters yet.</td></tr>' : '') + '</tbody></table></div>';
+    const detailed=mine&&!ranked;
+    const heads=(ranked?'<th>World #</th>'+(mine?'<th>Studio #</th>':''):'')+
+      (detailed?'<th>Studio #</th><th>World #</th>':'')+
+      '<th>Film</th>'+(mine?'':'<th>Studio</th>')+'<th>Year</th><th>Format / Genre / Topic</th><th class="num">Critics</th>'+
+      (detailed
+        ? '<th class="num" title="Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.">Box office</th>'+
+          '<th class="num" title="Money retained by the studio: box-office share, screenings, pilot fees and later rights payments.">Studio receipts</th>'+
+          '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
+          '<th class="num" title="Modeled ticket admissions for theatrical features only. Not recorded actual viewers.">Tickets (est.)</th>'
+        : '<th class="num">Box office</th>')+
+      '<th class="num">'+(ranked?'Ranking score':'Awards')+'</th>';
+    h += '<div class="tbl-wrap fc-finance-table"><table><thead><tr>'+heads+'</tr></thead><tbody>'+
+      page.map(f=>{
+        const c=f.profit==null?'—':'<span class="'+(f.profit<0?'neg':'fc-positive')+'">'+money(f.profit)+'</span>';
+        const reach=f.format==='feature'&&Number.isFinite(f.estimatedAdmissions)
+          ?Number(f.estimatedAdmissions).toLocaleString('en-US'):'—';
+        const financial=detailed
+          ?'<td class="num">'+(f.format==='feature'?money(f.gross||0):'<span class="muted" title="No theatrical ticket sales for this format">—</span>')+'</td>'+
+           '<td class="num">'+money(f.revenue||0)+'</td><td class="num">'+c+'</td>'+
+           '<td class="num" title="Modeled admission count, not measured ticket sales">'+reach+'</td>'
+          :'<td class="num">'+money(f.gross||0)+'</td>';
+        return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(detailed?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
+          '<td>'+filmLabel(f)+'</td>'+(mine?'':'<td>'+esc(f.studio)+'</td>')+
+          '<td>'+f.year+'</td><td>'+esc(nameOf(Engine.formats(),f.format))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
+          '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
+          '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
+      }).join('')+
+      (!page.length?'<tr><td colspan="'+(detailed?12:(ranked?10:9))+'" class="muted">No films match these filters yet.</td></tr>':'')+
+      '</tbody></table></div>';
     if (maxPage) h += '<div class="archive-pages"><button onclick="UI.filmPage(-1)" ' + (filmBrowse.page===0?'disabled':'') + '>Previous</button>' +
       '<span>Page ' + (filmBrowse.page+1) + '/' + (maxPage+1) + '</span><button onclick="UI.filmPage(1)" ' + (filmBrowse.page===maxPage?'disabled':'') + '>Next</button></div>';
     return h;
@@ -674,7 +695,18 @@ var UI = (function () {
     return filmTable(films,false,my);
   }
   function viewFilmography() {
-    return '<h1>My Filmography</h1><p class="muted">Your studio’s complete release history, including production teams, financials and awards. Studio and world positions use the same ranking formula.</p>' +
+    const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
+    const receipts=mine.reduce((n,f)=>n+(f.revenue||0),0),
+      spent=mine.reduce((n,f)=>n+(f.spent||0),0),
+      box=mine.reduce((n,f)=>n+(f.gross||0),0);
+    const total=receipts-spent;
+    const dashboard='<div class="fc-film-financial-strip">'+
+      '<div><small>Total box office</small><strong>'+money(box)+'</strong><em>Feature tickets only</em></div>'+
+      '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
+      '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
+      '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
+    return '<h1>My Filmography</h1><p class="muted">All releases and direct film financials. Shorts earn screening income and pilots earn network income, not theatrical gross. Feature ticket counts are estimates, not actual attendance records.</p>'+dashboard+
+
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
       filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
