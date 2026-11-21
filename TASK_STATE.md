@@ -158,4 +158,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Reviewed main tutorial state, CSS anchoring, and v14.5 release status.
 - [x] Added independent drag/keyboard position controller in tutorial-position.js; default left anchor in theme-ab.css; loaded after ui.js via index.html.
 - [x] Preserved nonmodal tutorial operation and guide state; browser-local position persists and clamps on resize, double-click resets.
-- [ ] Confirm PR #17 regression results, merge to main, and verify Pages deployment.
+- [x] Diagnosed v14.4 Chromium failure: guide overlapped the Greenlight button. Added automatic placement away from visible primary actions in tutorial-position.js (commit 7a6ac68).
+- [ ] Confirm rerun of PR #17 regression results, merge to main, and verify Pages deployment.
