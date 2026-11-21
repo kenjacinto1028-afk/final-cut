@@ -40,5 +40,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Updated `ui.js` Filmography with feature-only box office, real studio receipts, per-film direct P/L, estimated tickets and studio finance summary.
 - [x] Added Software Inc-inspired collapsible right dock via `index.html`, `ui.js`, `theme-ab.css`: live stage/earnings/admissions, bars, project click-through, mobile overlay.
 - [x] Extended Production Center, film and project drawers with 12-week income/gross charts and modeled admissions; one-time post-opening publicity option with real cost.
-- [ ] Added `tests/v13_8_film_finance.js`, Chromium `tests/v13_8_film_monitor_browser.py`, CI workflow and `docs/CHANGELOG_V13_8.md`; running full regressions.
+- [x] Film finance, real Chromium live monitor, mobile, poster/save v13.7, v13.6 styling, v13.5 cinematic and v13.4 honors regressions passed (GitHub Actions #44848418818); screenshots artifact #14683817710. README, HANDOFF and `docs/CHANGELOG_V13_8.md` updated.
 - [ ] Merge validated update to main and check live Pages deployment.
