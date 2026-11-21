@@ -740,32 +740,53 @@ var UI = (function () {
   }
     function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
-    const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature');
+    const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature'),
+      screenings=active.filter(p=>p.stage==='release'&&p.format==='short');
     const chosen=list.find(p=>p.id===centerProjectId)||active[0]||list[0];
     const kicker='<div class="fc-kicker">THE DIRECTOR’S OFFICE <span>• Automatic weekly progression</span></div>';
     const header='<header class="fc-top">'+kicker+'<div class="fc-intro"><div><h1>Production Center</h1><p>Your slate from first draft to release. Studio work advances on its own; major decisions still come to you.</p></div><button class="fc-create" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight project</button></div></header>';
-    const summary='<div class="fc-strip"><span><strong>'+active.filter(p=>p.stage!=='release').length+'</strong> Making</span><span><strong>'+theaters.length+'</strong> In theaters</span><span><strong>'+list.filter(p=>p.stage==='done').length+'</strong> Completed</span><span><strong>'+money(s.cash)+'</strong> Available cash</span></div>';
+    const summary='<div class="fc-strip"><span><strong>'+active.filter(p=>p.stage!=='release').length+'</strong> Making</span>'+
+      '<span><strong>'+theaters.length+'</strong> In theaters</span>'+
+      '<span><strong>'+screenings.length+'</strong> Screening</span>'+
+      '<span><strong>'+list.filter(p=>p.stage==='done').length+'</strong> Completed</span>'+
+      '<span><strong>'+money(s.cash)+'</strong> Available cash</span></div>';
     if(!chosen)return '<section class="fc-center">'+header+summary+'<div class="fc-empty"><h2>Your first picture begins here</h2><p>Greenlight a short film and guide the big decisions as your team produces it.</p></div></section>';
     const st=centerStage(chosen),left=centerWeeksLeft(chosen);
     const mark=st.labels.map((label,i)=>'<div class="fc-step '+(i<st.index?'is-done':i===st.index?'is-current':'')+'"><b>'+(i<st.index?'✓':i+1)+'</b><small>'+esc(label)+'</small></div>').join('');
     const estimate=centerEstimate(chosen);
     const estRelease=left>0?'Around '+dateLabel(s.week+left):chosen.releaseWeek!=null?dateLabel(chosen.releaseWeek):'Pending decision';
     const meta='<div class="fc-stats">'+
-      '<div><small>Current stage</small><strong>'+esc(st.status)+'</strong><em>'+(chosen.stage==='release'?'Week '+chosen.weeksInRelease+' in release':chosen.stage==='done'?'History preserved':left+' work weeks estimated')+'</em></div>'+
+      '<div><small>Current stage</small><strong>'+esc(st.status)+'</strong><em>'+(chosen.stage==='release'?
+        'Week '+chosen.weeksInRelease+(chosen.format==='short'?' of '+(chosen.shortRunWeeks||'?'):'')+' in release':
+        chosen.stage==='done'?'Completed; festival or rights life may continue':left+' work weeks estimated')+'</em></div>'+
       '<div><small>Budget / spent</small><strong>'+money(chosen.budget)+' / '+money(chosen.spent)+'</strong><em>Actual cash outflow, no new costs</em></div>'+
       '<div><small>'+ (chosen.critic!=null?'Critic reception':'Early quality range') +'</small><strong>'+esc(estimate.value)+'</strong><em>'+esc(estimate.note)+'</em></div>'+
       '<div><small>Release timing</small><strong>'+esc(estRelease)+'</strong><em>Dates move with setbacks or decisions</em></div>'+
       '<div><small>'+(chosen.format==='feature'?'Theatrical gross':'Studio receipts')+'</small><strong>'+money(chosen.format==='feature'?(chosen.gross||0):(chosen.revenue||0))+'</strong><em>'+(chosen.format==='feature'?'Last week '+money(Engine.projectPulse(chosen).thisWeekGross):'Festival / network receipts')+'</em></div></div>';
     const current=s.pending&&s.pending.projectId===chosen.id;
     const decision='<div class="fc-decision"><small>STUDIO DECISIONS</small><h3>'+(current?'A decision needs your attention':'Routine work is delegated')+'</h3><p>'+(current?'A production decision is waiting. Open it to review the choices before continuing.':'Work, production costs and scheduled event decisions are processed each week. You may inspect the project or advance to the next decision at any time.')+'</p><div class="fc-actions"><button onclick="UI.openProject('+chosen.id+')">Open project details</button><button onclick="'+(s.pending?'UI.render()':'UI.advance()')+'" '+(s.pending?'disabled':'')+'>'+(s.pending?'Resolve pending decision':'Advance to next decision')+'</button></div></div>';
-    const stageDetails='<section class="fc-stage-detail"><h2>Production milestones</h2><div class="fc-milestones">'+mark+'</div><div class="fc-notes"><div><small>Timeline</small><strong>'+esc(st.status)+'</strong><p>'+(chosen.stage==='release'?'Theatrical gross is booked automatically each week; stronger films can stay in theaters for up to '+Engine.TUNING.maxReleaseWeeks+' weeks.':chosen.stage==='done'?'This title is finished. Its financial and awards history stays in Filmography.':'The studio completes each phase and triggers choices at its scheduled milestones.')+'</p></div>'+decision+'</div></section>';
+    const stageDetails='<section class="fc-stage-detail"><h2>Production milestones</h2><div class="fc-milestones">'+mark+'</div><div class="fc-notes"><div><small>Timeline</small><strong>'+esc(st.status)+'</strong><p>'+
+      (chosen.stage==='release'?
+        chosen.format==='short'?'Screenings earn receipts each week. Successful shorts run up to '+Engine.TUNING.shortScreening.maxWeeks+' weeks, with festivals later in the year.':
+        'Theatrical gross is booked weekly; strong features stay in theaters up to '+Engine.TUNING.maxReleaseWeeks+' weeks.':
+      chosen.stage==='done'?
+        chosen.format==='short'?'The main screening run finished. Festival judging, publicity and optional encore screenings can still continue.':
+        'Production and initial release are complete. The film may still earn rights income.':
+        'The studio advances stages automatically and offers consequential choices when needed.')+
+      '</p></div>'+decision+'</div></section>';
     const slate=list.slice(0,centerShowOlder?list.length:7).map(p=>{
       const stg=centerStage(p);
       return '<button class="fc-title '+(p.id===chosen.id?'selected':'')+'" onclick="UI.centerFocus('+p.id+')"><strong>'+esc(p.title)+'</strong><small>'+esc(nameOf(Engine.formats(),p.format))+' · '+esc(stg.status)+'</small></button>';
     }).join('');
     const old=list.length>7?'<button class="fc-more" onclick="UI.centerShowMore()">'+(centerShowOlder?'Show fewer':'Show '+(list.length-7)+' more')+'</button>':'';
-    const recent=theaters.slice(0,3).map(p=>'<div class="fc-week-film"><span>'+esc(p.title)+'</span><strong>'+money(p.lastWeekGross||0)+'</strong><small>Week '+p.weeksInRelease+' · total '+money(p.gross||0)+'</small></div>').join('');
-    const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE</small><h2>In theaters</h2><p>Recorded ticket gross; not a forecast. Competition and word of mouth influence future weeks.</p></div><div class="fc-pulse-list">'+(recent||'<p>No feature films currently in theaters.</p>')+'</div></div>';
+    const recent=[...theaters,...screenings].slice(0,4).map(p=>{const short=p.format==='short',pulse=Engine.projectPulse(p);
+      return '<div class="fc-week-film"><span>'+esc(p.title)+'</span><strong>'+money(short?pulse.thisWeekRevenue:pulse.thisWeekGross)+'</strong>'+
+        '<small>'+esc(short?'Screenings':'Theaters')+' · week '+p.weeksInRelease+
+        (short?' / '+(p.shortRunWeeks||'?'):'')+' · total '+money(short?p.revenue:p.gross)+'</small></div>';
+    }).join('');
+    const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE & SCREENINGS</small><h2>Now releasing</h2>'+
+      '<p>Features show theatrical gross; shorts show weekly screening receipts. Stronger shorts have longer circuits.</p></div>'+
+      '<div class="fc-pulse-list">'+(recent||'<p>No active releases. Completed films may still earn rights revenue and festival recognition.</p>')+'</div></div>';
     return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
