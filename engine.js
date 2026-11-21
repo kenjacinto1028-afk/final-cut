@@ -1990,7 +1990,7 @@ var Engine = (function () {
       return {ok:false,reason:'No sponsor approaches yet. Build Lifetime Fame 18+ and current Buzz 9+ or Prestige 8+ through successful films.'};
     const tier=fame>=72&&(r.currentPrestige||0)>=28?3:
       fame>=43&&(r.buzz||0)>=17?2:1;
-    const source=FILM_SPONSORS[(p.id+Math.max(0,p.genre||'').length+tier)%FILM_SPONSORS.length];
+    const source=FILM_SPONSORS[(p.id+String(p.genre||'').length+tier)%FILM_SPONSORS.length];
     const fit=source.genres.includes(p.genre);
     const amount=Math.max(50,Math.round(Math.min(p.budget*(.024+tier*.011),tier*40000)/25)*25);
     const hypeLift=fit?Math.min(4,tier+1):1;

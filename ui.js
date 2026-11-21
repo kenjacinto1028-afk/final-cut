@@ -1518,6 +1518,7 @@ var UI = (function () {
     if(original){
       h += '<p class="fc-filmhub-open"><button class="primary" onclick="UI.openProject('+original.id+')">Open Film Hub — decisions, weekly performance & future options</button></p>';
       h += posterActions(original)+v14StoryPanel(original,false)+filmLifecycleGuide(original);
+      if(original.sponsor)h+='<p class="fc-film-sponsor"><strong>Production partner:</strong> '+esc(original.sponsor.name)+' · '+money(original.sponsor.upfront)+' booked</p>';
     }
     if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
       '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
@@ -1545,6 +1546,7 @@ var UI = (function () {
       (f.reissueRevenue?dl('Classic reissues',money(f.reissueRevenue)+' (separate from original theatrical gross)'):'') +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
     if(f.projectId!=null && Engine.getProject(f.projectId))h+='<details class="fc-film-expanded"><summary>Weekly earnings & audience trends</summary>'+projectPerformanceBoard(Engine.getProject(f.projectId))+'</details>';
+    h += filmCriticsPanel(f);
     h += qualityDetails(f.qualityBreakdown, f.hypeBreakdown);
     if ((f.regions || []).length) h += '<h4>Distribution</h4><p>' + f.regions.map(id => esc(nameOf(CONTENT.REGIONS,id)) + (f.regionalGross && f.regionalGross[id] != null ? ' · ' + money(f.regionalGross[id]) : '')).join('<br>') + '</p>';
     h += '<h3>Recognition</h3><dl>' + dl('Annual awards', (f.awards || []).map(a => (a.won ? '🏆 ' : 'Nominated: ') + esc(a.ceremony || 'Golden Reel') + ' · ' + esc(a.category || a.cat) + (a.personName?' — '+esc(a.personName):'') + ' (' + a.year + ')').join('<br>') || 'None') +
@@ -1651,6 +1653,80 @@ var UI = (function () {
       '<ul class="fc-filmhub-checklist">'+entries.join('')+'</ul>'+
       '<p class="muted">Festival judging and already-contracted licensing can continue automatically after release. Not every film qualifies for a paid second life.</p></section>';
   }
+  function filmCriticsPanel(f){
+    if(!f||f.releaseWeek==null)
+      return '<section class="fc-film-press"><h3>Critic coverage</h3><p class="muted">Reviewers report after the premiere. Higher studio recognition can attract additional publications, not automatic praise.</p></section>';
+    const list=f.pressReviews||[];
+    if(!list.length)return '<section class="fc-film-press"><h3>Critic coverage</h3><p class="muted">No individual critic quotes are recorded for this release. The historic critic score remains valid.</p></section>';
+    return '<section class="fc-film-press"><h3>Critic coverage · '+list.length+' published</h3>'+
+      '<p class="muted">Fictional publications, independent viewpoints; higher-tier coverage increases reach, not guaranteed ratings.</p>'+
+      '<div class="fc-film-review-list">'+list.map(r=>'<article><div><strong>'+esc(r.publication)+'</strong>'+
+        '<small>'+esc(r.name)+' · Tier '+Number(r.tier)+'</small></div><strong class="fc-review-rating">'+
+        esc(r.score)+'/100 · '+esc(r.stars)+'★</strong><p>'+esc(r.text)+'</p></article>').join('')+'</div>'+
+      '<p class="muted">Press impact at premiere: '+((f.pressHypeDelta||0)>0?'+':'')+
+        (f.pressHypeDelta||0)+' release hype (bounded). Aggregate critics: '+(f.critic==null?'—':f.critic+'/100')+'.</p></section>';
+  }
+  function filmPromotionPanel(p){
+    if(!p)return '';
+    let promo='';
+    if(p.promotionCampaign){
+      const x=p.promotionCampaign;
+      promo='<p><strong>'+esc(Engine.filmPromotionOptions()[x.kind]?.name||'Campaign')+
+        '</strong> · '+money(x.cost)+' spent · +'+x.hypeLift+
+        ' potential pre-release hype. One campaign per film.</p>';
+    }else if(p.releaseWeek==null){
+      const choices=Object.keys(Engine.filmPromotionOptions()).map(kind=>{
+        const q=Engine.filmPromotionQuote(p.id,kind);
+        return '<div><strong>'+esc(Engine.filmPromotionOptions()[kind].name)+'</strong><p>'+
+          esc(q.ok?q.description:q.reason)+'</p><button type="button" '+(!q.ok?'disabled ':'')+
+          'onclick="UI.filmPromote('+p.id+',&quot;'+kind+'&quot;)">'+
+          (q.ok?'Invest '+money(q.cost)+' · +'+q.hypeLift+' hype potential':'Not available')+'</button></div>';
+      }).join('');
+      promo='<div class="fc-v14-release-options">'+choices+'</div>';
+    }else promo='<p class="muted">Opening marketing is complete. During an eligible feature run, use the theatrical publicity action below instead.</p>';
+    let sponsor='';
+    if(p.sponsor){
+      sponsor='<p><strong>'+esc(p.sponsor.name)+'</strong> · Tier '+p.sponsor.tier+
+        ' · '+money(p.sponsor.upfront)+' contract paid · +'+p.sponsor.hypeLift+
+        ' potential hype · critical sensitivity '+p.sponsor.criticRisk+' points.</p>';
+    }else{
+      const offer=Engine.filmSponsorQuote(p.id);
+      sponsor=offer.ok?
+        '<article class="fc-sponsor-offer"><strong>'+esc(offer.name)+' · '+esc(offer.tierName)+'</strong>'+
+        '<p>'+esc(offer.description)+'</p><p>Upfront studio receipts: <strong>'+money(offer.upfront)+
+        '</strong> · potential hype +'+offer.hypeLift+' · critic risk up to '+offer.criticRisk+
+        ' · expires at premiere.</p><div class="actions">'+
+        '<button type="button" onclick="UI.filmSponsor('+p.id+')">Accept partnership</button>'+
+        '<button type="button" onclick="UI.filmSponsorDecline('+p.id+')">Decline without penalty</button></div></article>':
+        '<p class="muted">'+esc(offer.reason)+'</p>';
+    }
+    return '<section class="fc-film-promotion"><h3>Film Promotion</h3>'+
+      '<p class="muted">Optional, one-time pre-release reach investment. Existing feature marketing, post-opening publicity, and festival kits are separate decisions. Promotion never guarantees profit.</p>'+
+      '<div><small>RECORDED FILM MARKETING</small><strong>'+money(p.marketingSpend||0)+'</strong></div>'+
+      promo+'<h3>Fictional sponsors & brand fit</h3>'+sponsor+'</section>';
+  }
+  function filmPromote(id,kind){
+    const q=Engine.filmPromotionQuote(id,kind);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm('Invest '+money(q.cost)+' in '+q.name+' for this film? Potential release hype +'+
+      q.hypeLift+'. This does not guarantee more income.'))return;
+    const r=Engine.filmPromote(id,kind);
+    setFlash(r.ok?'Film promotion commissioned for '+money(r.cost)+'.':r.reason);render();
+  }
+  function filmSponsor(id){
+    const q=Engine.filmSponsorQuote(id);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm('Accept '+q.name+' sponsorship for '+money(q.upfront)+
+      '? This film will contain commercial placement; review penalty can reach '+q.criticRisk+' points.'))return;
+    const r=Engine.acceptFilmSponsor(id);
+    setFlash(r.ok?'Sponsor partnership signed; '+money(r.upfront)+' credited to studio receipts.':r.reason);render();
+  }
+  function filmSponsorDecline(id){
+    const q=Engine.filmSponsorQuote(id);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    const r=Engine.declineFilmSponsor(id);
+    setFlash(r.ok?'Sponsor offer declined; no penalty.':r.reason);render();
+  }
   function v14ReleaseControls(p){
     if(!p||!p.dna||p.format!=='feature')return '';
     let h='';
@@ -1719,7 +1795,8 @@ var UI = (function () {
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
     if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
     h += awardIcons(p);   // 8.3
-    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
+    h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
+      v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
@@ -2703,6 +2780,7 @@ var UI = (function () {
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
+    filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
