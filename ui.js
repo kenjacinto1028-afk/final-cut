@@ -1205,7 +1205,7 @@ var UI = (function () {
           '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
           '<th class="num" title="Features: estimated ticket visits. Shorts: estimated screening visits. TV: household episode impressions. Not verified unique people.">Reach (est.)</th>'
         : '<th class="num">Box office</th>')+
-      '<th class="num">'+(ranked?'Ranking score':'Awards')+'</th>';
+      '<th class="num">'+(ranked?({reach:'Reach (est.)',audience:'Audience /100',critics:'Critics /100',gross:'Era-adjusted gross',awards:'Honors'}[filmBrowse.criterion]||'Ranking score'):'Awards')+'</th>';
     h += '<div class="tbl-wrap fc-finance-table"><table><thead><tr>'+heads+'</tr></thead><tbody>'+
       page.map(f=>{
         const c=f.profit==null?'—':'<span class="'+(f.profit<0?'neg':'fc-positive')+'">'+money(f.profit)+'</span>';
@@ -1223,9 +1223,11 @@ var UI = (function () {
           '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
           (mine?'':'<td>'+esc(f.studio)+'</td>')+
-          '<td>'+f.year+'</td><td>'+esc(mediaName(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
+          '<td>'+f.year+'</td><td>'+esc(mediaName(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+
+          '<small class="fc-film-substats">'+v145ReachLabel(f)+'</small></td>'+
           '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
-          '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
+          '<td class="num">'+(ranked?(filmBrowse.criterion==='reach'?compactCount(f.score):filmBrowse.criterion==='gross'?money(f.score):f.score):
+          (f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
       }).join('')+
       (!page.length?'<tr><td colspan="'+(ranked?8:(mine?11:10))+'" class="muted">No films match these filters yet.</td></tr>':'')+
       '</tbody></table></div>';
@@ -2035,7 +2037,7 @@ var UI = (function () {
     const list=f.pressReviews||[];
     if(!list.length)return '<section class="fc-film-press"><h3>Critic coverage</h3><p class="muted">No individual critic quotes are recorded for this release. The historic critic score remains valid.</p></section>';
     return '<section class="fc-film-press"><h3>Critic coverage · '+list.length+' published</h3>'+
-      '<p class="muted">Fictional publications, independent viewpoints; higher-tier coverage increases reach, not guaranteed ratings.</p>'+
+      '<p class="muted">Fictional publications, independent viewpoints; national and international coverage extends publicity, not ratings.</p>'+
       '<div class="fc-film-review-list">'+list.map(r=>'<article><div><strong>'+esc(r.publication)+'</strong>'+
         '<small>'+esc(r.name)+' · '+esc(criticReachName(r.tier))+'</small></div><strong class="fc-review-rating">'+
         esc(r.score)+'/100 · '+esc(r.stars)+'★</strong><p>'+esc(r.text)+'</p></article>').join('')+'</div>'+
