@@ -252,11 +252,8 @@ var UI = (function () {
   let viewTransitionPending = false;
   function go(v) {
     closeMobileNav();
-    // Filmography should always open on a complete, unfiltered studio catalog.
-    // Do not carry restrictive Industry Rankings/Archive filters across sections.
-    if (v === 'filmography' && view !== 'filmography') {
-      Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
-    }
+    // Every archive view keeps its own filters instead of leaking other pages' selections.
+    if(v!==view) { saveBrowseFor(view); restoreBrowseFor(v); }
     if (v !== view) {
       viewTransitionPending = true;
       if (hasMedia()) Media.uiSound('navigate');
@@ -269,8 +266,8 @@ var UI = (function () {
     setFlash('');
     render();
   }
-  function back() { if (hpos > 0) { hpos--; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
-  function forward() { if (hpos < hist.length - 1) { hpos++; view = hist[hpos]; viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
+  function back() { if (hpos > 0) { saveBrowseFor(view); hpos--; view = hist[hpos]; restoreBrowseFor(view); viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
+  function forward() { if (hpos < hist.length - 1) { saveBrowseFor(view); hpos++; view = hist[hpos]; restoreBrowseFor(view); viewTransitionPending = true; if (hasMedia()) Media.uiSound('navigate'); setFlash(''); render(); } }
   function resetHistory() { hist = ['dashboard']; hpos = 0; view = 'dashboard'; }
   function crumb() {
     for (const g of GROUPS) {
@@ -1321,15 +1318,31 @@ var UI = (function () {
 
 // ===== SECTION: FILM_ARCHIVES =====
   const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', reach:'', period:'all', format: 'all', query: '', page: 0 };
+  const browseSaved={};
+  const browseViews=['filmography','rankings','archive'];
+  function browseKey(v){return 'finalcut-browse-'+(Engine.state?.campaignId||'legacy')+'-'+v;}
+  function saveBrowseFor(v){
+    if(!browseViews.includes(v))return;
+    const data={...filmBrowse};browseSaved[v]=data;
+    try{sessionStorage.setItem(browseKey(v),JSON.stringify(data));}catch(_){}
+  }
+  function restoreBrowseFor(v){
+    if(!browseViews.includes(v))return;
+    let data=browseSaved[v];
+    if(!data)try{data=JSON.parse(sessionStorage.getItem(browseKey(v))||'null');}catch(_){}
+    const defaults={tab:'all',criterion:'overall',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:v==='rankings'?'feature':'all',query:'',page:0};
+    Object.assign(filmBrowse,defaults,data&&typeof data==='object'?data:{});
+  }
+
   const rankTypes = [['overall','Best Overall'],['genre','Best by Genre'],['topic','Best by Topic'],
     ['gross','Top Grossing'],['critics','Critics’ Favorites'],['audience','Audience Favorites'],['reach','Most Viewed'],['awards','Award Leaders']];
   function setFilmFilter(field, value) {
     if (Object.prototype.hasOwnProperty.call(filmBrowse, field)) filmBrowse[field] = value;
     if (field === 'criterion' && value === 'genre' && !filmBrowse.genre) filmBrowse.genre = CONTENT.GENRES[0].id;
     if (field === 'criterion' && value === 'topic' && !filmBrowse.topic) filmBrowse.topic = CONTENT.TOPICS[0].id;
-    filmBrowse.page = 0; render();
+    filmBrowse.page = 0; saveBrowseFor(view); render();
   }
-  function filmPage(offset) { filmBrowse.page = Math.max(0, filmBrowse.page + offset); render(); }
+  function filmPage(offset) { filmBrowse.page = Math.max(0, filmBrowse.page + offset); saveBrowseFor(view);render(); }
   function filmFilters(includeRank) {
     const select = (key, options) => '<label>' + esc(key === 'criterion' ? 'Ranking' : key.charAt(0).toUpperCase() + key.slice(1)) + ' <select onchange="UI.setFilmFilter(\'' + key + '\',this.value)">' +
       options.map(o => '<option value="' + esc(o[0]) + '"' + (String(filmBrowse[key]) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>';
@@ -1425,7 +1438,7 @@ var UI = (function () {
   function setFilmQuery(value) {
     filmBrowse.query = value;
     filmBrowse.page = 0;
-    render();
+    saveBrowseFor(view);render();
   }
   function filmResultsMarkup() {
     const my = view === 'filmography', ranked = view === 'rankings' || (my && filmBrowse.tab === 'ranks');
@@ -1446,7 +1459,7 @@ var UI = (function () {
   }
   function resetMyFilmographyFilters(){
     Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
-    render();
+    saveBrowseFor('filmography');render();
   }
   function viewFilmography() {
     const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
