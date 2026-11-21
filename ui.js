@@ -1266,7 +1266,7 @@ var UI = (function () {
       '<div><small>Studio receipts</small><strong>'+money(receipts)+'</strong><em>All projects & rights</em></div>'+
       '<div><small>Direct film P/L</small><strong class="'+(total<0?'neg':'')+'">'+money(total)+'</strong><em>Excludes shared overhead</em></div>'+
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
-    return '<h1>My Releases</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
+    return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
 
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
