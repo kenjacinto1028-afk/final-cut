@@ -26,9 +26,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v13.7 — Multiple save slots and campaign library (2026-11-21)
 - [x] Inspected existing single autosave `backlot_save`, lossless pack/migration, UI start/quit/backup flows and campaign-scoped IndexedDB posters.
-- [ ] Add safe Engine save-summary/pack helpers and session close, preserving save schema v13 and legacy `backlot_save`.
-- [ ] Implement IndexedDB save library: legacy registration, archived slots, autosave active, switch, duplicate, rename, delete and rollback protection.
-- [ ] Integrate title screen, Saves screen, sidebar and new-game/import/export handling; reset campaign-scoped poster caches.
-- [ ] Style save manager in A+B theme and add user documentation.
-- [ ] Add automated legacy + multiple-save + poster-isolation + backup + mobile/browser tests.
+- [x] Added Engine `inspectSave`, `encodeSavePayload`, `closeSession` in `engine.js` with save format v13 and legacy `backlot_save` unchanged.
+- [x] Implemented `save-slots.js` IndexedDB archive/index, old-save registration, copy/rename/switch/delete/import and rollback; updated `poster-store.js` for custom-poster copy/cleanup.
+- [x] Added `ui.js` title/Save Library/sidebar/topbar controls and safe begin/continue/quit/import handling; `index.html` loads save module before UI.
+- [x] Styled save cards and mobile manager in `theme-ab.css`; documented in `docs/CHANGELOG_V13_7.md`, README and HANDOFF.
+- [ ] Added Chromium IndexedDB integration test `tests/v13_7_multi_save_browser.py` and CI workflow; legacy game suites passed, testing save slot switching with accepted browser confirmations.
 - [ ] Gate merge on passing tests, merge FinalCut and verify GitHub Pages deployment.
