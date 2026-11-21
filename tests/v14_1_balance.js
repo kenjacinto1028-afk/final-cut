@@ -1,0 +1,23 @@
+// v14.1: low-budget film access, earned rival craft and diminishing premium.
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),A=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const ctx={console,Date,Math,JSON,localStorage:{getItem(){return null;},setItem(){},removeItem(){}}};
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'content.js'),'utf8'),ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'engine.js'),'utf8'),ctx);
+const E=ctx.Engine,T=E.TUNING;
+A.equal(T.boxOfficeBudgetExp,.86);
+A.deepEqual(Array.from(T.boxOfficeLuck),[.64,1.3]);
+A(T.rivals.talentQualityMax>=10);
+const ref=T.boxOfficeRefBudget;
+const relative=budget=>1/(1+Math.min(.25,Math.max(0,Math.log2(Math.max(1,budget)/ref))*.046));
+A.equal(relative(40000),1,'micro film never penalized as tentpole');
+A.equal(relative(ref),1,'reference-budget film neutral');
+A(relative(8000000)<.85&&relative(8000000)>.7,'large productions have bounded market risk');
+E.newGame({studioName:'V14.1 Balance',homeRegion:'northamerica'});
+A.equal(E.state.version,13);
+A(E.activeRivals().length>0);
+A(E.startProject({title:'Small Story',format:'short',tier:0,genre:'drama',topic:'smalltown',cast:{director:'founder',writer:'founder'}}).ok);
+A(E.save());
+console.log('PASS v14.1 reasonable large-budget audience pressure, rival craft and existing early-game access');

@@ -33,10 +33,10 @@ var Engine = (function () {
     studioShare: 0.5,
     boxOfficeBase: 0.5,
     boxOfficeRefBudget: 350000,
-    boxOfficeBudgetExp: 0.89,
+    boxOfficeBudgetExp: 0.86, // v14.1: diminishing returns for tentpoles; small films retain access
     bigFilmAudienceCapPerDoubling: 0.055, smallFilmAudienceLegsBonus: 0.035,
     boxOfficeQualityExp: 1.3,
-    boxOfficeLuck: [0.7, 1.3],
+    boxOfficeLuck: [0.64, 1.3], // v14.1: occasional demand misses even with high-quality casts
     legs: { base: 0.6, perQuality: 0.0028, max: 0.85 }, // v13.5 stronger, bounded word of mouth
     softCap: { quality: 70, hype: 65, room: 30 },
     maxReleaseWeeks: 20, // v13.5: longer theatrical tail for successful films
@@ -215,7 +215,7 @@ var Engine = (function () {
     sameGenreWeight: 0.5, bigFilmWeight: 0.5,
     holdPenalty: 0.03,
     boxMult: 1.25, share: 0.65,
-    fameHype: 0.3, talentQuality: 2, talentQualityMax: 8,
+    fameHype: 0.3, talentQuality: 2.2, talentQualityMax: 10, // v14.1: reward funded rival staffing
     tierQuality: 4, tierHype: 5,
     focusChance: 0.7,
     lossSwitchQuarters: 3,
@@ -2010,8 +2010,16 @@ var Engine = (function () {
         rivals: m.rivals.map(r => r.studio + ': ' + r.title) };
       const ref = TUNING.boxOfficeRefBudget;
       const scale = ref * Math.pow(p.budget / ref, TUNING.boxOfficeBudgetExp);
+      // v14.1: a tentpole can command wider attention, but rising budget and
+      // a studio's repeated same-genre launches compete for a finite audience.
+      // Only previous released films count; old receipts remain untouched.
+      const premium=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
+      const budgetAttention=1/(1+Math.min(.25,premium*.046));
+      const repeatedGenre=state.projects.filter(x=>x!==p&&x.format==='feature'&&x.genre===p.genre&&
+        x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
+      const genreAttention=Math.max(.84,1-Math.min(4,repeatedGenre)*.04);
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
-        m.mult * rollout.openingMult * (1 + deptBonus('distribution')) * eraMods().boxOffice;
+        m.mult * rollout.openingMult * budgetAttention * genreAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
       // automatic profitability; their higher budgets and marketing costs remain.
       const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
@@ -2909,7 +2917,7 @@ var Engine = (function () {
     // Rival talent is measured by actual craft, not name recognition; leading studios
     // are stronger when making films within the genre they know best.
     const craft = role => { const arr=rivalTalent(r).filter(t=>t.role===role); return arr.length?Math.max(...arr.map(t=>t.skill||50)):50; };
-    const skillCraft=(craft('director')-50)*.12+(craft('writer')-50)*.09+(craft('actor')-50)*.06;
+    const skillCraft=(craft('director')-50)*.17+(craft('writer')-50)*.13+(craft('actor')-50)*.10+(craft('crew')-50)*.045;
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
     const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
     const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);

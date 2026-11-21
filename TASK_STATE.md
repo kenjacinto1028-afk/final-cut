@@ -77,3 +77,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Final FCP2 save-capacity acceptance: FCP1 5.45m–6.02m chars fell to FCP2 1.84m–2.05m chars, all 8 under 5MiB and roundtripped; direct >17MB synthetic Unicode archive test also passed. No save version change.
 - [ ] Future balance tuning: investigate blockbuster $2bn cash, 0–1 careful-studio flops, 20–26-point player/rival quality gap and major-award density using additional regions/seeds; do not change live rules without regression proof.
 - [ ] Future manual validation: check long-save UI latency on real mobile/browser storage, since the large-save codec was exercised under Node's simulated quota.
+
+## v14.1 — Balance/mobile staged release (2026-11-21)
+- [x] Stage 1: Profit-risk tuning: less generous premium-budget theater reach, remembered recent same-genre launches, modest wider downside, and stronger returns from actually hired rival talent. Baseline: 8 normal-start 61-year scenarios in V14_BALANCE_FOLLOWUP.md. Targeted assertions in tests/v14_1_balance.js. Await CI before calling tuned/accepted.
+- [ ] Stage 2: Nonblocking worker-backed autosaves for large mobile/desktop histories, safe synchronous manual saves, and Chromium mobile performance tests.
+- [ ] Stage 3: Compare multi-seed outcomes against v14 baseline; run all existing v13/v14 browser and economy regressions and merge/deploy.
