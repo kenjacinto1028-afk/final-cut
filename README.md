@@ -1,6 +1,6 @@
 # Final Cut — Studio Tycoon
 
-**Current release line: FinalCut v14.4.** Published via PR #14, merge `077d0b3`; Pages, v14 integrated QA and normal-start balance passed.
+**Current release: FinalCut v14.4a.** PR #14 delivered flexible production; PR #15 merged the finance and series balance patch as `d0e8cb7`. All nine PR regression gates and the v14.4a Pages deployment passed.
 
 ## v14.4 — Flexible production and living franchises
 

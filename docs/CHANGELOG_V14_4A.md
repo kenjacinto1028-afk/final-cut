@@ -1,6 +1,6 @@
 # FinalCut v14.4a — Funding integrity and TV renewal balance
 
-Status: candidate in PR #15, on top of published v14.4. Do not label live until CI and Pages succeed.
+Status: **released** on 2026-11-21. PR #15 merged into `main` as `d0e8cb7`; all nine PR checks succeeded and GitHub Pages deployment #44887771506 was successful.
 
 ## Changes for new flexible-budget projects
 

@@ -141,5 +141,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Prevented high unused caps from generating sponsor windfalls; film promotion quotes use actual planned spending, not idle reserve.
 - [x] Added tests/v14_4a_balance.js plus v14_4.yml coverage; sponsor/pilot/renewal and four eight-year normal-start samples passed engine + Chromium on PR branch #44887308737.
 - [x] Created docs/CHANGELOG_V14_4A.md and PR #15; full compatibility gates await final branch head.
-- [ ] Verify all PR #15 workflows pass on final head, merge and confirm Pages deployment.
+- [x] All nine PR #15 workflows on b82a8ff passed; merged to main as d0e8cb7 and GitHub Pages deployment #44887771506 succeeded.
 - [ ] Physical iPhone/Android performance and broader multi-seed TV-series strategy balance remain future checks.

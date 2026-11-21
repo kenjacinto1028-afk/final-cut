@@ -114,6 +114,8 @@ PRs #10 (Film Hub) and #11 (promotion/sponsors/critics), and #12 (calendar/chart
 - Do not rewrite old films or bump v13 save version. Preserve poster store, IndexedDB slots, FCP1/FCP2 archives, physical-device caveats.
 
 
-## v14.4a post-merge tuning (PR #15)
+## v14.4a released tuning (PR #15, merged d0e8cb7)
 - Only new flexible projects change: pilot fee/sponsor payout economics, cap-neutral marketing pricing, capped episodic performance bonuses, rating-sensitive next-season network fees. Previously created legacy series remain unchanged.
 - Coverage: `tests/v14_4a_balance.js` and existing v14.4/v13/v14 Chromium, save and long-horizon balance checks. See `docs/CHANGELOG_V14_4A.md` for measured outcomes and residual economy risks.
+
+- Final PR #15 acceptance: nine passing workflows, including v14.4a engine/browser, v13/v14 saves, mobile and 12×61-year normal-start balance. Published Pages run #44887771506 passed. No save version bump; physical phone checks outstanding.
