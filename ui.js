@@ -279,7 +279,7 @@ var UI = (function () {
   function renderNav() {
     if (!Engine.state) { $('nav').innerHTML = ''; return; }
     const active=currentSection();
-    $('nav').innerHTML = '<div class="brand">Final Cut<small>STUDIO TYCOON</small></div>' +
+    $('nav').innerHTML = '<button type="button" class="fc-menu-close" onclick="UI.toggleMobileNav()">✕ Close menu</button><div class="brand">Final Cut<small>STUDIO TYCOON</small></div>' +
       '<div class="fc-primary-nav">'+GROUPS.map((g,idx)=>'<button type="button" data-section="'+esc(g[0].toLowerCase())+
         '" data-view="'+g[1][0][0]+'" class="navbtn fc-main-nav'+(active===g?' active':'')+
         '" aria-current="'+(active===g?'page':'false')+'" onclick="UI.go(\''+g[1][0][0]+'\')"><span>'+String(idx+1).padStart(2,'0')+' · '+esc(g[0])+
@@ -311,6 +311,18 @@ var UI = (function () {
 
 // ===== SECTION: TOPBAR =====
   // 7.1: the run score sits next to cash (live until it locks, then "final").
+  function syncMobileNav() {
+    const nav=$('mobile-bottom-nav');
+    if(!nav || typeof nav.querySelectorAll!=='function')return;
+    nav.hidden=!Engine.state;
+    const section=currentSection();
+    nav.querySelectorAll('button[data-mobile-section]').forEach(button=>{
+      const active=!!section && button.getAttribute('data-mobile-section')===section[0].toLowerCase();
+      button.classList.toggle('is-active',active);
+      if(active)button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+  }
   function renderTop() {
     const s = Engine.state;
     if (!s) { $('topbar').innerHTML = ''; return; }
@@ -3351,6 +3363,7 @@ var UI = (function () {
   function render() {
     renderTop();
     renderNav();
+    syncMobileNav();
     if(typeof DesignTheme !== 'undefined')DesignTheme.apply();
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
@@ -3743,7 +3756,7 @@ var UI = (function () {
         return;
       }
       if (tutorialKeydown(e)) return;
-      if (e.key === 'Escape') closeDrawer();
+      if (e.key === 'Escape') { closeMobileNav(); closeDrawer(); }
     });
     $('scrim').addEventListener('click', closeDrawer);
     document.addEventListener('finalcut-poster-change', () => { if(drawer)renderDrawer(); });
