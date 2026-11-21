@@ -217,6 +217,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Browser QA identified visible mobile Menu behind optional fixed monitor; elevated mobile menu/nav stacking above monitor (`design-v14_7.css`, ee9ada8).
   - [x] Dedicated v14.7 Chromium design QA passed on commit `ee9ada8` (all six palettes/persistence, live wire, mobile 320/390px, monitor and screenshots).
 
-## Next dashboard trends update (planning only)
-- [x] Added Dashboard Market Trends panel requirement to `docs/NEXT_UI_POLISH_PLAN.md`: separate genre/topic top 3 risers and bottom 3 fallers from real demand changes, mobile-friendly and save-compatible.
-- [ ] Implement trend history if needed, Dashboard panel, Market navigation and tests in the next gameplay/UI update.
+## Next Studio Wire update (planning only)
+- [x] Revised the proposed separate Dashboard Market Trends panel into **Studio Wire tabs**: News, upcoming Rival Releases, and Market Trends (genre/topic top 3 rise and bottom 3 fall). Updated `docs/NEXT_UI_POLISH_PLAN.md` with relevant schedule/demand sources, responsive states and tests.
+- [x] Added optional quality-of-life improvement candidates to `docs/NEXT_UI_POLISH_PLAN.md` for review (not approved or implemented).
+- [ ] Implement Studio Wire tabs, rivalry scheduling, trend history if needed, and regression tests in next update.
