@@ -3028,6 +3028,9 @@ var UI = (function () {
     const item = TUTORIAL_STEPS[tutorialStep];
     if(item.view&&drawer)closeDrawer();
     if (item.view) go(item.view);
+    if ((item.goal==='hub'||item.goal==='hubReleased') && tutorialFilm()) {
+      openProject(tutorialFilm().id);
+    }
   }
   function tutorialMinimize() {
     if (tutorialStep < 0) return;
