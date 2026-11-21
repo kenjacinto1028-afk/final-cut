@@ -1235,17 +1235,24 @@ var Engine = (function () {
   function previewProject(o) {
     const f = TUNING.formats[o.format];
     if (!f) return { ok: false, reason: 'Pick a format.' };
-    const tier = f.tiers[o.tier];
+    // v14.4 opt-in flexible projects; v13/legacy callers retain their exact rules.
+    const flexible=o.budgetCap!=null && Number.isFinite(Number(o.budgetCap));
+    const cap=flexible?Math.round(Number(o.budgetCap)):null;
+    const tierIndex=flexible?f.tiers.reduce((best,t,i)=>t.budget<=cap&&state.studio.tier>=(t.minTier||0)?i:best,0):o.tier;
+    const tier = f.tiers[tierIndex];
     if (!tier) return { ok: false, reason: 'Pick a budget tier.' };
     const cast = normalizeCast(o.cast);
-    const cc = castCheck(cast, o.format, o);
-    const weeks = plannedWeeks(o.format);
+    const cc = castCheck(cast, o.format,Object.assign({},o,{tier:tierIndex}));
+    const weeks = flexible?Object.values(FinalCutBudget.stageWeeks(o.mediaVariant||o.format)).reduce((a,b)=>a+b,0):plannedWeeks(o.format);
     const script=v14ScriptQuote(o);
+    const budget=flexible?cap:tier.budget;
     const backgroundCrew=Number(o.backgroundCrew)||0;
-    const crewPackageCost=Math.round(tier.budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
+    const crewPackageCost=Math.round(budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
     const fees = cc.fees + crewPackageCost;
-    const prodBudget = tier.budget - fees;
-    const weekly = Math.round(Math.max(prodBudget, 0) / weeks);
+    const prodBudget = budget - fees;
+    const feasibility=flexible?FinalCutBudget.evaluate({variant:o.mediaVariant,format:o.format,scope:o.scope,
+      cap:budget,fees,scriptFee:script.fee,plan:o.allocation,vision:o.vision}):null;
+    const weekly = flexible?0:Math.round(Math.max(prodBudget, 0) / weeks);
     let reason = null;
     const tierName = i => (CONTENT.GROWTH_TIERS[i] || { name: 'tier ' + i }).name;
     if (activeProjects().length >= capacity()) reason = 'The studio is at capacity (' + capacity() + ' production' + (capacity() > 1 ? 's' : '') + '). Grow the studio for more.';
@@ -1259,10 +1266,18 @@ var Engine = (function () {
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
     else if (!script.ok) reason=script.reason;
     else if (cc.reason) reason = cc.reason;
-    else if (fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
-    else if (state.cash < fees + weekly * 2 + script.fee) reason = 'Not enough cash for script, talent and the first two weeks.';
-    return { ok: !reason, reason: reason, budget: tier.budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
-      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget - script.fee,
+    else if (flexible&&(!Number.isSafeInteger(cap)||cap<250||cap>50000000)) reason='Enter a spending cap between $250 and $50 million.';
+    else if (flexible&&(!o.mediaVariant||FinalCutBudget.media(o.mediaVariant)!==o.format)) reason='Select a valid media variant.';
+    else if (flexible&&FinalCutBudget.variant(o.mediaVariant).minYear>dateOf().year) reason='That media format is not available in this era.';
+    else if (flexible&&feasibility.unallocated<0) reason='Your planned allocations and fees exceed the spending limit.';
+    else if (flexible&&Object.values(feasibility.plan).some(n=>n<0||!Number.isSafeInteger(n))) reason='Allocation amounts must be non-negative whole dollars.';
+    else if (!flexible&&fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
+    else if (state.cash < fees + script.fee + (flexible?Math.min(feasibility.plan.prep,Math.ceil(feasibility.plan.prep/Math.max(1,weeks))*2):weekly*2)) reason = 'Not enough cash for script, talent and the first two weeks.';
+    return { ok: !reason, reason: reason, budget: budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
+      flexible,mediaVariant:flexible?o.mediaVariant:null,scope:flexible?(o.scope||'intimate'):null,
+      tier:tierIndex,feasibility,allocation:feasibility?feasibility.plan:null,
+      prodQuality: flexible?Math.max(0.4,feasibility.adequacy):prodQualityMult(budget, fees),
+      cashAfter: state.cash - (flexible?fees+script.fee+(feasibility.allocated-feasibility.plan.reserve):budget+script.fee),
       scriptFee:script.fee||0,scriptPitch:script.pitch||null,
       continuity: o.sequelOf == null ? null : sequelContinuity(getProject(o.sequelOf),cast,o.supporting),
       extraFees:cc.fees, crewPackageCost };
@@ -1307,11 +1322,17 @@ var Engine = (function () {
     const seriesId = parent ? (parent.franchiseId || 'player:'+parent.id) : null;
     const installment = parent ? 1 + state.projects.reduce((n,x) => (x.id === parent.id || x.franchiseId === seriesId) ? Math.max(n,x.installment || 1) : n, 0) : 1;
     const p = {
-      id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: o.tier,
+      id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: pv.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
+      mediaVariant:pv.mediaVariant||o.format,productionScope:pv.scope||null,
+      budgetPlan:pv.flexible?{cap:pv.budget,allocation:Object.assign({},pv.allocation),
+        spent:{prep:0,shoot:0,post:0,marketing:0,distribution:0,reserve:0},
+        stageWeeks:FinalCutBudget.stageWeeks(pv.mediaVariant),
+        feasibility:pv.feasibility.level,qualityEffect:pv.feasibility.qualityEffect,
+        delayWeeks:pv.feasibility.delayWeeks}:null,
       cast: cast, castNames: castNames, supporting, specialists,
       backgroundCrew:Number(o.backgroundCrew)||0, regions: [state.studio.homeRegion || 'northamerica'], regionalGross: {}, regionalRevenue: {}, distributionCost: 0,
-      stage: 'development', stageWeeksLeft: f.stages.development, startWeek: state.week,
+      stage: 'development', stageWeeksLeft: pv.flexible?FinalCutBudget.stageWeeks(pv.mediaVariant).development:f.stages.development, startWeek: state.week,
       sequelOf: parent ? parent.id : null, franchiseId: seriesId, installment: installment, franchiseName: parent ? (parent.franchiseName || parent.title) : null,
       qualityMod: 0, hypeMod: 0, usedEvents: [], lastEventWeek: -99, lastSlipWeek: -99, flags: {},
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
