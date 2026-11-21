@@ -20,3 +20,24 @@ Scope: UI/UX consistency only; no gameplay rebalance. This is a plan, **not a co
 - [ ] Test active and completed films, switching between films, mobile widths, existing saves, and full first-film tutorial navigation.
 
 Goal: make the details referenced repeatedly by the tutorial available directly from the film being monitored. Scope is navigation/discoverability; no gameplay changes.
+
+## Priority: Repair missing completed films in My Filmography (reported defect; not yet fixed)
+
+- [ ] Reproduce a film that reaches completion/release but does not appear in **My Filmography** under the current v14.5 navigation.
+- [ ] Audit the film lifecycle and record creation from project completion through `Engine.filmHistory()` to My Filmography; check the `projectId != null` owner filter, all formats, film tabs, regional/reach filters and any archived/legacy state.
+- [ ] Ensure every genuinely released/completed player film appears under **All My Films** irrespective of theatrical gross, media format, critical score or current run status. Avoid creating duplicate catalog entries or rewriting legitimately unreleased/cancelled projects.
+- [ ] Confirm the correct title opens its Film Hub, preserves release history/receipts/reviews, and remains visible after save/reload, old-save migration and save-slot changes.
+- [ ] Add deterministic engine and real-browser regression coverage for feature films, shorts, TV pilots/web episodes, including zero-box-office releases and simultaneous premieres.
+
+Priority: **High** — player film history must be reliable before navigation improvements are considered complete.
+
+## Priority: Full tutorial audit against current v14.5 UI (not yet implemented)
+
+- [ ] Review **every** tutorial step, screen name, breadcrumb, button label, highlighted target and "Open section" action against the current five-section sidebar and nested subtabs.
+- [ ] Remove outdated paths such as **Studio → My Filmography**; point to the actual current navigation path, and ensure automatic navigation reaches the correct view and subtab.
+- [ ] Align the Project Details walkthrough with the planned **Project Monitor → Project Details** shortcut.
+- [ ] Run the entire first-film tutorial end to end, from creating the script through production, premiere, My Filmography and Film Hub; validate each highlighted target is visible and clickable.
+- [ ] Test desktop/mobile navigation, collapsed menus, production decision dialogs, completed-film examples, older saves and tutorial reopening.
+- [ ] Keep tutorial wording and navigation targets centrally aligned so future UI reorganizations are less likely to break instructions.
+
+Priority: **High** — complete this together with the Filmography fix to ensure the guided tour leads to a film that is actually visible.
