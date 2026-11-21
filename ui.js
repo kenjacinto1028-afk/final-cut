@@ -569,8 +569,7 @@ var UI = (function () {
     h += '<div class="strip reputation-strip">'+stat('Lifetime fame',rep.fame+'/100')+stat('Current buzz',rep.buzz+'/100')+
       stat('Current prestige',rep.currentPrestige+'/100')+stat('Lifetime legacy',rep.lifetimeLegacy+' pts')+'</div>';
     h += '<p class="muted">Fame is your long-term public recognition; buzz reflects recent attention. Prestige follows the last five years. Lifetime legacy never decays.</p>';
-    h += '<div class="fc-v14-dashboard-identity">'+v14IdentityCard('you')+
-      '<button onclick="UI.go(&quot;studio_profile&quot;)">Studio identity & ambitions</button></div>';
+    h += v14IdentityCard('you',true);
     if(legacy.industryShift) h += '<div class="market-shift"><strong>Industry shift: '+esc(legacy.industryShift.name)+'</strong><p>Temporary audience interest in '+legacy.industryShift.genres.map(id=>esc(nameOf(CONTENT.GENRES,id))).join(' and ')+'. Ends '+dateLabel(legacy.industryShift.endWeek)+'.</p></div>';
     if (!s.studio.releases && s.week < 53) h += '<div class="onboarding"><strong>Getting started</strong><p>Start with a small project. Craft improves the finished film; fame attracts attention. Keep enough cash for production weeks, then choose how widely to screen your film.</p><div class="actions"><button class="primary" onclick="UI.go(&quot;newproject&quot;)">Plan your first film</button><button onclick="UI.go(&quot;market&quot;)">View market demand</button></div></div>';
     else if (s.studio.releases && s.studio.tier === 0 && s.studio.fame < 15) h += '<div class="onboarding"><strong>Grow your studio</strong><p>Film releases and festival recognition build fame. Keep an eye on profits and the Founder page for your next studio upgrade.</p></div>';
@@ -793,8 +792,13 @@ var UI = (function () {
   }
 
 
-  function v14IdentityCard(who){
+  function v14IdentityCard(who,compact){
     const c=Engine.v14Identity(who);if(!c)return '';
+    if(compact)return '<section class="fc-dashboard-identity-card" aria-label="Studio classification">'+
+      '<div class="fc-dashboard-identity-copy"><small>EARNED STUDIO CLASSIFICATION</small>'+
+      '<strong class="fc-dashboard-identity-label">'+esc(c.label)+'</strong>'+
+      '<span>'+esc(c.standing)+' · '+esc(c.trajectory)+' · '+c.count+' recent films</span></div>'+
+      '<button type="button" class="fc-dashboard-identity-link" onclick="UI.go(&quot;studio_profile&quot;)">Studio identity &amp; ambitions</button></section>';
     return '<section class="fc-v14-identity"><div class="fc-v14-section-heading"><div><small>EARNED STUDIO CLASSIFICATION</small>'+
       '<h2>'+esc(c.label)+'</h2><p>'+esc(c.standing)+' · '+esc(c.trajectory)+' · '+c.count+' recent films</p></div></div>'+
       '<div class="fc-v14-tags">'+c.descriptors.map(d=>'<span>'+esc(d)+'</span>').join('')+'</div>'+
