@@ -191,6 +191,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase 1c: audited 23 tutorial steps, replacing legacy paths with current five-section navigation and monitor/film hub access (ui.js 3f8e525).
 - [x] Phase 1d: added monitor Project Details buttons, future-jury festival disclosure and in-game asynchronous confirm/prompt/alert dialog framework (ui.js d4895b5/7a304ea; theme-ab.css d3afb5d).
 - [x] Phase 2: expanded 33 name patterns, word banks, genre-aware generation, and duplicate avoidance (content.js 3b35875; engine.js b42b9a7).
-- [ ] Phase 3: film-specific following, decay/retention, cult status, and sequel carryover.
-- [ ] Phase 3b: distinct studio fans and bounded effects on new projects.
+- [x] Phase 3: added derived film following, natural decay, loyal survivors, earned cult status and bounded sequel awareness (engine.js 0624621, ui.js dc0bad7).
+- [x] Phase 3b: added separate studio active/loyal fans, overlap-aware aggregation, bounded opening-hype lift and Studio Profile card (engine.js 0624621, ui.js dc0bad7).
 - [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
