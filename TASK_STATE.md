@@ -199,3 +199,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [ ] All GitHub Actions and desktop/mobile tests green; merge and verify Pages.
 
   - [x] Corrected v14.3b browser test to wait for asynchronous in-game marketing/sponsor confirmation effects (`tests/v14_3b_promotions_browser.py`, ba46ca7).
+  - [x] Browser tutorial regression showed premiere card blocking Next Week in topbar; docked in-tutorial report bottom-right instead of top-right (`theme-ab.css`, 32995c0).
