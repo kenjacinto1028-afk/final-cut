@@ -51,6 +51,12 @@ try:
             assert float(page.evaluate('parseFloat(getComputedStyle(document.body).fontSize)'))>=14
             page.screenshot(path='/tmp/finalcut-v14-9-dashboard-%s.png'%width,full_page=True,animations='disabled')
 
+            # The optional Project Monitor must be dismissible without the mobile header intercepting taps.
+            page.locator('#topbar .tb-monitor-switch').click()
+            assert page.locator('#film-monitor').is_visible()
+            page.get_by_role('button',name='Collapse project monitor').click(timeout=6000)
+            assert page.locator('#film-monitor').is_hidden()
+
             page.locator('#mobile-bottom-nav [data-mobile-section="productions"]').click()
             assert page.locator('#mobile-bottom-nav [data-mobile-section="productions"]').get_attribute('aria-current')=='page'
             assert page.locator('#main .fc-section-tabs').count()==1
