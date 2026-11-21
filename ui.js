@@ -633,7 +633,13 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
+    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ?
+      '<section class="franchise-card"><strong>Continue the story of '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+
+      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p>'+
+      '<label>Relationship <select onchange="UI.setDraft(\'continuationType\',this.value)">'+
+      [['direct','Direct sequel'],['spinoff','Spin-off'],['adaptation','Series or cross-media adaptation']].map(x=>opt(x[0],x[1],x[0]===(draft.continuationType||'direct'))).join('')+
+      '</select></label><button onclick="UI.cancelSequel()">Cancel story link</button></section>' : '')+
+      '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
     h += '<label>Title <input value="' + esc(draft.title) + '" oninput="UI.setDraft(\'title\', this.value)"> <button onclick="UI.randomizeTitle()">Random</button></label>';
     h += '<label>Media format <select onchange="UI.setMediaVariant(this.value)">' +
       Object.entries(FinalCutBudget.VARIANTS).map(([id,v])=>{
@@ -2876,21 +2882,25 @@ var UI = (function () {
     const q=Engine.sequelEligibility(id);
     if(!q.ok){drawerMsg=q.reason;renderDrawer();return;}
     const p=q.parent;
-    draft.format='feature';draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
-    draft.genre=p.genre;draft.topic=p.topic;draft.tier=p.tier;
-    draft.sequelOf=p.id;draft.pitchId=null;draft.pitchApproach='standard';
+    draft.format=p.format;draft.mediaVariant=p.mediaVariant||p.format;
+    draft.budgetCap=Math.max(500,p.budget||1500);
+    draft.scope=p.productionScope||'intimate';draft.allocation=null;draft.allocationPreset='balanced';
+    draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
+    draft.genre=p.genre;draft.topic=p.topic;syncDraftTier();
+    draft.sequelOf=p.id;draft.continuationType='direct';draft.pitchId=null;draft.pitchApproach='standard';
     draft.vision=p.dna?.vision||'mainstream';draft.releasePosition='wide';
     const suggested=Engine.sequelCastSuggestion(p);
     draft.cast={director:suggested.director,writer:suggested.writer,lead:suggested.lead,crew:suggested.crew};
-    draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps('feature',draft.tier).supporting);
+    draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps(draft.format,draft.tier).supporting);
     draft.specialists=[];draft.backgroundCrew=0;
     closeDrawer();go('newproject');
   }
-  function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
+  function cancelSequel(){delete draft.sequelOf;delete draft.continuationType;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
     if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
-      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+      draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
+      draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
