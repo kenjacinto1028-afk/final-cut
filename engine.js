@@ -2682,6 +2682,47 @@ var Engine = (function () {
         .reduce((out,k)=>(out[k]=v144Available(p,k),out),{}),
       projectedRemaining:Math.max(0,b.cap-(p.fees||0)-(p.scriptFee||0)-spent)};
   }
+  function v144Reallocate(id,from,to,amount){
+    const p=getProject(Number(id));
+    if(!p||!p.budgetPlan||!ACTIVE_STAGES.includes(p.stage))
+      return {ok:false,reason:'Only active flexible-budget films can move unspent money.'};
+    if(!FinalCutBudget.KEYS.includes(from)||!FinalCutBudget.KEYS.includes(to)||from===to)
+      return {ok:false,reason:'Choose two different allocation buckets.'};
+    const b=p.budgetPlan,live=ACTIVE_STAGES.indexOf(p.stage);
+    const requiredStage={prep:0,shoot:2,post:3,marketing:4,distribution:4,reserve:4};
+    if((requiredStage[from]<live&&from!=='reserve')||(requiredStage[to]<live&&to!=='reserve'))
+      return {ok:false,reason:'Already completed production stages cannot be re-budgeted.'};
+    amount=Math.round(Number(amount)||0);
+    if(amount<=0||amount>v144Available(p,from))
+      return {ok:false,reason:'Only unspent allocated money may be moved.'};
+    b.allocation[from]-=amount;b.allocation[to]+=amount;
+    const f=FinalCutBudget.evaluate({variant:p.mediaVariant,format:p.format,scope:p.productionScope,
+      cap:p.budget,fees:p.fees,scriptFee:p.scriptFee,plan:b.allocation});
+    b.qualityEffect=f.qualityEffect;b.feasibility=f.level;
+    // Do not retroactively shorten or lengthen an already-running stage.
+    if(live<2)b.delayWeeks=f.delayWeeks;
+    addLog('Moved '+fmtMoney(amount)+' from '+FinalCutBudget.LABELS[from]+' to '+
+      FinalCutBudget.LABELS[to]+' for "'+p.title+'".','finance');
+    save();emit('project',p);return {ok:true,level:f.level};
+  }
+  function v144IncreaseCap(id,amount,where){
+    const p=getProject(Number(id));
+    if(!p||!p.budgetPlan||!ACTIVE_STAGES.includes(p.stage))
+      return {ok:false,reason:'Only active productions may request a new spending limit.'};
+    amount=Math.round(Number(amount)||0);
+    const bucket=FinalCutBudget.KEYS.includes(where)?where:'reserve';
+    if(amount<=0||amount>500000||p.budgetPlan.cap+amount>50000000)
+      return {ok:false,reason:'Budget increase must be positive and within studio limits.'};
+    if(state.cash<amount)return {ok:false,reason:'Studio cash cannot support this optional extra commitment.'};
+    p.budget+=amount;p.budgetPlan.cap+=amount;p.budgetPlan.allocation[bucket]+=amount;
+    const f=FinalCutBudget.evaluate({variant:p.mediaVariant,scope:p.productionScope,
+      cap:p.budget,fees:p.fees,scriptFee:p.scriptFee,plan:p.budgetPlan.allocation});
+    p.budgetPlan.qualityEffect=f.qualityEffect;p.budgetPlan.feasibility=f.level;
+    // Raising a cap does not itself move money out of cash. Only costs do.
+    addLog('Approved an additional '+fmtMoney(amount)+' budget limit for "'+p.title+
+      '", assigned to '+FinalCutBudget.LABELS[bucket]+'.','finance');
+    save();emit('project',p);return {ok:true};
+  }
   function weeklyBurn() {
     return TUNING.livingCost + Math.round(state.debt * TUNING.weeklyInterest) + weeklySalaries() + weeklyPayroll() + weeklyOverhead() +
       activeProjects().reduce((a, p) => a + v144StageCost(p), 0) + state.series.filter(s => s.status === 'airing').reduce((a, s) => a + s.epCost, 0);
@@ -5111,6 +5152,7 @@ var Engine = (function () {
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
     startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
     v144BudgetInfo:v144BudgetInfo,v144Pay:v144Pay,
+    v144Reallocate:v144Reallocate,v144IncreaseCap:v144IncreaseCap,
     sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
     formats: formats, activeProject: activeProject, activeProjects: activeProjects, capacity: capacity, getProject: getProject,
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
