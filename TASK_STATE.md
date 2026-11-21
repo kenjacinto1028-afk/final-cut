@@ -82,3 +82,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Stage 1: Profit-risk tuning: less generous premium-budget theater reach, remembered recent same-genre launches, modest wider downside, and stronger returns from actually hired rival talent. Baseline: 8 normal-start 61-year scenarios in V14_BALANCE_FOLLOWUP.md. Targeted assertions in tests/v14_1_balance.js. Await CI before calling tuned/accepted.
 - [x] Stage 2 engine: 350ms coalesced background save after 1,600 rival-archive entries or 340 player films; same lossless codec in isolated Worker; discard stale generations after manual save/load/slot switch. Flush scheduled autosaves on visibility/pagehide. Chromium mobile test next.
 - [ ] Stage 3: Compare multi-seed outcomes against v14 baseline; run all existing v13/v14 browser and economy regressions and merge/deploy.
+
+- [x] Stage 3 testing gate: 12 standard-start 61-year region/strategy careers; v13 and v14 economic/award/save regressions; 390px Playwright mobile worker, old save slots and film UI checks. Workflow: .github/workflows/v14_1.yml.

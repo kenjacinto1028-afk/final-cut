@@ -1,0 +1,48 @@
+name: FinalCut v14.1 balance and mobile release gate
+on:
+  push:
+    branches: [feature/v14-1-balance-mobile-20261121]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  balance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Core balance, finance, long-save and twelve full careers
+        run: |
+          node --check engine.js
+          node --check save-worker.js
+          node tests/v14_1_balance.js
+          node tests/v14_1_balance_matrix.js
+          node tests/v14_save_codec.js
+          node tests/v14_gameplay.js
+          node tests/v14_fullcareer.js
+          node tests/v13_smoke.js
+          node tests/v13_compat_regression.js
+          node tests/v13_4_honors.js
+          node tests/v13_8_film_finance.js
+          node tests/v13_9_short_engagement.js
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Live 390px mobile worker and legacy browser playthrough
+        run: |
+          python tests/v14_1_mobile_browser.py
+          python tests/v14_browser.py
+          python tests/v13_7_multi_save_browser.py
+          python tests/v13_9_short_browser.py
