@@ -577,6 +577,73 @@ var UI = (function () {
     if(!confirm('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
     const result=Engine.pushRelease(id);setFlash(result.ok?'Publicity campaign started for '+(Engine.getProject(id)||{}).title+'.':result.reason);render();
   }
+  // Dock is a compact, always-available software-studio-style release monitor,
+  // with readable status cards and actual engine-backed weekly financials.
+  let filmMonitorOpen=null;
+  function isFilmMonitorOpen(){
+    if(filmMonitorOpen==null){
+      let setting=null;
+      try{setting=localStorage.getItem('finalcut-film-monitor-open');}catch(_){}
+      filmMonitorOpen=setting==='yes'?true:setting==='no'?false:
+        (typeof window!=='undefined'&&Number(window.innerWidth)>=1450);
+    }
+    return filmMonitorOpen;
+  }
+  function toggleFilmMonitor(){
+    filmMonitorOpen=!isFilmMonitorOpen();
+    try{localStorage.setItem('finalcut-film-monitor-open',filmMonitorOpen?'yes':'no');}catch(_){}
+    render();
+  }
+  function projectPhasePercent(p){
+    if(p.stage==='release')return Math.min(100,Math.round(p.weeksInRelease/Engine.TUNING.maxReleaseWeeks*100));
+    if(p.stage==='done')return 100;
+    const stages=Engine.TUNING.formats[p.format]?.stages||{};
+    const total=stages[p.stage]||1;
+    return Math.max(0,Math.min(100,Math.round((total-(p.stageWeeksLeft||0))/total*100)));
+  }
+  function renderFilmMonitor(){
+    const dock=$('film-monitor'),app=$('app');
+    if(!dock||!app)return;
+    const s=Engine.state,show=!!s&&view!=='saves'&&isFilmMonitorOpen();
+    dock.hidden=!show;app.classList.toggle('monitor-open',show);
+    if(!show){dock.innerHTML='';return;}
+    const active=s.projects.filter(p=>p.stage!=='done');
+    const residual=s.projects.filter(p=>p.stage==='done'&&(p.windows||[]).some(w=>w.paid<w.total));
+    const recent=s.projects.filter(p=>p.stage==='done').slice(-3);
+    const all=[...active,...residual,...recent].filter((p,i,a)=>a.findIndex(x=>x.id===p.id)===i);
+    all.sort((a,b)=>{
+      const score=p=>p.stage==='release'?4: p.stage!=='done'?3:(p.windows||[]).some(w=>w.paid<w.total)?2:1;
+      return score(b)-score(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
+    });
+    const selected=all.slice(0,6);
+    const cards=selected.map(p=>{
+      const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature';
+      const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
+      const metric=live&&feature?'gross':'revenue';
+      const current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue;
+      const viewer=feature?'<span>'+compactCount(pulse.estimatedAdmissions)+' est. admissions</span>':
+        '<span>'+(p.format==='short'?'Festival / screening release':'TV / network deal')+'</span>';
+      return '<article class="fc-monitor-card">'+
+        '<div class="fc-monitor-card-head"><span class="fc-monitor-symbol">'+esc(feature?'FILM':p.format==='short'?'SHORT':'TV')+'</span>'+
+        '<button type="button" onclick="UI.openProject('+p.id+')" title="Open '+esc(p.title)+'">'+esc(p.title)+'</button></div>'+
+        '<div class="fc-monitor-status"><span>'+esc(phase)+(live?' · wk '+p.weeksInRelease:'')+'</span>'+
+        '<strong>'+Math.round(projectPhasePercent(p))+'%</strong></div>'+
+        '<div class="fc-monitor-track"><i style="width:'+projectPhasePercent(p)+'%"></i></div>'+
+        '<div class="fc-monitor-money"><div><small>'+(metric==='gross'?'This week · box office':'This week · receipts')+'</small><strong>'+money(current)+'</strong></div>'+
+        '<div><small>Studio receipts · total</small><strong>'+money(p.revenue||0)+'</strong></div></div>'+
+        '<div class="fc-monitor-audience">'+viewer+
+        '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
+        filmPulseChart(p,metric,7)+
+        (live&&feature?releasePushAction(p):'')+
+        '</article>';
+    }).join('');
+    dock.innerHTML='<header class="fc-monitor-head"><div><small>LIVE STUDIO FEED</small><h2>Project monitor</h2>'+
+      '<span>'+active.length+' active · '+s.projects.length+' lifetime projects</span></div>'+
+      '<button class="fc-monitor-close" type="button" onclick="UI.toggleFilmMonitor()" aria-label="Collapse project monitor">✕</button></header>'+
+      '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">Greenlight a film to follow weekly production and earnings.</p>')+'</div>'+
+      '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Full Production Center</button>'+
+      '<small>Weekly earnings are booked by the game engine. Ticket reach is modeled, not measured.</small></footer>';
+  }
   function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
     const active=list.filter(p=>p.stage!=='done'),theaters=active.filter(p=>p.stage==='release'&&p.format==='feature');
