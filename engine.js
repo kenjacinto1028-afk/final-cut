@@ -1235,7 +1235,7 @@ var Engine = (function () {
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
       estimatedAdmissions: 0, estimatedScreeningViewers:null, estimatedHouseholdImpressions:null,
       performanceHistory: [], lastWeekRevenue: 0,
-      dna:dnaFor(o),story:[],storyChoices:0
+      dna:dnaFor(o),story:[],storyChoices:0,releasePosition:V14_RELEASE_PLANS[o.releasePosition]?o.releasePosition:'wide'
     };
     filmStory(p,'greenlight','Committed to '+V14_VISIONS[p.dna.vision].name.toLowerCase()+' filmmaking, emphasizing '+p.dna.strengths.map(id=>V14_TAGS[id]).join(' and ')+'.');
     if (parent) {
@@ -1780,19 +1780,82 @@ var Engine = (function () {
   }
 
 // ===== SECTION: RELEASE =====
+
+  const V14_RELEASE_PLANS={
+    wide:{name:'Wide commercial',opening:1.06,legs:0,critic:0,audience:0,festival:0,desc:'Stronger opening; expensive visibility is already handled by marketing and regions.'},
+    targeted:{name:'Targeted audience',opening:.84,legs:.045,critic:0,audience:1,festival:0,desc:'Lower opening reach, improved retention among the intended audience.'},
+    prestige:{name:'Awards-first',opening:.78,legs:.025,critic:2,audience:-1,festival:2,desc:'Reviews/festivals are prioritized over early ticket volume.'},
+    regional:{name:'Cautious rollout',opening:.89,legs:.035,critic:0,audience:0,festival:0,desc:'Less opening reach, with modest word-of-mouth staying power.'}
+  };
+  function v14ReleasePlan(p){
+    return V14_RELEASE_PLANS[p.releasePosition]||V14_RELEASE_PLANS.wide;
+  }
+  function v14SetReleasePlan(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.releaseWeek!=null||p.stage==='done')return {ok:false,reason:'Release positioning can only change before release.'};
+    if(!V14_RELEASE_PLANS[kind])return {ok:false,reason:'Unknown release strategy.'};
+    if(p.format==='pilot'&&kind==='wide')return {ok:false,reason:'Pilot premieres use targeted or network-specific positioning.'};
+    p.releasePosition=kind;
+    filmStory(p,'strategy','Committed to a '+V14_RELEASE_PLANS[kind].name.toLowerCase()+' release.');
+    save();emit('release_plan',p);return {ok:true};
+  }
+  function v14ReleaseCalendar(){
+    if(!state)return [];
+    return Array.from({length:12},(_,offset)=>{
+      const week=state.week+offset;
+      const rivals=activeRivals().flatMap(r=>(r.films||[]).filter(f=>f.week===week&&f.stage!=='done')
+        .map(f=>({studio:r.name,title:f.title,genre:f.genre,rivalId:r.id}))).slice(0,5);
+      const mine=state.projects.filter(p=>p.format==='feature'&&(
+        p.stage==='release'&&p.releaseWeek===week||plannedRelease(p)===week))
+        .map(p=>({id:p.id,title:p.title,genre:p.genre}));
+      return {week,season:seasonOf(week).name,rivals,mine,
+        pressure:Math.round((rivalPressure(week,'drama').weight+(state.market.slate[offset]||0))*10)/10,
+        seasonDemand:Math.round(seasonMult(week)*100)/100};
+    });
+  }
+  function v14ReleaseResponseQuote(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.format!=='feature'||p.stage!=='release'||p.weeksInRelease<1||p.weeksInRelease>6)
+      return {ok:false,reason:'Only features during their early theatrical run qualify.'};
+    if(p.releaseResponse||p.releasePush)return {ok:false,reason:'The theatrical response has already been chosen.'};
+    const price=kind==='expand'?.055:kind==='focus'?.027:0,cost=Math.max(0,Math.round(p.budget*price/50)*50);
+    const names={expand:'Expand theatrical marketing',focus:'Target receptive audiences',
+      hold:'Keep the original release plan',pull:'End theaters early'};
+    if(!names[kind])return {ok:false,reason:'Invalid release response.'};
+    if(cost>state.cash)return {ok:false,reason:'Insufficient studio cash.',cost};
+    return {ok:true,kind,name:names[kind],cost,
+      description:kind==='expand'?'Spend more to increase demand over four weeks, with no guarantee of recouping it.':
+        kind==='focus'?'Smaller focused campaign, helping word-of-mouth for four weeks.':
+        kind==='hold'?'No new costs. Trust the film’s existing reviews and audience.':
+        'Stop further theatrical sales and begin existing post-theatrical rights windows.'};
+  }
+  function v14ReleaseResponse(id,kind){
+    const q=v14ReleaseResponseQuote(id,kind);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    if(q.cost){state.cash-=q.cost;p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+      recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);}
+    p.releaseResponse={kind,week:state.week,cost:q.cost};
+    filmStory(p,'release','After the opening results, the studio chose to '+q.name.toLowerCase()+
+      (q.cost?' at a cost of '+fmtMoney(q.cost):'')+'.');
+    if(kind==='pull')finishFeature(p);
+    addLog('Release decision for "'+p.title+'": '+q.name+(q.cost?' ('+fmtMoney(q.cost)+')':'')+'.','release');
+    save();emit('release_response',p);return {ok:true,cost:q.cost};
+  }
+
   function release(p) {
     const g = byId(CONTENT.GENRES, p.genre) || { audience: 1, critics: 0 };
     const st = state.studio;
     applyInitiative(p);
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
-    p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0) + rnd(-10, 10)), 1, 100);
+    p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
+      (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10)), 1, 100);
     p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
     if (p.sequelOf != null) {
       p.audience = clamp(Math.round(p.audience - (p.franchiseExpectation||0) + (p.quality>=78 ? 5 : 0)),1,100);
     }
     p.review = receptionText(p);
-    if(p.dna){p.audience=clamp(p.audience+(V14_VISIONS[p.dna.vision]?.viewer||0),1,100);
+    if(p.dna){p.audience=clamp(p.audience+(V14_VISIONS[p.dna.vision]?.viewer||0)+v14ReleasePlan(p).audience,1,100);
       filmStory(p,'premiere','Critics rated the '+p.dna.vision+' film '+p.critic+'/100; viewers rated it '+p.audience+'/100.');}
     p.stage = 'release';
     p.releaseWeek = state.week;
@@ -1862,7 +1925,7 @@ var Engine = (function () {
       // automatic profitability; their higher budgets and marketing costs remain.
       const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
       const cap=audienceCap()*(1+Math.min(.28,budgetMultiple*TUNING.bigFilmAudienceCapPerDoubling));
-      p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
+      p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)) * (p.dna?v14ReleasePlan(p).opening:1));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
         (m.rivals.length ? ', incl. ' + m.rivals.map(r => r.studio + '\'s "' + r.title + '"').join(', ') : '') + ').', 'release');
     }
@@ -2007,11 +2070,16 @@ var Engine = (function () {
     // poorly received microbudget productions get no subsidy.
     const indieBonus=p.budget<=120000 && p.audience!=null ?
       Math.max(0,Math.min(TUNING.smallFilmAudienceLegsBonus,(p.audience-68)*.0018)) : 0;
-    const decay = legsDecay(p.quality)+indieBonus;
+    const decay = clamp(legsDecay(p.quality)+indieBonus+(p.dna?v14ReleasePlan(p).legs:0),.5,.91);
     let gross = p.opening * Math.pow(decay, p.weeksInRelease - 1);
     if (p.weeksInRelease > 1) gross /= 1 + TUNING.rivals.holdPenalty * rivalPressure(state.week, p.genre, null, true).weight;
     if(p.releasePush && state.week>p.releasePush.week && state.week-p.releasePush.week<=4)
       gross*=1+(0.12*(1-(state.week-p.releasePush.week-1)*.18));
+    if(p.releaseResponse && state.week>p.releaseResponse.week && state.week-p.releaseResponse.week<=4){
+      const age=state.week-p.releaseResponse.week-1,scale=(1-age*.2);
+      if(p.releaseResponse.kind==='expand')gross*=1+.14*scale;
+      if(p.releaseResponse.kind==='focus')gross*=1+.075*scale;
+    }
     gross = Math.round(gross);
     // Reconcile local and international receipts to total theatrical gross every week.
     const quote = regionQuote(p, p.regions || [homeRegion()]);
@@ -4070,6 +4138,8 @@ var Engine = (function () {
     v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
     v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
     v14Chemistry:v14Chemistry, v14PairKey:v14PairKey, v14SetDelegation:v14SetDelegation,
+    v14ReleasePlans:()=>V14_RELEASE_PLANS, v14SetReleasePlan:v14SetReleasePlan, v14ReleaseCalendar:v14ReleaseCalendar,
+    v14ReleaseResponseQuote:v14ReleaseResponseQuote, v14ReleaseResponse:v14ReleaseResponse,
     v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote
   };
 })();
