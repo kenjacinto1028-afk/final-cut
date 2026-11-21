@@ -773,3 +773,25 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
   .fc-v14-pitches,.fc-v14-profile-section,.fc-v14-identity,.fc-v14-film-story,.fc-v14-film-actions{padding:13px}
 }
 @media(prefers-reduced-motion:reduce){.fc-v14-script *, .fc-v14-film-story *, .fc-v14-pitches *{animation:none!important;transition:none!important}}
+
+
+/* FinalCut v14.2 — small-screen controls, readable save feedback and safe areas.
+   Does not alter desktop layout or substantive gameplay presentation. */
+@media(max-width:480px){
+  #mobile-nav-toggle,.nav-foot .navbtn,.fc-save-actions button,
+  .fc-save-header-actions button,.fc-v14-script button,.fc-v14-film-actions button,
+  .tutorial-actions button{min-height:44px;touch-action:manipulation}
+  #main .alert[role="status"]{overflow-wrap:anywhere;line-height:1.55}
+  .fc-save-header-actions,.fc-save-actions{flex-wrap:wrap;max-width:100%}
+  .fc-save-card,.fc-v14-script,.fc-v14-film-story{min-width:0;overflow-wrap:anywhere}
+  #drawer{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+  #tutorial{bottom:max(8px,env(safe-area-inset-bottom))}
+}
+@media(max-width:350px){
+  .fc-save-header,.fc-save-card{padding:12px}
+  .fc-save-actions button,.fc-save-header-actions button{flex:1 1 100%}
+  .fc-v14-script-grid,.fc-v14-calendar{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+  #main .alert[role="status"]{animation:none!important;transition:none!important}
+}

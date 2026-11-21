@@ -7,6 +7,23 @@ var SaveSlots=(function(){
   const INDEX='finalcut-save-index-v1', ACTIVE='backlot_save';
   const DB='finalcut-save-library', STORE='snapshots', VERSION=1;
   let openPromise=null;
+  // v14.2: avoid decoding multi-megabyte FCP2 archives each time a player
+  // returns to the title screen. Cache only exact active-save fingerprints.
+  // An unknown/replaced save is still decoded to repair the slot index.
+  let summarySignature=null,summaryCache=null;
+  function fingerprint(raw){return raw?raw.length+':'+raw.slice(0,24)+':'+raw.slice(-32):null;}
+  function cacheSummary(raw,info){
+    if(!raw||!info)return info;
+    summarySignature=fingerprint(raw);summaryCache=info;return info;
+  }
+  function cachedSummary(raw){
+    if(!raw)return null;
+    // FCP2 text has content-dependent randomized-looking ends; a same-tab
+    // cache hit for that large binary archive is extremely unlikely to alias.
+    // Small plaintext/FCP1 saves keep exact index-repair parsing.
+    if(raw.startsWith('FCP2')&&summaryCache&&fingerprint(raw)===summarySignature)return summaryCache;
+    return cacheSummary(raw,summary(raw));
+  }
   function storage(){try{return typeof localStorage==='undefined'?null:localStorage;}catch(_){return null;}}
   function fail(message){throw new Error(message);}
   function id(){return 's'+Date.now().toString(36)+'-'+Math.floor(Math.random()*1e9).toString(36);}
@@ -48,7 +65,7 @@ var SaveSlots=(function(){
   // Repair crash/restart gaps by matching the actual active campaign ID rather
   // than blindly trusting the index. Legacy saves get a named entry untouched.
   function ensure(){
-    const x=readIndex(),ls=storage(),raw=ls&&ls.getItem(ACTIVE),info=Engine.state?summaryFromState():(raw&&summary(raw));
+    const x=readIndex(),ls=storage(),raw=ls&&ls.getItem(ACTIVE),info=Engine.state?cacheSummary(raw,summaryFromState()):cachedSummary(raw);
     if(!info)return x;
     const active=x.slots.find(s=>s.id===x.activeId);
     if(active&&(!active.campaignId||!info.campaignId||active.campaignId===info.campaignId)){
@@ -108,6 +125,8 @@ var SaveSlots=(function(){
     const ls=storage();if(!ls)fail('Local browser storage is disabled.');
     try{if(raw==null)ls.removeItem(ACTIVE);else ls.setItem(ACTIVE,raw);}
     catch(_){fail('The active save exceeds browser storage. Export a backup and free up space.');}
+    // A replaced campaign may have a different ID even when file sizes match.
+    summarySignature=null;summaryCache=null;
   }
   function posterRefresh(){if(typeof PosterStore!=='undefined')PosterStore.resetCache();}
   // Browser autosaves are the active campaign; archive when leaving a slot.
@@ -115,10 +134,11 @@ var SaveSlots=(function(){
     const x=index||ensure();
     if(!x.activeId)return;
     if(Engine.state){
-      if(!Engine.save())fail('The current campaign could not be saved. Switching was cancelled.');
+      if(!await Engine.saveAsync())fail('The current campaign could not be saved. Switching was cancelled.');
     }
-    const raw=currentRaw(),info=raw&&summary(raw);
+    const raw=currentRaw(),info=Engine.state?summaryFromState():cachedSummary(raw);
     if(!info)fail('The active campaign cannot be archived because its save is missing or damaged.');
+    cacheSummary(raw,info);
     await put(x.activeId,raw);
     refreshEntry(x,info);
   }
@@ -126,13 +146,24 @@ var SaveSlots=(function(){
     if(!Engine.state)return {ok:false,reason:'No campaign is running.'};
     const x=ensure();
     if(!Engine.save())return {ok:false,reason:'The browser could not store this campaign. Export a backup and check free space.'};
+    cacheSummary(currentRaw(),summaryFromState());
+    refreshEntry(x,summaryFromState());writeIndex(x);
+    return {ok:true};
+  }
+  async function manualSaveAsync(){
+    if(!Engine.state)return {ok:false,reason:'No campaign is running.'};
+    const x=ensure();
+    if(!await Engine.saveAsync())
+      return {ok:false,reason:'Saving was interrupted or browser storage is full. Try Save Now again or export a backup.'};
+    cacheSummary(currentRaw(),summaryFromState());
     refreshEntry(x,summaryFromState());writeIndex(x);
     return {ok:true};
   }
   async function beginNew(opts){
-    const x=ensure(),before=currentRaw(),beforeId=x.activeId;
+    const x=ensure(),beforeId=x.activeId;
     if(beforeId)await archiveActive(x);
-    const newId=id();
+    // Keep the newly flushed archive as the rollback point.
+    const before=currentRaw(),newId=id();
     try{
       const state=Engine.newGame(opts||{});
       if(!Engine.save())fail('Could not save the new game.');
@@ -156,8 +187,9 @@ var SaveSlots=(function(){
     }
     const raw=await get(slotId);
     if(!raw||!summary(raw))fail('This save is missing or damaged. The current campaign is unchanged.');
-    const old=currentRaw(),oldId=x.activeId;
+    const oldId=x.activeId;
     if(oldId)await archiveActive(x);
+    const old=currentRaw();
     try{
       setCurrent(raw);
       const result=Engine.load();if(!result.ok)fail(result.reason);
@@ -181,19 +213,22 @@ var SaveSlots=(function(){
   async function duplicate(name){
     const x=ensure();
     if(!x.activeId||!Engine.state)fail('Load a campaign before making a copy.');
-    if(!Engine.save())fail('The active game could not be saved.');
-    const clone=JSON.parse(JSON.stringify(Engine.state));
-    const oldCampaign=clone.campaignId;
-    clone.campaignId='branch-'+id();
+    if(!await Engine.saveAsync())fail('The active game could not be saved.');
+    const source=Engine.state,oldCampaign=source.campaignId;
+    // The worker copies the payload at dispatch time; do not stringify a
+    // multi-decade archive on the main thread just to change campaign ID.
+    const clone={...source,campaignId:'branch-'+id()};
     const slotId=id(),posterIds=clone.projects.filter(p=>p.posterCustom).map(p=>p.id);
-    const raw=Engine.encodeSavePayload(clone);
+    const info={...summaryFromState(),campaignId:clone.campaignId};
+    const raw=await Engine.encodeSavePayloadAsync(clone);
+    if(Engine.state!==source)fail('Campaign changed during copying. Try again.');
     try{
       if(posterIds.length){
         if(typeof PosterStore==='undefined'||!PosterStore.copyCampaign)fail('Custom posters could not be copied. Update the game.');
         await PosterStore.copyCampaign(oldCampaign,clone.campaignId,posterIds);
       }
       await put(slotId,raw);
-      x.slots.push(entry(slotId,summary(raw),name||clone.studio.name+' (copy)'));
+      x.slots.push(entry(slotId,info,name||clone.studio.name+' (copy)'));
       writeIndex(x);
       return {ok:true,slotId};
     }catch(err){
@@ -240,11 +275,11 @@ var SaveSlots=(function(){
   async function importCampaign(game){
     if(!game||!Array.isArray(game.projects)||!Number.isInteger(game.version)||game.version>13||game.version<8)
       fail('This is not a supported FinalCut campaign.');
-    const x=ensure(),before=currentRaw(),beforeId=x.activeId;
+    const x=ensure(),beforeId=x.activeId;
     if(beforeId)await archiveActive(x);
-    const clone=JSON.parse(JSON.stringify(game));
-    clone.campaignId='import-'+id();
-    const raw=Engine.encodeSavePayload(clone),slotId=id();
+    const before=currentRaw();
+    const clone={...game,campaignId:'import-'+id()};
+    const raw=await Engine.encodeSavePayloadAsync(clone),slotId=id();
     try{
       setCurrent(raw);
       const result=Engine.load();if(!result.ok)fail(result.reason);
@@ -260,6 +295,6 @@ var SaveSlots=(function(){
   function activeName(){
     const x=ensure();return x.slots.find(s=>s.id===x.activeId)?.name||null;
   }
-  return {list,manualSave,beginNew,activate,rename,duplicate,remove,
+  return {list,manualSave,manualSaveAsync,beginNew,activate,rename,duplicate,remove,
     importCampaign,activeName,archiveActive};
 })();

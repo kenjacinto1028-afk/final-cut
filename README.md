@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v14.2 — Responsive saves and phone-friendly polish
+Save Now, Return to Title and large campaign archive/copy/import operations now compress large histories in a background Worker instead of freezing the page. Save status is announced to screen readers, and 320px/390px mobile layouts have bigger tap targets and safe-area spacing. On a browser without Workers, the game falls back to the same synchronous lossless save format. The original **v13** save schema, FCP1/FCP2 decoding, studio results and v14.1 balance are unchanged. See [v14.2 release notes](docs/CHANGELOG_V14_2.md).
+
 ## v14.1 — Balance and responsive long-career saving
 The studio economy now applies bounded premium-budget and repeat-slate audience pressure, improves rival filmmaking through genuinely earned studio craft, and slightly raises elite award winner thresholds. Large weekly browser autosaves use a background worker so long campaigns do not block normal navigation; manual/save-slot operations remain synchronous, with original v13, FCP1 and FCP2 saves supported. Twelve 61-year standard-start careers across three regions and mobile Chromium plus legacy tests passed. See [v14.1 changelog](docs/CHANGELOG_V14_1.md).
 

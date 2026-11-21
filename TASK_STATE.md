@@ -96,3 +96,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Accepted 12×61-year standard-start CI #44866770309 (all save roundtrips); averages: blockbuster $745.3m/99 flops, prestige $222.8m/69, careful $221.9m/5, cheap $29.8m/72; three regions, four strategies.
 - [x] Mobile Chrome/390px performance and full archive/worker ordering QA passed; existing v14 and v13.5–v13.9 compatibility/browser tests green on PR #7.
 - [x] Final documentation checkpoint `af1b09ff` verified: GitHub Pages deployment #44867237569 and integrated v14 + legacy/Chromium CI #44867238195 both succeeded. Remaining physical-device validation is explicitly tracked above.
+
+## v14.2 — Targeted polish (2026-11-21)
+- [x] Scope frozen: remove long-history UI stalls from manual save, save-slot switch, copy and import while retaining sync fallback, legacy archives, poster separation and save version 13.
+- [x] Implemented awaitable off-main-thread large manual saves, slot archiving, copy and import; retain unchanged synchronous SaveSlots.manualSave/Engine.save for compatibility. Fixed rollback references to the newest archived active save. All UI exits wait for confirmed storage success before switching/closing.
+- [x] Mobile polish: readable accessible live save status, 44px tap targets, safe-area paddings, narrow 320px save cards and reduced motion; title-screen active-save metadata cache avoids decoding 2MB+ archives after an already verified manual save. Browser acceptance pending.
+- [x] Acceptance gates: v14.2 Node contract and real Chromium 320/390px mobile, large manual save, title/slot copy/quit, quota failure and stale worker tests all passed in push CI #44868255497; v14.1 mobile, v13.7 slots and v14 browser regressions passed. Additional PR workflows pending.
+- [x] Memory polish: explicit saves cancel obsolete active weekly worker to prevent two competing multi-MB encoders; FCP2 title metadata fast path only, older FCP1/plain archives still perform strict index repair.
+- [ ] Merge v14.2 to main and verify live Pages; physical Android/iPhone validation remains explicitly outstanding.

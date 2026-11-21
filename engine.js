@@ -4571,6 +4571,69 @@ var Engine = (function () {
     if(typeof window!=='undefined'&&window.addEventListener)
       window.addEventListener('pagehide',()=>{if((largeSaveScheduled!==null||largeSaveWorkerBusy)&&state)save();});
   }
+  // v14.2: explicit saves and save-library snapshots reuse the canonical
+  // worker codec. The small-save and no-Worker paths retain the exact sync API.
+  // The worker owns only serialization; localStorage writes stay on this thread.
+  function largeArchive(obj){
+    return obj && (((obj.filmArchive?.rivals?.length||0)>=1600)||
+      ((obj.projects?.length||0)>=340));
+  }
+  function encodeSavePayloadAsync(obj){
+    if(typeof Worker==='undefined'||typeof document==='undefined'||!largeArchive(obj))
+      return Promise.resolve().then(()=>encodeSave(obj));
+    return new Promise((resolve,reject)=>{
+      let worker=null,deadline=null,settled=false;
+      const settle=(ok,value)=>{
+        if(settled)return;
+        settled=true;
+        if(deadline!==null)clearTimeout(deadline);
+        if(worker)worker.terminate();
+        (ok?resolve:reject)(value);
+      };
+      try{
+        worker=new Worker('save-worker.js');
+        worker.onmessage=event=>{
+          const x=event.data;
+          if(!x)return;
+          if(x.type==='encoded')settle(true,x.payload);
+          else if(x.type==='failed')settle(false,Error(x.reason||'Background save failed'));
+        };
+        worker.onerror=()=>settle(false,Error('Save worker failed'));
+        deadline=setTimeout(()=>settle(false,Error('Save worker timed out')),45000);
+        worker.postMessage({type:'encode',generation:0,campaignId:obj.campaignId,snapshot:obj});
+      }catch(error){settle(false,error);}
+    }).catch(()=>{
+      // A blocked Worker must not disable saving, including older browsers.
+      return encodeSave(obj);
+    });
+  }
+  async function saveAsync(){
+    if(!state)return false;
+    const ls=storage();
+    if(!ls)return false;
+    if(typeof Worker==='undefined'||typeof document==='undefined'||!largeArchive(state))
+      return save();
+    const snapshot=state;
+    invalidatePendingLargeSave();
+    // An already-running weekly archive is obsolete when a manual save
+    // begins. Stop it so a constrained phone never encodes two huge copies
+    // concurrently, then let the explicit save be the sole writer.
+    if(largeSaveWorkerBusy&&largeSaveWorker){
+      largeSaveWorker.terminate();largeSaveWorker=null;
+      largeSaveWorkerBusy=false;largeSaveNeedsLatest=false;
+    }
+    const generation=largeSaveGeneration;
+    try{
+      const packed=await encodeSavePayloadAsync(snapshot);
+      // A later game action or slot change invalidates this snapshot. Never
+      // let an old manual Worker overwrite a new campaign/autosave.
+      if(state!==snapshot||generation!==largeSaveGeneration)return false;
+      invalidatePendingLargeSave();
+      ls.setItem(SAVE_KEY,packed);
+      return true;
+    }catch(_){return false;}
+  }
+
   function save() {
     invalidatePendingLargeSave();
     if(fastSimulationTesting)return true; // test-only: persist a real full save at the end of a long simulated career
@@ -4708,8 +4771,8 @@ var Engine = (function () {
     reputationInfo: reputationInfo, legacyInfo: legacyInfo, initiativeQuote: initiativeQuote, startInitiative: startInitiative, reissueQuote: reissueQuote, reissueFilm: reissueFilm,
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
     dateOf: dateOf, eraOf: eraOf, eraInfo: eraInfo, eraLines: eraLines,
-    save: save, load: load, hasSave: hasSave, clearSave: clearSave,
-    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
+    save: save, saveAsync: saveAsync, load: load, hasSave: hasSave, clearSave: clearSave,
+    inspectSave: inspectSave, encodeSavePayload: encodeSave, encodeSavePayloadAsync: encodeSavePayloadAsync, closeSession: closeSession,
     setFastSimulationTesting:setFastSimulationTesting,
     v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
     v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
