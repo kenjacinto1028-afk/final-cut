@@ -544,10 +544,13 @@ var UI = (function () {
     const rows=pulse.history.slice(-(limit||10));
     const peak=Math.max(1,...rows.map(x=>Math.max(0,x[metric]||0)));
     if(!rows.length)return '<p class="fc-chart-empty">Weekly tracking begins with the next game week. Lifetime totals above are still accurate.</p>';
-    return '<div class="fc-pulse-chart" role="img" aria-label="'+esc('Actual weekly '+(metric==='gross'?'box office':'studio receipts')+' for '+p.title)+'">'+
+    const metricLabel=metric==='gross'?'booked box office':metric==='screenings'?'modeled screening visits':
+      metric==='households'?'modeled TV household impressions':'booked studio receipts';
+    return '<div class="fc-pulse-chart" role="img" aria-label="'+esc('Weekly '+metricLabel+' for '+p.title)+'">'+
       rows.map(x=>{
         const v=Math.max(0,x[metric]||0),height=v?Math.max(4,Math.round(v/peak*100)):2;
-        return '<span class="fc-pulse-column" title="'+esc(dateLabel(x.week)+' · '+money(v))+'"><i style="height:'+height+'%"></i></span>';
+        return '<span class="fc-pulse-column" title="'+esc(dateLabel(x.week)+' · '+
+          (metric==='screenings'||metric==='households'?compactCount(v):money(v)))+'"><i style="height:'+height+'%"></i></span>';
       }).join('')+'</div>'+
       '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+esc(dateLabel(rows[rows.length-1].week))+'</span></div>';
   }
@@ -629,7 +632,9 @@ var UI = (function () {
       watchers+
       '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less direct film spending</em></div></div>'+
       '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
-      (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':'')+'</div>'+
+      (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':
+        p.format==='short'?'<div><small>Weekly estimated screening visits</small>'+filmPulseChart(p,'screenings',12)+'</div>':
+          '<div><small>Weekly estimated household impressions</small>'+filmPulseChart(p,'households',12)+'</div>')+'</div>'+
       '<p class="fc-performance-caveat">'+esc(disclaimer)+'</p>'+
       (p.format==='short'?shortFestivalPanel(p)+shortFilmActions(p,false):'')+
       (feature&&p.stage==='release'?releasePushAction(p):'')+
