@@ -11,6 +11,7 @@ function newGame(seed=1, fixed=null){
   const ctx={Math:math,console:{log(){}},Date,JSON,localStorage};vm.createContext(ctx);vm.runInContext(source,ctx);
   const E=ctx.Engine;
   E.newGame({studioName:'Budget Balance',founderName:'Founder',homeRegion:'northamerica'});
+  E.TEST_BUDGET=ctx.FinalCutBudget; // pure planning module for simulated user choices
   return E;
 }
 function advance(E,n,predicate){
@@ -95,12 +96,11 @@ for(const mode of ['lean','craft','audience','balanced']){
         cast:founderCast};
       const estimate=E.previewProject(opts);
       if(estimate.ok){
-        const plan=E.previewProject({...opts,allocation:undefined});
-        const budget=plan.feasibility;
-        const b=E.previewProject({...opts,allocation:undefined});
-        // New planner presets share one cap; tests use real fixed cash and fees.
-        const project=E.startProject({...opts,allocation:
-          E.state.cash>3000?undefined:budget.plan});
+        // Exercise actual allocation strategies, not just different project names.
+        const spendable=cap-estimate.fees-estimate.scriptFee;
+        const allocation=E.TEST_BUDGET.recommended(spendable,'balanced',
+          mode==='balanced'?null:mode);
+        const project=E.startProject({...opts,allocation});
         if(project.ok)greenlit++;
       }
     }
