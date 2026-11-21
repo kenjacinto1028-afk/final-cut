@@ -342,3 +342,16 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 .fc-qol-notifications details{margin-top:5px;font-size:10px;color:var(--ds-secondary)}
 .fc-qol-notifications summary{cursor:pointer}
 .fc-dashboard-actions{align-items:center}
+
+/* v14.8 milestone and rivalry insight cards */
+.fc-qol-timeline,.fc-qol-release-clashes{background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;margin:14px 0;padding:14px}
+.fc-qol-timeline h3,.fc-qol-release-clashes h3{font-size:14px;margin:0 0 10px}
+.fc-qol-timeline ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--ds-border)}
+.fc-qol-timeline li{position:relative;display:grid;gap:3px;margin-left:11px;padding:5px 0 13px 12px;font-size:11px}
+.fc-qol-timeline li:before{position:absolute;content:'';width:8px;height:8px;border-radius:50%;left:-16px;top:9px;background:var(--ds-accent);border:1px solid var(--ds-panel)}
+.fc-qol-timeline li.is-known:before{background:var(--ds-positive)}
+.fc-qol-timeline li strong{color:var(--ds-text)}
+.fc-qol-timeline li span,.fc-qol-timeline>small{color:var(--ds-muted);font-size:10px}
+.fc-qol-release-clashes{border-left:3px solid var(--ds-accent)}
+.fc-qol-clash{padding:9px;background:var(--ds-panel);border:1px solid var(--ds-border);border-left:2px solid var(--ds-warning);border-radius:7px;font-size:11px}
+.fc-qol-clear{font-size:11px;color:var(--ds-positive)}
