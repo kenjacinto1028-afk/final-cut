@@ -316,6 +316,56 @@ var Engine = (function () {
 // ===== SECTION: STATE =====
   let state = null;
 
+
+  // v14: compact, additive Film DNA; historical releases are never rewritten.
+  const V14_TAGS={dialogue:'Sharp dialogue',atmosphere:'Distinctive atmosphere',spectacle:'Visual spectacle',
+    emotion:'Emotional resonance',twist:'Memorable twist',research:'Authentic detail',ensemble:'Strong ensemble',
+    humor:'Character humor',craft:'Inventive filmmaking',mystery:'Narrative mystery',
+    heart:'Broad human appeal',originality:'Unusual premise'};
+  const V14_RISKS={narrow:'Niche appeal',difficult:'Difficult shoot',controversial:'Divisive subject',
+    untested:'Unproven approach',expensive:'Cost pressure',marketing:'Hard to market'};
+  const V14_VISIONS={
+    prestige:{name:'Prestige-first',quality:2,hype:-2,critics:2,viewer:-2,festival:3},
+    mainstream:{name:'Accessible entertainment',quality:-1,hype:3,critics:-1,viewer:3,festival:-1},
+    bold:{name:'Bold genre vision',quality:1,hype:1,critics:0,viewer:1,festival:1},
+    star:{name:'Star vehicle',quality:0,hype:3,critics:-1,viewer:2,festival:0}
+  };
+  function v14State(){
+    if(!state)return null;
+    if(!state.v14||typeof state.v14!=='object')state.v14={};
+    const v=state.v14;
+    if(!Array.isArray(v.pitches))v.pitches=[];
+    if(!v.partnerships||typeof v.partnerships!=='object')v.partnerships={};
+    if(!Array.isArray(v.rivalry))v.rivalry=[];
+    if(!Array.isArray(v.classChanges))v.classChanges=[];
+    if(!Array.isArray(v.offers))v.offers=[];
+    if(!v.delegation)v.delegation='ask';
+    if(!v.ambition)v.ambition=null;
+    return v;
+  }
+  function filmStory(p,kind,text){
+    if(!p)return;
+    if(!Array.isArray(p.story))p.story=[];
+    if(p.story.some(x=>x.week===state.week&&x.kind===kind&&x.text===text))return;
+    p.story.push({week:state.week,kind,text:String(text).slice(0,170)});
+    if(p.story.length>14)p.story.splice(0,p.story.length-14);
+  }
+  function dnaFor(o){
+    const pitch=o.pitchId!=null?v14PitchById(o.pitchId):null;
+    const key=o.format+':'+o.genre+':'+o.topic+':'+(o.title||'');
+    let hash=0;for(let i=0;i<key.length;i++)hash=(hash*31+key.charCodeAt(i))>>>0;
+    const tags=Object.keys(V14_TAGS),risks=Object.keys(V14_RISKS);
+    const strengths=pitch?pitch.strengths.slice(0,2):[tags[hash%tags.length],tags[(hash+5)%tags.length]];
+    const risk=pitch?pitch.risk:risks[Math.floor(hash/17)%risks.length];
+    const vision=V14_VISIONS[o.vision]?o.vision:(pitch?pitch.vision:'mainstream');
+    return {pitchId:pitch?pitch.id:null,hook:pitch?pitch.hook:('An original '+o.genre+' story about '+o.topic+'.'),
+      strengths,risk,vision,lane:vision==='prestige'?'arthouse':vision==='bold'?'genre':'mainstream',
+      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',choiceFlags:[]};
+  }
+  function v14PitchById(id){return v14State().pitches.find(p=>p.id===String(id))||null;}
+  function v14Dna(p){return p&&p.dna||null;}
+  function v14Storyboard(p){return p&&Array.isArray(p.story)?p.story.slice(-12):[];}
+
   function newGame(opts) {
     opts = opts || {};
     state = {
@@ -356,12 +406,14 @@ var Engine = (function () {
       market: null,
       recruitment: { declined: {} },
       staff: null,
-      rivals: null
+      rivals: null,
+      v14:{pitches:[],partnerships:{},rivalry:[],offers:[],classChanges:[],delegation:'ask',ambition:null}
     };
     state.market = initMarket();
     state.staff = initStaff();
     seedTalent();
     initRivals();
+    v14State();
     addLog(state.founder.name + ' founds ' + state.studio.name + ' with ' + fmtMoney(state.cash) + '. Rivals: ' + activeRivals().map(r => r.name).join(', ') + '.', 'studio');
     save();
     emit('newgame');
@@ -1113,8 +1165,10 @@ var Engine = (function () {
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
       estimatedAdmissions: 0, estimatedScreeningViewers:null, estimatedHouseholdImpressions:null,
-      performanceHistory: [], lastWeekRevenue: 0
+      performanceHistory: [], lastWeekRevenue: 0,
+      dna:dnaFor(o),story:[],storyChoices:0
     };
+    filmStory(p,'greenlight','Committed to '+V14_VISIONS[p.dna.vision].name.toLowerCase()+' filmmaking, emphasizing '+p.dna.strengths.map(id=>V14_TAGS[id]).join(' and ')+'.');
     if (parent) {
       // Put the originating film into the same permanent franchise history.
       if (!parent.franchiseId) { parent.franchiseId = seriesId; parent.franchiseName = parent.title; parent.installment = 1; }
@@ -3782,6 +3836,7 @@ var Engine = (function () {
     state.studio.homeRegion = state.studio.homeRegion || 'northamerica';
     state.recruitment = state.recruitment || { declined: {} };
     state.events.recentProduction = state.events.recentProduction || [];
+    v14State();
     save();
     emit('load');
     return { ok: true };
@@ -3838,6 +3893,8 @@ var Engine = (function () {
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
     dateOf: dateOf, eraOf: eraOf, eraInfo: eraInfo, eraLines: eraLines,
     save: save, load: load, hasSave: hasSave, clearSave: clearSave,
-    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession
+    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
+    v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
+    v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS
   };
 })();
