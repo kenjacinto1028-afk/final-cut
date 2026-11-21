@@ -35,6 +35,7 @@ try:
     UI.go('projects');UI.openProject(r.project.id);
     return {id:r.project.id,year:Engine.dateOf().year};
   }""")
+  page.evaluate("UI.closePremiereReport();UI.filmHubSelect('performance')")
   assert page.locator('#drawer .fc-chart-summary').count()>=1
   assert page.locator('#drawer .fc-pulse-column').count()>=2
   bar=page.locator('#drawer .fc-pulse-column').last
