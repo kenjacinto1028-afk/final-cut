@@ -187,7 +187,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.6 implementation — active branch `feature/v14-6-lifecycle-fanbase-ui`
 - [x] Phase 1a: repaired common completed-film hiding from carried-over archive filters; Filmography opens All My Films unfiltered and has reset control (ui.js c974428).
-- [ ] Phase 1b: correct premiere timing in tutorial and add opening/end-of-run lifecycle summaries.
+- [x] Phase 1b: premiere no longer hidden by tutorial; distinct end-of-run report and save migration added (engine.js 668cd2b, ui.js 3b9828b).
 - [ ] Phase 1c: refresh all tutorial location text and navigation targets.
 - [ ] Phase 1d: add Project Monitor → Project Details link, clear festival kit timing, and consistent in-game confirmations.
 - [ ] Phase 2: broaden film-name generation without unintentional repeats.
