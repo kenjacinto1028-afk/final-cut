@@ -153,3 +153,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Strengthen marketplace script vs original screenplay differentiation. — engine.js 059a3b0/75e9569, ui.js 95ff6bd; paid scripts gain 1–2 craft readiness, originals retain free rights and flexibility.
 - [x] QA gates passed: 10/10 on final feature head f244d37. New tests/v14_5_regression.js and tests/v14_5_browser.py, v14_5.yml, v13/v14 save/tutorial/mobile/long-career regressions (12×61-year) green. Physical phone testing outstanding.
 - [x] Merged PR #16 (3a72576) after all ten CI workflows passed; Pages deployment #44901669778 succeeded; README, HANDOFF, changelog and TASK_STATE marked v14.5 released in follow-up main documentation checkpoint.
+
+## v14.5 tutorial placement polish (2026-11-21)
+- [x] Reviewed main tutorial state, CSS anchoring, and v14.5 release status.
+- [x] Added independent drag/keyboard position controller in tutorial-position.js; default left anchor in theme-ab.css; loaded after ui.js via index.html.
+- [x] Preserved nonmodal tutorial operation and guide state; browser-local position persists and clamps on resize, double-click resets.
+- [ ] Confirm PR #17 regression results, merge to main, and verify Pages deployment.
