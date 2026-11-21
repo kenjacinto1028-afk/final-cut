@@ -178,13 +178,22 @@ var UI = (function () {
   function tblRow(id, rid) { const t = tables[id]; if (t && t.cfg.onRow) t.cfg.onRow(rid); }
 
 // ===== SECTION: NAV =====
-  // [id, label, soon?]  soon = tab shown but disabled until that view exists.
+  // Five primary sections with focused local subtabs. Old view IDs stay valid
+  // for browser history, tutorials, deep links and saved UI entry points.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['studio_profile', 'Studio Profile'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
-    ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
-    ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
-    ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
+    ['Overview', [['dashboard','Dashboard'],['studio_profile','Studio'],['founder','Founder'],['finance','Finances']]],
+    ['Productions', [['projects','Production Center'],['filmography','My Releases'],['tv','TV & Web'],['newproject','New Project']]],
+    ['People', [['roster','My Team'],['staff','Departments'],['talent','Talent Market']]],
+    ['Industry', [['market','Market'],['calendar','Release Calendar'],['rankings','Rankings'],['rivals','Rival Studios'],['news','News']]],
+    ['History', [['archive','Film Archive'],['awards','Awards'],['score','Legacy'],['log','Journal']]]
   ];
+  function currentSection(){return GROUPS.find(g=>g[1].some(v=>v[0]===view))||null;}
+  function sectionTabs(){
+    const g=currentSection();if(!g)return '';
+    return '<nav class="fc-section-tabs" aria-label="'+esc(g[0])+' sections">'+
+      g[1].map(v=>'<button type="button" data-view="'+v[0]+'" class="'+(view===v[0]?'is-active':'')+
+        '" aria-current="'+(view===v[0]?'page':'false')+'" onclick="UI.go(\''+v[0]+'\')">'+esc(v[1])+'</button>').join('')+'</nav>';
+  }
   let view = 'dashboard';
   let hist = ['dashboard'];   // visited views, oldest first
   let hpos = 0;               // index of the current view in hist
@@ -226,18 +235,21 @@ var UI = (function () {
   }
   function renderNav() {
     if (!Engine.state) { $('nav').innerHTML = ''; return; }
-    const expiring = Engine.expiringContracts().length;
+    const active=currentSection();
     $('nav').innerHTML = '<div class="brand">Final Cut<small>STUDIO TYCOON</small></div>' +
-      GROUPS.map((g,idx) => '<div class="nav-group"><div class="nav-label">' + String(idx+1).padStart(2,'0') + '  /  ' + esc(g[0]) + '</div>' +
-        g[1].map(v => v[2]
-          ? '<button class="navbtn" disabled>' + esc(v[1]) + '<span class="soon">Soon</span></button>'
-          : '<button data-view="' + v[0] + '" class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
-            (v[0] === 'roster' && expiring ? '<span class="badge">' + expiring + '</span>' : '') + '</button>'
-        ).join('') + '</div>').join('') +
-      '<div class="nav-foot"><button class="navbtn" onclick="UI.saveNow()">Save now</button>' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
-      '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
-      '<button class="navbtn" onclick="UI.openTutorial()">? Tutorial</button>' +
-      '<button class="navbtn danger-nav" onclick="UI.quit()">Return to title</button></div>';
+      '<div class="fc-primary-nav">'+GROUPS.map((g,idx)=>'<button type="button" data-section="'+esc(g[0].toLowerCase())+
+        '" data-view="'+g[1][0][0]+'" class="navbtn fc-main-nav'+(active===g?' active':'')+
+        '" onclick="UI.go(\''+g[1][0][0]+'\')"><span>'+String(idx+1).padStart(2,'0')+' · '+esc(g[0])+
+        '</span><span aria-hidden="true">›</span></button>').join('')+'</div>'+
+      '<button type="button" class="navbtn fc-nav-create" data-view="newproject" onclick="UI.go(\'newproject\')">+ New Project</button>'+
+      '<div class="nav-foot"><details class="fc-nav-tools"><summary>Settings & saves</summary><div class="fc-nav-tool-content">'+
+      '<button class="navbtn" data-view="saves" onclick="UI.go(\'saves\')">Saved Games</button>'+
+      '<button class="navbtn" onclick="UI.saveNow()">Save now</button>'+
+      '<button class="navbtn" onclick="UI.exportBackup()">Export backup</button>'+
+      '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>'+
+      soundControls()+
+      '<button class="navbtn" onclick="UI.openTutorial()">Tutorial</button>'+
+      '<button class="navbtn danger-nav" onclick="UI.quit()">Return to title</button></div></details></div>';
   }
   // 8.1 music toggle and volume, 8.4 sound effects toggle, 8.5 reduce-motion toggle (Media keeps the settings; display only here).
   function soundControls() {
@@ -2758,6 +2770,7 @@ var UI = (function () {
     founder:['EXECUTIVE OFFICE','Career development, personal choices and studio growth'],
     finance:['FINANCIAL OFFICE','Cash flow, quarterly results and financing'],
     market:['MARKET INTELLIGENCE','Audience tastes, economic climate and competition'],
+    calendar:['RELEASE CALENDAR','Your upcoming premieres alongside competitor slates'],
     rivals:['THE COMPETITION','Other studios, market position and strategic rivals'],
     tv:['TELEVISION DIVISION','Programs, renewals, ratings and ongoing seasons'],
     archive:['WORLD ARCHIVE','A permanent record of films across the industry'],
@@ -2793,6 +2806,7 @@ var UI = (function () {
     else if (view === 'founder') h = viewFounder();
     else if (view === 'finance') h = viewFinance();
     else if (view === 'market') h = viewMarket();
+    else if (view === 'calendar') h = v14Calendar();
     else if (view === 'rivals') h = viewRivals();
     else if (view === 'tv') h = viewTV();
     else if (view === 'staff') h = viewStaff();
@@ -2802,6 +2816,7 @@ var UI = (function () {
     else if (view === 'log') h = viewLog();
     else h = viewDashboard();
     if (s && view !== 'dashboard' && view !== 'projects') h = screenPrelude(view) + h;
+    if (s && view !== 'saves') h = sectionTabs() + h;
     if (flash) h = '<div class="alert" role="status" aria-live="polite" aria-atomic="true">' + esc(flash) + '</div>' + h;
     $('main').innerHTML = h;
     if (viewTransitionPending && hasMedia() && Media.motionOK()) {
