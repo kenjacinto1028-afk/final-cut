@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.9)
+# Final Cut — Current Handoff (v14)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -78,3 +78,11 @@ Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Sy
 - `ui.js`/`theme-ab.css`: quality/hype scores and pre-release ranges, per-format audience units, 2 line/bar views, release status and festival exposure in the right Project Monitor, Production Center, Filmography and drawers. The two short-film afterlife actions appear only when affordable and eligible.
 - QA: `tests/v13_9_short_engagement.js`, `tests/v13_9_short_ten_year_balance.js` (two independent ten-year leagues), and `tests/v13_9_short_browser.py` (real Chromium, desktop/mobile, screenshot review). Workflow `.github/workflows/v13_9_shorts.yml` also checks v13.8 finance/UI, v13.7 multiple saves, v13.6 layout, legacy v13 compatibility and v13.1 balance.
 - Read `docs/CHANGELOG_V13_9.md` for expected behavior, assumptions, eligibility and migration rules.
+
+## v14 — Integrated script-to-legacy overhaul
+- `engine.js`: additive `state.v14`, Film DNA per new production, a bounded 14-entry causal film story, quarterly scripted pitches, one contextual shoot dilemma with optional delegation, capped director/writer partnership memory, positioned releases, one post-opening response, rival script bidding, evidence-based player/AI classification (with candidate hysteresis), optional 1–3 year ambitions, and limited afterlife film decisions.
+- `ui.js`: script-market greenlighting and customizable creative vision; Studio Profile for earned classification/evidence/ambition/delegation; narrative in Project Center/drawers, position and response options, real upcoming competitor release calendar, industry rival classification. In-game tutorial expanded and still nonblocking.
+- `theme-ab.css`: understated A+B film-script, narrative, studio and market sections, responsive mobile.
+- No save format upgrade; **v13** saves with no `v14` field or historical Film DNA are loaded without historical fabrication. SaveSlots and custom posters unchanged.
+- Verification: `tests/v14_gameplay.js` two 15-year integrated campaign tests, `tests/v14_browser.py` desktop/mobile screenshot and controls, all v13.1–v13.9 previous regressions via `.github/workflows/v14.yml`. Full 1970–2031 balance sweep is separate.
+- Full feature description, thresholds, caveats and decision cadence in `docs/CHANGELOG_V14.md`. Further tuning should prioritize cash strategy parity, endgame challenges and awards density.
