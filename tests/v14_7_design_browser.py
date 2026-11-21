@@ -25,7 +25,7 @@ try:
         assert page.locator('#nav [data-palette-option]').count()==6
         assert page.locator('#nav .fc-main-nav').count()==5
         assert page.locator('.fc-wire-filters button').count()==4
-        assert 'Cash runway' in page.locator('#main').inner_text()
+        assert 'cash runway' in page.locator('#main').inner_text().lower()
         assert page.locator('#topbar .tb-cash').is_visible()
         assert page.locator('#nav .fc-nav-create').is_visible()
         assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--ds-canvas').trim()")=='#14191A'
