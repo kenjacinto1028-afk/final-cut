@@ -32,22 +32,32 @@ const defaultBase={title:'The Measured Pilot',format:'pilot',mediaVariant:'pilot
   const quote=E.previewProject({...defaultBase,budgetCap:cap});
   assert(quote.ok,quote.reason);
   const available=cap-quote.fees-quote.scriptFee;
-  const allocation={prep:1500,shoot:3000,post:1800,marketing:0,distribution:0,
-    reserve:available-6300};
+  const allocation={prep:1500,shoot:3000,post:1800,marketing:1800,distribution:0,
+    reserve:available-8100};
   const q=E.previewProject({...defaultBase,budgetCap:cap,allocation});
   assert(q.ok,q.reason);
   assert(q.feasibility.unallocated===0);
   const project=E.startProject({...defaultBase,budgetCap:cap,allocation}).project;
   assert(project);
+  E.state.studio.fame=80;
+  E.state.reputation.buzz=40;E.state.reputation.currentPrestige=40;
+  const offer=E.filmSponsorQuote(project.id);
+  assert(offer.ok,offer.reason);
+  assert(offer.upfront<1000,'future reserve cannot mint a giant sponsor check');
+  const signed=E.acceptFilmSponsor(project.id);
+  assert(signed.ok&&signed.upfront===offer.upfront);
+  const promo=E.filmPromotionQuote(project.id,'broad');
+  assert(promo.ok&&promo.cost<1000,
+    'pre-release campaign should price committed scope, not idle cap');
   assert(advance(E,85,()=>project.stage==='done'),'TV pilot must finish');
   const spent=project.budgetPlan.spent;
   const funded=project.fees+(project.scriptFee||0)+spent.prep+spent.shoot+spent.post;
   const ratio=project.result==='Picked up'?E.TUNING.tv.pilotFeeShare:E.TUNING.tv.passFeeShare;
-  assert.equal(project.revenue,Math.round(funded*ratio),
+  assert.equal(project.revenue-signed.upfront,Math.round(funded*ratio),
     'no picked-up or passed pilot can collect a license fee on unused reserve');
   assert(project.revenue<cap*.04,'unspent cap must not create a windfall');
   console.log('V144A_PILOT '+JSON.stringify({cap,funded,reserve:allocation.reserve,
-    received:project.revenue,result:project.result}));
+    received:project.revenue,sponsor:signed.upfront,promotionQuote:promo.cost,result:project.result}));
 }
 function sampleRenewal(flexible){
   const E=newGame(flexible?19:23,.01);
