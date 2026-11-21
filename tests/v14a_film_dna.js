@@ -52,7 +52,7 @@ A.equal(E.load().ok,true);
 console.log('PASS legacy save multiweek gameplay and reload');
 const p=create('short','thriller','heist');
 for(let i=0;i<24;i++){
- s.pending={projectId:p.id,id:'audit-test-'+i,choices:[{
+ E.state.pending={projectId:p.id,id:'audit-test-'+i,choices:[{
    label:'Option '+i,effects:{quality:i%2===0?1:-1,hype:2,costPct:.001},
    result:'Producer committed to option '+i}]};
  A(E.choose(0));
