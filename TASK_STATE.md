@@ -168,3 +168,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## Next UI polish planning (2026-11-21)
 - [x] Added global in-game confirmation dialog requirement to `docs/NEXT_UI_POLISH_PLAN.md`; implementation deliberately deferred.
 - [ ] Future update: audit native browser dialogs, replace with in-game dialogs, and run desktop/mobile regression tests.
+
+- [x] Added Project Monitor → Project Details shortcut and corresponding tutorial navigation update to `docs/NEXT_UI_POLISH_PLAN.md`; implementation deferred.
+- [ ] Future update: implement Project Details in each film monitor and verify guided tutorial access on desktop/mobile.
