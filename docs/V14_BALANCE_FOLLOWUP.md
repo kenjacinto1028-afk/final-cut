@@ -13,3 +13,7 @@ The workflow v14-balance.yml prints machine-readable V14_BALANCE_CASE and V14_BA
 Confirm a weakness over multiple real standard starts and regions. Preserve affordable indie strategies, meaningful commercial risk, award rarity, independent rival solvency and intact historical saves. After any financial or reward change rerun v14 integrated tests and legacy v13.1–v13.9 financial, awards, save and browser suites.
 
 Status: automated diagnostic authored, awaiting CI figures.
+
+## Initial eight-career baseline (Actions #44864111660)
+
+Normal-start full-career runs passed simulations. Net cash: prestige $404–456m, blockbuster $1.96–2.07bn, cheap $36.8–49.2m, careful $262.8–295.9m. Careful had 0–1 feature flops, rival quality lagged the prestige/major studios by roughly 20–26 points, and raw save JSON was 7.9–8.6 MB. All eight returned false from the simulated 5MiB active-save roundtrip. The new exact packed-size instrumentation will determine whether this is a quota limit or another test defect. These are synthetic bot outcomes, not predictions for human players.

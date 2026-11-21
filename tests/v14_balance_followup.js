@@ -30,6 +30,7 @@ for(const r of regions){
    fame:result.fame,prestige:result.prestige,currentBuzz:result.currentBuzz,
    currentPrestige:result.currentPrestige,lifetimeLegacy:result.lifetimeLegacy,
    saveBytes:result.saveBytes,packedSaveChars:result.packedSaveChars,
+   encodedSaveChars:result.encodedSaveChars,encodedSaveUtf8Bytes:result.encodedSaveUtf8Bytes,
    saveRoundtrip:!!result.reloadedOkay,archiveCount:result.archiveCount
   };
   const flags=[];
@@ -37,7 +38,7 @@ for(const r of regions){
   if(profile.features>=12&&profile.flopRate>65)flags.push('frequent-feature-flops');
   if(profile.playerQuality-profile.rivalQuality>15)flags.push('player-rival-quality-gap');
   if(profile.activeRivals<4)flags.push('rival-attrition');
-  if(!profile.saveRoundtrip)flags.push('save-integrity-or-quota');
+  if(!profile.saveRoundtrip)flags.push(profile.encodedSaveChars>5*1024*1024?'save-over-5mib':'save-failed-within-5mib');
   if(profile.saveBytes>4000000)flags.push('large-save');
   profile.flags=flags;
   results.push(profile);
