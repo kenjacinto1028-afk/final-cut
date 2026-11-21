@@ -206,8 +206,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.7: adapt six-palette studio design prototype (branch `feature/v14-7-prototype-design-system`)
 - [x] Audited current shell, cards, live studio wire, responsive monitor and attached prototype; documented production-safe design requirements in `docs/DESIGN_V14_7_PROTOTYPE_ADAPTATION.md`.
-- [ ] Implement six persisted theme palettes and accessible palette selector.
-- [ ] Adopt compact four-zone dark shell (topbar, left nav, central stepped cards, optional monitor) and typography/card/button hierarchy.
-- [ ] Improve dashboard KPI/feed/monitor scanability without duplicated counters or altering gameplay.
+- [x] Implemented six persisted accessible palette swatches in `design-theme-v14_7.js`, loaded in `index.html`, displayed on the left rail via `ui.js`.
+- [x] Added `design-v14_7.css` with compact four-zone slate shell, palette-aware surfaces, typography, buttons, navigation tabs and responsive monitor.
+- [x] Adjusted dashboard to show runway instead of repeating cash, added interactive Studio Wire category filters, restyled film monitor and retained all gameplay/data bindings (`ui.js`).
 - [ ] Add keyboard/mobile and visual regression tests; run existing CI suites and fix issues.
 - [ ] Merge verified update to main and confirm GitHub Pages deployment.
