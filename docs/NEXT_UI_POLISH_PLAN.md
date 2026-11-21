@@ -100,14 +100,24 @@ Priority: **High** — complete this together with the Filmography fix to ensure
 
 Goal: make the film industry feel varied without generating obviously repetitive, unrelated, or duplicate movie names. This is planned only.
 
-## Next update: Dashboard trend movers — genres and topics (planned, not implemented)
+## Next update: Studio Wire tabs — Rival Releases and Market Trends (planned, not implemented)
 
-- [ ] Add one compact, scannable **Market Trends** panel to the Dashboard (beneath the main KPI area or alongside the Studio Wire without crowding smaller screens).
-- [ ] Present **genres** and **topics** as separate subtabs or stacked compact sections. For each, show exactly the **top 3 rising** and **bottom 3 falling** trends, ranked by **change in audience demand**, not by absolute popularity.
-- [ ] Each item shows its name, a green upward or coral downward arrow, and a clearly labeled change value (e.g. demand points over the previous 8 in-game weeks). Use accessible trend text rather than color alone.
-- [ ] Derive changes from the **existing in-game market-demand system** and its genuine prior snapshots; avoid random indicators, invented prior-period numbers, and unnecessary new game mechanics. If no historical baseline exists, add bounded history tracking with backward-compatible initialization and show **Insufficient trend history** until comparison is valid.
-- [ ] Allow direct navigation from the panel to the existing **Market** view for detailed demand, with no duplicated dashboard counters or crowded action rows.
-- [ ] Update trend rankings as in-game weeks advance, respecting market shifts and their expiration; handle tied/unchanged values, fewer than three qualifying trends, older saves, and mobile layouts.
-- [ ] Add browser and long-running career tests to ensure the panel reflects real changes, doesn't affect market demand itself, and doesn't create gameplay advantages merely by opening the Dashboard.
+- [ ] **Keep everything inside the existing Dashboard → Studio Wire**, replacing the proposed separate Market Trends dashboard panel. Use compact tabs: **News** (existing feed), **Rival Releases**, and **Market Trends**. Preserve the existing News category filtering where it makes sense; do not duplicate filters across all tabs.
+- [ ] **Rival Releases:** show the next upcoming rival film releases using the existing Rivals Calendar schedule, ordered by release week, with title, media type, genre/topic, estimated release week, and an obvious warning for clashes with the player's upcoming releases (same genre/topic or timing). Link to the full Rivals → Calendar for planning.
+- [ ] **Market Trends:** show separate compact **Genres / Topics** switches, each with the **top 3 rising and bottom 3 falling** by demand change, not absolute demand; display direction arrows and a labeled delta for the comparison interval (recommended previous 8 in-game weeks). Link to detailed Market view.
+- [ ] Reuse real existing demand values and market timing; if historical demand snapshots are unavailable, add minimal backward-compatible history and show an honest **Insufficient trend history** state until deltas are calculable. No fabricated trend values.
+- [ ] Keep Studio Wire the same footprint; each tab should be short, scannable, keyboard-friendly, palette-aware, and responsive. Remember the selected Studio Wire tab during the current session, without affecting save/gameplay economics.
+- [ ] Test future rival scheduling, overlapping player releases, no-rival/no-history empty states, changing demand, mobile layouts, and old saves. Opening the Wire must not modify market data.
 
-**Priority:** Medium. **Recommended model:** GPT-6 Medium for display and navigation; GPT-6 High for history compatibility/testing if new tracking is necessary. **Status:** Planned only.
+**Priority:** Medium. **Status:** Planned only. **Recommended model:** GPT-6 Medium (Studio Wire UI); GPT-6 High (demand snapshot migration and long-career regression if needed).
+
+## Additional quality-of-life ideas for review (recommendations, not approved)
+
+- [ ] **One-click next actionable project:** on Dashboard/Project Monitor, link to the next film needing an actual decision; keep informational items separate.
+- [ ] **Concise event inbox:** prioritize deadlines, cash risk, active release decisions and contract expiries; allow low-impact notices to collapse automatically.
+- [ ] **Remember subtab/filter preferences:** preserve the currently selected genre/topic tab and film archive/search filters within a browsing session (while retaining an obvious reset).
+- [ ] **Film timeline milestones:** compact upcoming milestones for production completion, premiere, weekly screening and festivals in Project Details.
+- [ ] **Release planning comparison:** show a small genre/topic collision signal and suggested safer weeks in the existing release planning interface, not a new full screen.
+- [ ] **Direct P/L tooltip:** distinguish gross, studio receipts, direct profit, overhead, modeled admissions, and fan estimates consistently, without duplicate financial counters.
+- [ ] **Optional auto-continue for quiet weeks:** stop at actual decisions, premieres, financial warnings and major awards; avoid repetitive clicking without skipping meaningful events.
+- [ ] **Short postmortem comparison:** compare completed film forecast vs actual quality, reach, receipts and fan following; no extra micromanagement.
