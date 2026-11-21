@@ -3820,7 +3820,7 @@ var Engine = (function () {
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
-    shortAudience: shortAudience, shortRunRemaining: shortRunRemaining,
+    shortAudience: shortAudience, shortRunRemaining: shortRunRemaining, shortScreeningWeeks:shortScreeningWeeks,
     shortFestivalStatus:shortFestivalStatus,
     shortPostReleaseQuote:shortPostReleaseQuote,shortPostReleaseAction:shortPostReleaseAction,
     estimatedTvHouseholds:estimatedTvHouseholds, householdImpressionsForRating:householdImpressionsForRating,
