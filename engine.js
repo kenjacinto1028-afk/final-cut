@@ -3837,7 +3837,9 @@ var Engine = (function () {
       const r = clamp(Math.round((prev * 0.6 + base * 0.4) * rnd(0.9, 1.1) * 10) / 10, 0.5, 30);
       s.ratings.push(r);
       s.aired++;
-      const bonus = r > T.bonusThreshold ? Math.round((r - T.bonusThreshold) * s.epCost * T.bonusPerPoint) : 0;
+      // Flexible shows have bounded audience bonuses; legacy contracts are unchanged.
+      const earnedBonusRate=Math.max(0,(r-T.bonusThreshold)*T.bonusPerPoint);
+      const bonus=Math.round(s.epCost*(s.flexibleSeries?Math.min(.22,earnedBonusRate):earnedBonusRate));
       // Signed sponsorship pays per actual aired episode, never upfront or twice.
       const sponsorPay=s.sponsor&&s.sponsor.season===s.season?s.sponsor.perEpisode:0;
       revenue += s.fee + bonus+sponsorPay;
@@ -3910,8 +3912,13 @@ var Engine = (function () {
       s.season++;
       s.aired = 0;
       s.episodes=s.flexibleSeries?(s.nextEpisodeCount||s.episodes):rint(T.episodes[0],T.episodes[1]);
-      s.fee=Math.round(s.fee*(1+T.renewFeeRaise));
+      const previousFee=s.fee;
+      s.fee=Math.round(previousFee*(1+T.renewFeeRaise));
       if(s.flexibleSeries){
+        // Proven audience demand earns a limited fee raise but cannot remove
+        // the financial decision between keeping stars, going lean or recasting.
+        const ratingsPremium=Math.min(.16,Math.max(0,avg-T.renewAvg)*.018);
+        s.fee=Math.round(previousFee*(1+T.renewFeeRaise+ratingsPremium));
         // Fame + proven demand create sharply rising quotes; only unsigned
         // renewals renegotiate. Premium is bounded by the first season's cost.
         const stars=(s.castIds||[]).map(id=>getTalent(id)).filter(Boolean);
