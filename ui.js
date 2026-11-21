@@ -463,6 +463,72 @@ var UI = (function () {
     wireFilter=next;
     if(view==='dashboard')render();
   }
+  // Actionable messages first; informational events stay in the Studio Wire.
+  function actionInbox(){
+    const s=Engine.state;if(!s)return [];
+    const notes=[];
+    if(s.pending)notes.push({level:'urgent',text:'Creative decision waiting'+(s.queue.length?' · '+s.queue.length+' more queued':''),action:'decisions'});
+    if(s.warning?.stage||s.cash<0)notes.push({level:'urgent',text:'Studio cash warning · review financing',action:'finance'});
+    const ending=Engine.expiringContracts().slice(0,2);
+    ending.forEach(t=>notes.push({level:'warning',text:t.name+' · contract ending in '+Engine.weeksLeft(t)+' weeks',action:'roster'}));
+    const active=(s.projects||[]).filter(p=>p.stage==='release'&&p.format==='feature'&&p.weeksInRelease>=1&&p.weeksInRelease<=6);
+    active.slice(0,2).forEach(p=>notes.push({level:'info',text:p.title+' · review theatrical performance and release strategy',action:'project',id:p.id}));
+    return notes.slice(0,5);
+  }
+  function nextAction(){
+    const s=Engine.state;if(!s)return;
+    if(s.pending){renderModal();const first=$('modal')?.querySelector('button.choice');if(first)first.focus();return;}
+    if(s.warning?.stage||s.cash<0){go('finance');return;}
+    const ending=Engine.expiringContracts();if(ending.length){go('roster');return;}
+    const latest=s.projects.find(p=>p.stage==='release'&&p.format==='feature')||
+      s.projects.find(p=>p.stage!=='done');
+    if(latest){openProject(latest.id);return;}
+    go('newproject');
+  }
+  function gotoAlert(action,id){
+    if(action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
+    else if(action==='project')openProject(id);
+    else go(action);
+  }
+  function notificationPanel(){
+    const notes=actionInbox();
+    if(!notes.length)return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>All clear</small></div><p class="muted">No urgent studio issues this week.</p></section>';
+    return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>'+notes.length+' to review</small></div>'+
+      notes.map(x=>'<button type="button" class="fc-qol-notice fc-qol-'+x.level+'" onclick="UI.gotoAlert(&quot;'+x.action+'&quot;'+(x.id!=null?','+x.id:'')+')">'+
+        '<span>'+esc(x.text)+'</span><small>'+(x.level==='urgent'?'ACTION NEEDED':x.level==='warning'?'UPCOMING':'REVIEW')+'</small></button>').join('')+
+      '<details><summary>About notifications</summary><p>Important decisions and risks appear first; routine stories stay in the Studio Wire. Nothing is dismissed automatically.</p></details></section>';
+  }
+  // Stop before anything important can be skipped. Max eight weeks, no action costs.
+  function skipQuietWeeks(){
+    const s=Engine.state;
+    if(!s||s.gameOver||s.pending||currentPremiereReport()||currentEndRunReport()||currentYearEndReport()){
+      setFlash('Resolve the current decision or report first.');render();return;
+    }
+    let weeks=0,reason='Eight quiet weeks advanced';
+    while(weeks<8){
+      const prevProjects=new Map(s.projects.map(p=>[p.id,p.stage]));
+      const prevLog=s.log?.length||0,prevCash=s.cash,prevRelease=s.projects.filter(p=>p.releaseWeek!=null).length;
+      const nextYearEnd=Engine.dateOf().week===Engine.TUNING.weeksPerYear-1;
+      if(nextYearEnd){reason='Year-end awards approaching';break;}
+      if(!Engine.nextTurn()){reason='A decision is waiting';break;}
+      weeks++;
+      const changed=s.projects.some(p=>prevProjects.has(p.id)&&prevProjects.get(p.id)!==p.stage);
+      const newReleases=s.projects.filter(p=>p.releaseWeek!=null).length>prevRelease;
+      const logEntries=(s.log||[]).slice(prevLog);
+      const majorNews=logEntries.some(x=>/award|festival|market|crisis|bankrupt|studio|reputation|rival/i.test(String(x.type||'')));
+      if(s.pending||s.gameOver||s.stopFlag||s.warning?.stage||s.cash<0||
+        currentPremiereReport()||currentEndRunReport()||currentYearEndReport()||
+        changed||newReleases||majorNews||Engine.expiringContracts().length){
+        reason=s.pending?'Decision ready':newReleases?'Film premiered':
+          changed?'Film reached a new production milestone':
+          s.warning?.stage||s.cash<0?'Financial warning':
+          currentEndRunReport()?'Screening run ended':majorNews?'Industry news update':'Important event';break;
+      }
+      if(s.cash<prevCash- Math.max(2000,Math.abs(prevCash)*.25)){reason='Large weekly cash change';break;}
+    }
+    setFlash('Advanced '+weeks+' week'+(weeks===1?'':'s')+' · '+reason+'.');
+    render();
+  }
   function viewDashboard() {
     const s = Engine.state;
     const d = Engine.dateOf();
@@ -470,8 +536,10 @@ var UI = (function () {
     let h = '<div class="dashboard-layout"><section class="dashboard-primary">' + eraBanner(era.id) +
       '<div class="fc-dashboard-head"><div><div class="fc-page-id">THE STUDIO / WEEKLY OPERATIONS</div><h1>' + dateLabel() + '</h1>' +
       '<p>' + esc(s.studio.name) + ' · ' + esc(era.name) + ' era · Your productions, finances and industry pulse in one place.</p></div>' +
-      '<div class="fc-dashboard-actions"><button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
-      '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>';
+      '<div class="fc-dashboard-actions"><button type="button" onclick="UI.nextAction()">Next Action</button>'+
+      '<button type="button" onclick="UI.skipQuietWeeks()" title="Advance up to 8 weeks, stopping at decisions, premieres and milestones">Skip Quiet Weeks</button>'+
+      '<button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
+      '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>'+notificationPanel();
     if (s.warning.stage) {
       h += '<div class="alert">' + (s.warning.stage === 1 ? 'Missed payroll.' : 'Creditor deadline.') +
         ' Get cash above $0 by ' + dateLabel(s.warning.deadline) + (s.warning.stage === 2 ? ' or the studio goes bankrupt.' : '.') + '</div>';
@@ -3565,6 +3633,7 @@ var UI = (function () {
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
+    nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
