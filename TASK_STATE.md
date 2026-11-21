@@ -147,7 +147,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14.5 implementation — checklist (2026-11-21)
 - [x] Created isolated branch feature/v14-5-ui-and-premiere-20261121 from main 6f38d6f; audited current UI, release engine and workflows.
 - [x] Consolidate sidebar navigation and local subtabs; preserve route IDs. — ui.js + style.css commits c1d7f10/c750bd2; tutorial selector regression to verify in QA.
-- [ ] Consolidate Film Hub with clear short-tab detail sections.
+- [x] Consolidate Film Hub with clear short-tab detail sections. — ui.js 1d7d8f5 and style.css d75dc99; unified released project/archive six-tab hub, QA pending.
 - [ ] Premiere report and critic classifications, sequential dismissal and saved replay.
 - [ ] Add geographic distribution reach and grounded rankings/filter controls.
 - [ ] Strengthen marketplace script vs original screenplay differentiation.
