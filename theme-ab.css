@@ -898,3 +898,14 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
   body:has(#modal:not([hidden])) #tutorial{right:5px;bottom:5px;width:min(340px,calc(100vw - 10px))}
   body:has(#modal:not([hidden])) .tutorial-card{max-height:30dvh;padding:10px 12px}
 }
+
+/* Tutorial: open on the left, clear of right-hand drawers; header can be dragged. */
+#tutorial{left:max(12px,env(safe-area-inset-left));right:auto;bottom:max(12px,env(safe-area-inset-bottom))}
+#tutorial .tutorial-head{cursor:grab;touch-action:none;user-select:none;border-radius:5px}
+#tutorial .tutorial-head.is-dragging{cursor:grabbing}
+#tutorial .tutorial-head button{cursor:pointer;touch-action:manipulation}
+#tutorial .tutorial-head:focus-visible{outline:2px solid #cfb28a;outline-offset:3px}
+@media(max-width:800px){
+  #tutorial{left:max(8px,env(safe-area-inset-left));right:auto}
+  body:has(#modal:not([hidden])) #tutorial{left:5px;right:auto}
+}
