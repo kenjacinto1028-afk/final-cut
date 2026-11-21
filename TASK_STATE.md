@@ -161,4 +161,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Diagnosed v14.4 Chromium failure: guide overlapped the Greenlight button. Added automatic placement away from visible primary actions in tutorial-position.js (commit 7a6ac68).
 - [x] Discovered scroll-induced overlap in v14.4 first-film browser test; added capture-phase scroll re-evaluation so guide moves when Greenlight enters viewport (tutorial-position.js).
 - [x] v14.4 mobile browser test found Menu control overlap; global highlighted target detection now includes mobile Menu (tutorial-position.js).
+- [x] Prioritized highlighted tutorial targets (especially mobile Menu) over unrelated primary actions in automatic placement scoring (tutorial-position.js).
 - [ ] Confirm rerun of PR #17 regression results, merge to main, and verify Pages deployment.
