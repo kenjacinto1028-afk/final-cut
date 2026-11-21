@@ -245,3 +245,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Added `tests/v14_8a_layout_browser.py` for desktop/laptop/monitor/mobile placement and `.github/workflows/v14_8a.yml` CI gate.
 - [x] All 14 workflows passed for executable code commit `b2c7556`; PR #21 merged into `main` (`fad2f7c`); GitHub Pages deployment #44917686555 completed successfully. Desktop, laptop, monitor and mobile layout tests green.
   - [x] All 14 GitHub Actions workflows passed for final executable commit `b2c7556`, including the new desktop/laptop/mobile layout visual tests and twelve full-career balance simulations. PR #21 is ready to merge.
+
+## v14.9 dedicated phone UI — PR #22 (2026-11-21)
+- [x] Inspected the mobile screenshots, current FinalCut main and existing responsive CSS; preserved unchanged desktop behavior.
+- [x] Implemented `mobile-v14_9.css`, five-section bottom nav and touch drawer (`index.html`, `ui.js`), full-width title, compact dashboard, Studio Wire and mobile action bar on branch `feature/v14-9-dedicated-mobile-ui`.
+- [x] Added `tests/v14_9_mobile_browser.py` and `.github/workflows/v14_9.yml` verifying 320/390/768px phone views and desktop 1440px. Initial monitor close overlap fixed in `mobile-v14_9.css` and covered by explicit click regression (commits `d80abb5` and `7626308`).
+- [x] PR #22 merged to main at `df16a32e`; 14 of 15 final-code head CI workflows passed so far (including v14.9 mobile, v13.8/13.9 film monitor, v14 integrated browser, v14.8a responsive, saves/tutorial). Changelog and README updated under `docs/CHANGELOG_V14_9.md`.
+- [ ] Verify final v14.1 12-career balance job #44918725663 completes successfully and verify GitHub Pages deployment.
+- [ ] Physical Brave Android/iPhone touch acceptance remains outstanding; disable browser "Desktop site" when checking the true mobile layout.
