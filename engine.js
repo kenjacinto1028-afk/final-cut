@@ -1329,6 +1329,7 @@ var Engine = (function () {
       id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: pv.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
       mediaVariant:pv.mediaVariant||o.format,productionScope:pv.scope||null,
+      requestedEpisodes:pv.flexible?clamp(Math.round(Number(o.episodeCount)||8),4,16):null,
       budgetPlan:pv.flexible?{cap:pv.budget,allocation:Object.assign({},pv.allocation),
         spent:{prep:0,shoot:0,post:0,marketing:0,distribution:0,reserve:0},
         stageWeeks:FinalCutBudget.stageWeeks(pv.mediaVariant),
@@ -3597,15 +3598,23 @@ var Engine = (function () {
     p.stage = 'done';
     if (Math.random() < chance) {
       p.estimatedHouseholdImpressions=0;
-      const epCost = Math.round(p.budget * T.episodeCostShare);
+      const epCost = p.budgetPlan?Math.round(p.budget*(p.mediaVariant==='web'?.63:.73)):
+        Math.round(p.budget * T.episodeCostShare);
       const fee = Math.round(epCost * (T.feeBase + score / T.feeScore) * em.tvFee);
       const pilotFee = Math.round(p.budget * T.pilotFeeShare);
       p.result = 'Picked up';
       p.revenue += pilotFee;
       earn(pilotFee);
-      const s = { id: state.nextSeriesId++, projectId: p.id, title: p.title, genre: p.genre, topic: p.topic, season: 1, episodes: rint(T.episodes[0], T.episodes[1]), aired: 0,
-        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [], status: 'airing', hiatusLeft: 0, revenue: pilotFee, cost: 0,
-        renewalChance: null, ratingsTrend: 0, showMomentum: 0 };
+      const s = { id: state.nextSeriesId++, projectId: p.id, title: p.title, genre: p.genre, topic: p.topic, season: 1,
+        episodes:p.requestedEpisodes||rint(T.episodes[0],T.episodes[1]), aired: 0,
+        epCost: epCost, fee: fee, quality: p.quality, hype: p.hype, ratings: [], seasonAvgs: [],
+        status:'airing',hiatusLeft:0,revenue:pilotFee,cost:0,
+        flexibleSeries:!!p.budgetPlan,mediaVariant:p.mediaVariant||'pilot',
+        scope:p.productionScope||'standard',firstEpCost:epCost,episodeBudget:epCost,
+        castIds:castTalent(p).map(t=>t.id),talentStrategy:'retain',
+        nextEpisodeCount:p.requestedEpisodes||null,seasonHistory:[],sponsor:null,sponsorOffer:null,
+        sponsorRevenue:0,sponsorOffersMade:0,lastSeasonCost:0,starDemand:1,
+        renewalChance:null,ratingsTrend:0,showMomentum:0 };
       state.series.push(s);
       state.studio.fame = clamp(state.studio.fame + 2, 0, 100);
       addLog('The network picked up "' + p.title + '": ' + s.episodes + ' episodes at ' + fmtMoney(fee) + ' each (cost ' + fmtMoney(epCost) + '). Pilot fee ' + fmtMoney(pilotFee) + '.', 'tv');
@@ -3618,6 +3627,35 @@ var Engine = (function () {
       addLog('The networks passed on "' + p.title + '" (development fee ' + fmtMoney(devFee) + ').', 'tv');
     }
     emit('tv', p);
+  }
+  function seriesPlan(id,kind,episodes){
+    const s=getSeries(id);
+    if(!s||!s.flexibleSeries||s.status==='ended')return {ok:false,reason:'Only active flexible-budget series can change their next-season plan.'};
+    if(!['retain','lean','recast'].includes(kind))return {ok:false,reason:'Unknown cast strategy.'};
+    s.talentStrategy=kind;
+    if(episodes!=null)s.nextEpisodeCount=clamp(Math.round(Number(episodes)||s.episodes),4,16);
+    save();emit('tv',s);
+    return {ok:true,kind,episodes:s.nextEpisodeCount};
+  }
+  function seriesScope(id,scope){
+    const s=getSeries(id);
+    if(!s||!s.flexibleSeries||s.status==='ended'||!FinalCutBudget.SCOPE[scope])
+      return {ok:false,reason:'No active series or invalid production scope.'};
+    s.scope=scope;save();emit('tv',s);return {ok:true};
+  }
+  function signSeriesSponsor(id){
+    const s=getSeries(id);
+    if(!s||s.status!=='airing'||!s.sponsorOffer||s.sponsorOffer.season!==s.season||
+      s.aired>s.sponsorOffer.expiresEpisode)return {ok:false,reason:'There is no eligible sponsor offer.'};
+    s.sponsor=Object.assign({},s.sponsorOffer);
+    s.sponsorOffer=null;
+    addLog(s.sponsor.name+' signs for '+fmtMoney(s.sponsor.perEpisode)+'/remaining episode with "'+s.title+'".','tv');
+    save();emit('tv',s);return {ok:true};
+  }
+  function declineSeriesSponsor(id){
+    const s=getSeries(id);
+    if(!s||!s.sponsorOffer)return {ok:false,reason:'No active offer.'};
+    s.sponsorOffer=null;save();emit('tv',s);return {ok:true};
   }
   function tvTick() {
     const T = TUNING.tv;
@@ -3634,13 +3672,30 @@ var Engine = (function () {
       s.ratings.push(r);
       s.aired++;
       const bonus = r > T.bonusThreshold ? Math.round((r - T.bonusThreshold) * s.epCost * T.bonusPerPoint) : 0;
-      revenue += s.fee + bonus;
+      // Signed sponsorship pays per actual aired episode, never upfront or twice.
+      const sponsorPay=s.sponsor&&s.sponsor.season===s.season?s.sponsor.perEpisode:0;
+      revenue += s.fee + bonus+sponsorPay;
       cost += s.epCost;
-      s.revenue += s.fee + bonus;
+      s.revenue += s.fee + bonus+sponsorPay;
+      s.sponsorRevenue=(s.sponsorRevenue||0)+sponsorPay;
       s.cost += s.epCost;
+      if(s.flexibleSeries&&s.aired>=3&&!s.sponsorOffer&&!s.sponsor&&s.sponsorOffersMade!==s.season){
+        const recent=s.ratings.slice(-3).reduce((a,n)=>a+n,0)/Math.min(3,s.ratings.length);
+        if(recent>=7.5){
+          const tier=recent>=15?'National':recent>=10?'Regional':'Local';
+          const offer=Math.round(s.epCost*Math.min(.36,.04+(recent-7)*.024));
+          if(offer>0){
+            s.sponsorOffer={name:tier+' Screen Partners',tier,perEpisode:offer,season:s.season,expiresEpisode:Math.min(s.episodes-1,s.aired+3)};
+            s.sponsorOffersMade=s.season;
+            addLog('A '+tier.toLowerCase()+' sponsor has offered '+fmtMoney(offer)+
+              '/episode for "'+s.title+'". Accept or decline in TV before the offer expires.','tv');
+          }
+        }
+      }
+      if(s.sponsorOffer&&s.aired>s.sponsorOffer.expiresEpisode)s.sponsorOffer=null;
       const p = getProject(s.projectId);
       if (p) {
-        p.revenue += s.fee + bonus; p.spent += s.epCost;
+        p.revenue += s.fee + bonus+sponsorPay; p.spent += s.epCost;
         p.estimatedHouseholdImpressions=(p.estimatedHouseholdImpressions||0)+householdImpressionsForRating(r,state.week);
       }
       if (s.aired >= s.episodes) endSeason(s);
@@ -3653,6 +3708,21 @@ var Engine = (function () {
     const previous = s.seasonAvgs.length ? s.seasonAvgs[s.seasonAvgs.length - 1] : avg;
     const trend = avg - previous;
     s.seasonAvgs.push(avg);
+    s.seasonHistory=s.seasonHistory||[];
+    s.seasonHistory.push({season:s.season,avg,episodes:s.episodes,episodeCost:s.epCost,
+      episodeFee:s.fee,sponsorRevenue:s.sponsorRevenue||0,scope:s.scope||null,
+      strategy:s.talentStrategy||'retain'});
+    if(s.flexibleSeries){
+      const fameGain=clamp(Math.round((avg-6)*.62),0,9);
+      (s.castIds||[]).forEach((id,i)=>{
+        const t=getTalent(id);if(!t)return;
+        const original=t.fame;
+        const rise=Math.max(0,Math.round(fameGain*(i===0?1:.7)));
+        t.fame=clamp(t.fame+rise,0,100);
+        const career=ensureCareer(t);career.peakFame=Math.max(career.peakFame||original,t.fame);
+        if(rise>=5)career.trend='Rising star';
+      });
+    }
     s.lastRatings = s.ratings;
     s.ratings = [];
     const margin = s.fee / Math.max(1, s.epCost) - 1;
@@ -3668,9 +3738,28 @@ var Engine = (function () {
     } else {
       s.season++;
       s.aired = 0;
-      s.episodes = rint(T.episodes[0], T.episodes[1]);
-      s.fee = Math.round(s.fee * (1 + T.renewFeeRaise));
-      s.epCost = Math.round(s.epCost * (1 + T.renewCostRaise));
+      s.episodes=s.flexibleSeries?(s.nextEpisodeCount||s.episodes):rint(T.episodes[0],T.episodes[1]);
+      s.fee=Math.round(s.fee*(1+T.renewFeeRaise));
+      if(s.flexibleSeries){
+        // Fame + proven demand create sharply rising quotes; only unsigned
+        // renewals renegotiate. Premium is bounded by the first season's cost.
+        const stars=(s.castIds||[]).map(id=>getTalent(id)).filter(Boolean);
+        const avgFame=stars.length?stars.reduce((a,t)=>a+t.fame,0)/stars.length:20;
+        const fanPressure=Math.max(0,avg-7)*.16+Math.max(0,avgFame-35)*.016;
+        s.starDemand=1+Math.min(2.7,fanPressure);
+        const strategy=s.talentStrategy||'retain';
+        const rehire=strategy==='recast'?.62:strategy==='lean'?.86:1;
+        const baseline=s.firstEpCost*(.60+.40*s.starDemand)*Math.pow(1.045,s.season-1);
+        const scopeMult=s.scope==='ambitious'?1.35:s.scope==='intimate'?.91:1;
+        s.epCost=Math.round(Math.min(s.firstEpCost*5,baseline*rehire*scopeMult));
+        s.episodeBudget=s.epCost;
+        if(strategy==='recast'){
+          const p=getProject(s.projectId);
+          if(p&&typeof p.cast?.lead==='number')s.castIds=s.castIds.filter(id=>id!==p.cast.lead);
+          s.quality=Math.max(1,s.quality-2);s.hype=Math.max(0,s.hype-9);
+        }else if(strategy==='lean')s.quality=Math.max(1,s.quality-3);
+        s.sponsor=null;s.sponsorOffer=null;s.sponsorRevenue=0;
+      }else s.epCost = Math.round(s.epCost * (1 + T.renewCostRaise));
       const creativeRefresh = avg > T.renewAvg + 2 && Math.random() < 0.22 ? rint(1, 3) : 0;
       s.quality = clamp(s.quality - T.qualityDecay + creativeRefresh, 1, 100);
       s.hype = clamp(Math.round(s.hype * .35 + avg * 3.5), 0, 100);
@@ -5023,6 +5112,7 @@ var Engine = (function () {
     studioSize: studioSize, staffCount: staffCount, weeklyPayroll: weeklyPayroll, officePayroll: officePayroll, weeklyOverhead: weeklyOverhead, quarterToDate: quarterToDate,
     marketInfo: marketInfo, marketOutlook: marketOutlook,
     series: () => state.series, activeSeries: activeSeries, getSeries: getSeries, tvSlotsUsed: tvSlotsUsed, windowName: windowName,
+    seriesPlan:seriesPlan,seriesScope:seriesScope,signSeriesSponsor:signSeriesSponsor,declineSeriesSponsor:declineSeriesSponsor,
     growthTier: growthTier, upgradeQuote: upgradeQuote, upgradeTier: upgradeTier,
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
