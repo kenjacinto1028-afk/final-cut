@@ -1933,6 +1933,10 @@ var Engine = (function () {
     const g = byId(CONTENT.GENRES, p.genre) || { audience: 1, critics: 0 };
     const st = state.studio;
     applyInitiative(p);
+    if(p.dna&&p.format==='feature'&&(p.regions||[]).length>=3&&v14UseOffer('global',p))
+      p.hypeMod+=3;
+    if(p.dna&&p.format==='short'&&v14UseOffer('festival',p))
+      p.v14FestivalConnection=2;
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
@@ -3290,7 +3294,8 @@ var Engine = (function () {
     const T = TUNING.tv, em = eraMods();
     const score = pilotScore(p);
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
-    const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift, T.pickupFloor, T.pickupCeil);
+    const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
+    const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift + bonus, T.pickupFloor, T.pickupCeil);
     p.stage = 'done';
     if (Math.random() < chance) {
       p.estimatedHouseholdImpressions=0;
@@ -3547,7 +3552,8 @@ var Engine = (function () {
   function festivalMerit(p) {
     return (p.quality || 0) * 0.52 + (p.critic == null ? p.quality || 0 : p.critic) * 0.48 +
       Math.min(3, (state.studio.prestige || 0) * 0.04) +
-      (p.format==='short'&&p.shortFestivalPressKit?TUNING.shortScreening.festivalPressScore:0);
+      (p.format==='short'&&p.shortFestivalPressKit?TUNING.shortScreening.festivalPressScore:0)+
+      (p.v14FestivalConnection||0);
   }
   function festivalFocus(f, p) {
     if (!f.focus) return 0;
@@ -4081,6 +4087,14 @@ var Engine = (function () {
       expiresWeek:state.week+def.years*52,completed:false,reward:def.reward};
     save();emit('ambition',v14State().ambition);return {ok:true};
   }
+  function v14UseOffer(kind,p){
+    const offer=v14State().offers.find(x=>x.id===kind&&!x.used&&x.expiresWeek>=state.week);
+    if(!offer)return false;
+    offer.used=true;offer.usedWeek=state.week;
+    if(p)filmStory(p,'ambition','The studio’s earlier ambition created a modest new industry opportunity.');
+    return true;
+  }
+
   function v14AmbitionTick(){
     const a=v14State().ambition;if(!a||a.completed||a.expiresWeek<state.week)return;
     const films=state.projects.filter(p=>p.releaseWeek!=null&&p.releaseWeek>=a.startWeek);
