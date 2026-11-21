@@ -659,10 +659,13 @@ var UI = (function () {
         '<p>Release more films to establish an identity.</p>')+'</div></details></section>';
   }
   function viewStudioProfile(){
-    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation;
+    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation,following=Engine.studioFollowing();
     const active=a.active&&!a.active.completed&&a.active.expiresWeek>=Engine.state.week;
     let h='<h1>Studio Profile</h1><p class="muted">Your studio is classified by the films it actually makes, not by a permanent starting choice.</p>'+
       v14IdentityCard('you')+
+      '<section class="fc-v14-profile-section"><h2>Studio following</h2><div class="fc-fan-summary"><strong>'+
+      compactCount(following.active)+' active studio followers</strong><span>'+
+      compactCount(following.loyal)+' loyal studio fans</span><small>Estimated returning audience interest across your releases. Different from Fame, Buzz and Prestige.</small></div></section>'+
       '<section class="fc-v14-profile-section"><h2>Creative delegation</h2>'+
       '<p>Routine work is automatic. Decide whether major creative dilemmas interrupt you.</p>'+
       '<div class="fc-v14-seg">'+[
@@ -698,7 +701,7 @@ var UI = (function () {
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
     let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ?
       '<section class="franchise-card"><strong>Continue the story of '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+
-      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p>'+
+      '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p><p>Existing loyal following: '+compactCount(Engine.filmFollowing(Engine.getProject(draft.sequelOf)).loyal)+' · returning fans can raise opening awareness, but success is not guaranteed.</p>'+
       '<label>Relationship <select onchange="UI.setDraft(\'continuationType\',this.value)">'+
       [['direct','Direct sequel'],['spinoff','Spin-off'],['adaptation','Series or cross-media adaptation']].map(x=>opt(x[0],x[1],x[0]===(draft.continuationType||'direct'))).join('')+
       '</select></label><button onclick="UI.cancelSequel()">Cancel story link</button></section>' : '')+
@@ -1060,6 +1063,7 @@ var UI = (function () {
       return importance(b)-importance(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
     });
     const cards=all.slice(0,6).map(p=>{
+      const fan=p.releaseWeek!=null?Engine.filmFollowing(p):null;
       const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature',short=p.format==='short';
       const fest=short?Engine.shortFestivalStatus(p):null;
       const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
@@ -1089,7 +1093,7 @@ var UI = (function () {
         '<div class="fc-monitor-audience">'+reach+
         '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+
         money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
-        info+'<div class="fc-monitor-details"><button type="button" onclick="UI.openProject('+p.id+')">Project Details · Film Hub</button></div>'+filmPulseChart(p,metric,7)+
+        info+(fan?'<div class="fc-monitor-fans">'+compactCount(fan.active)+' followers · '+compactCount(fan.loyal)+' loyal</div>':'')+'<div class="fc-monitor-details"><button type="button" onclick="UI.openProject('+p.id+')">Project Details · Film Hub</button></div>'+filmPulseChart(p,metric,7)+
         (live&&feature?releasePushAction(p):'')+
         (short?shortFilmActions(p,true):'')+
         '</article>';
@@ -1837,6 +1841,8 @@ var UI = (function () {
   }
   function v145FilmHub(f){
     const original=f.projectId!=null?Engine.getProject(f.projectId):null;
+    const following=original?Engine.filmFollowing(original):null;
+    const fanSummary=following?'<div class="fc-fan-summary"><strong>'+compactCount(following.active)+' active followers</strong><span>'+compactCount(following.loyal)+' loyal fans · '+esc(following.status)+' · '+esc(following.trend)+'</span><small>Simulated interested followers, not unique ticket buyers.</small></div>':'';
     const tabs='<nav class="fc-hub-tabs" aria-label="Film detail sections">'+FILM_HUB_TABS.map(t=>
       '<button type="button" class="'+(filmHubTab===t[0]?'is-active':'')+'" aria-current="'+(filmHubTab===t[0]?'page':'false')+
       '" onclick="UI.filmHubSelect(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</nav>';
@@ -1855,6 +1861,7 @@ var UI = (function () {
         dl('Distribution',v145ReachLabel(f))+
         dl('Critical reception',f.critic==null?'Not rated':f.critic+'/100')+
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
+      h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
         h+=filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
@@ -1864,7 +1871,7 @@ var UI = (function () {
         (f.review?'<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>':'')+
         qualityDetails(f.qualityBreakdown,f.hypeBreakdown)+'</section>';
     } else if(filmHubTab==='reach'){
-      h+='<section class="fc-hub-panel"><h3>Where this release reached</h3>'+v145ReachDetails(f)+
+      h+='<section class="fc-hub-panel"><h3>Where this release reached</h3>'+fanSummary+v145ReachDetails(f)+
         '<p class="muted">Recorded release regions are broad simulated territories. City or country-specific totals are not tracked, so none are invented.</p>'+
         v145FilmChartDetails(f)+'</section>';
     } else if(filmHubTab==='performance'){
@@ -1879,7 +1886,7 @@ var UI = (function () {
       if(original)h+=projectPerformanceBoard(original);
       h+='</section>';
     } else if(filmHubTab==='legacy'){
-      h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3><dl>'+
+      h+='<section class="fc-hub-panel"><h3>Awards and continuing life</h3>'+fanSummary+'<dl>'+
         dl('Awards',(f.awards||[]).map(a=>esc((a.won?'Won: ':'Nominated: ')+(a.category||a.cat)+' · '+(a.ceremony||'Film awards'))).join('<br>')||'None')+
         dl('Festivals',(f.festResults||[]).map(a=>esc(a.festival+' · '+a.result)).join('<br>')||'None')+'</dl>';
       if(original){
