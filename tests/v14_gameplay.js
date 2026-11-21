@@ -186,3 +186,36 @@ for(let seed=0;seed<2;seed++){
     year:W.dateOf().year,cash:W.state.cash,rivals:W.activeRivals().length}));
 }
 console.log('PASS FinalCut v14 integrated model and save compatibility');
+
+
+// The earned identity must not treat ordinary genre consistency as a cult.
+const lanes=[
+ {name:'critical drama',want:'prestige',format:'feature',genre:'drama',critic:86,audience:62,
+   budget:500000,spent:520000,revenue:610000,gross:900000,vision:'prestige',awards:1},
+ {name:'commercial comedy',want:'commercial',format:'feature',genre:'comedy',critic:57,audience:84,
+   budget:600000,spent:625000,revenue:1350000,gross:2600000,vision:'mainstream',awards:0},
+ {name:'cult horror',want:'genre',format:'feature',genre:'horror',critic:61,audience:63,
+   budget:120000,spent:130000,revenue:195000,gross:172000,vision:'bold',awards:0},
+ {name:'indie shorts',want:'indie',format:'short',genre:'drama',critic:62,audience:55,
+   budget:8500,spent:8000,revenue:11100,gross:0,vision:'prestige',awards:0},
+ {name:'network pilots',want:'tv',format:'pilot',genre:'drama',critic:65,audience:64,
+   budget:32000,spent:27000,revenue:41000,gross:0,vision:'mainstream',awards:0}
+];
+for(const lane of lanes){
+ const G=game('Identity '+lane.name).E;
+ G.state.week=52*7;
+ const films=Array.from({length:8},(_,i)=>({
+   id:i+1,title:lane.name+' #'+(i+1),stage:'done',format:lane.format,
+   genre:lane.genre,topic:'smalltown',releaseWeek:52*4+i*13,
+   quality:lane.critic,critic:lane.critic,audience:lane.audience,
+   budget:lane.budget,spent:lane.spent,revenue:lane.revenue,gross:lane.gross,
+   dna:{vision:lane.vision},awards:lane.awards?[{won:true}]:[],festResults:[]
+ }));
+ G.state.projects.push(...films);
+ const player=G.v14Identity('you');
+ assert.equal(player.candidate,lane.want,lane.name+' should classify by actual films and results: '+JSON.stringify(player));
+ G.state.filmArchive.rivals=films.map((f,i)=>Object.assign({},f,{id:'rival:99:'+i,rivalId:99}));
+ const rival=G.v14Identity('99');
+ assert.equal(rival.candidate,lane.want,'AI '+lane.name+' uses same rules');
+ console.log('PASS studio identity',lane.name,player.label,'player and rival');
+}
