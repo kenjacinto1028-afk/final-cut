@@ -879,21 +879,25 @@ var UI = (function () {
         ? '<th class="num" title="Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.">Box office</th>'+
           '<th class="num" title="Money retained by the studio: box-office share, screenings, pilot fees and later rights payments.">Studio receipts</th>'+
           '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
-          '<th class="num" title="Modeled ticket admissions for theatrical features only. Not recorded actual viewers.">Tickets (est.)</th>'
+          '<th class="num" title="Features: estimated ticket visits. Shorts: estimated screening visits. TV: household episode impressions. Not verified unique people.">Reach (est.)</th>'
         : '<th class="num">Box office</th>')+
       '<th class="num">'+(ranked?'Ranking score':'Awards')+'</th>';
     h += '<div class="tbl-wrap fc-finance-table"><table><thead><tr>'+heads+'</tr></thead><tbody>'+
       page.map(f=>{
         const c=f.profit==null?'—':'<span class="'+(f.profit<0?'neg':'fc-positive')+'">'+money(f.profit)+'</span>';
         const reach=f.format==='feature'&&Number.isFinite(f.estimatedAdmissions)
-          ?Number(f.estimatedAdmissions).toLocaleString('en-US'):'—';
+          ?compactCount(f.estimatedAdmissions)+' tickets':
+          f.format==='short'&&Number.isFinite(f.estimatedScreeningViewers)?compactCount(f.estimatedScreeningViewers)+' visits':
+          f.format==='pilot'&&Number.isFinite(f.estimatedHouseholdImpressions)?compactCount(f.estimatedHouseholdImpressions)+' HH imp.':'—';
         const financial=detailed
           ?'<td class="num">'+(f.format==='feature'?money(f.gross||0):'<span class="muted" title="No theatrical ticket sales for this format">—</span>')+'</td>'+
            '<td class="num">'+money(f.revenue||0)+'</td><td class="num">'+c+'</td>'+
-           '<td class="num" title="Modeled admission count, not measured ticket sales">'+reach+'</td>'
+           '<td class="num" title="Modeled reach, not counted unique viewers">'+reach+'</td>'
           :'<td class="num">'+money(f.gross||0)+'</td>';
         return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(detailed?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
-          '<td>'+filmLabel(f)+'</td>'+(mine?'':'<td>'+esc(f.studio)+'</td>')+
+          '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
+            ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
+          (mine?'':'<td>'+esc(f.studio)+'</td>')+
           '<td>'+f.year+'</td><td>'+esc(nameOf(Engine.formats(),f.format))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
           '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
           '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
@@ -1415,7 +1419,12 @@ var UI = (function () {
       Object.keys(f.talentSnapshot).flatMap(role=>{const group=Array.isArray(f.talentSnapshot[role])?f.talentSnapshot[role]:[f.talentSnapshot[role]];
         return group.filter(Boolean).map(t=>'<p><strong>'+esc(role)+'</strong>: '+esc(t.name)+' — skill '+t.skill+', fame '+t.fame+' ('+esc(t.recognition||'Local Talent')+')</p>');}).join('') + '</details>';
     if ((f.staff || []).length) h += '<p class="muted">Studio departments at release: ' + f.staff.map(x => esc(x.department) + ' (' + x.heads + ' staff, skill ' + x.skill + ')').join('; ') + '</p>';
-    h += '<h3>Performance</h3><dl>' + dl('Quality', f.quality == null ? '—' : f.quality+'/100') + dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') + dl('Audience', f.audience == null ? 'Not recorded' : f.audience+'/100') +
+    h += '<h3>Performance</h3><dl>' + dl('Film quality', f.quality == null ? '—' : f.quality+'/100') +
+      dl('Release hype',f.hype==null?'—':f.hype+'/100')+
+      dl('Critics', f.critic == null ? 'Not recorded' : f.critic+'/100') +
+      dl('Audience review score', f.audience == null ? 'Not recorded' : f.audience+'/100') +
+      (f.format==='feature'?dl('Est. ticket visits',compactCount(f.estimatedAdmissions)):f.format==='short'?
+        dl('Est. screening visits',compactCount(f.estimatedScreeningViewers)):dl('Est. household impressions',compactCount(f.estimatedHouseholdImpressions))) +
       dl('Worldwide gross', money(f.gross || 0)) + dl('Studio revenue', money(f.revenue || 0)) +
       (f.reissueRevenue?dl('Classic reissues',money(f.reissueRevenue)+' (separate from original theatrical gross)'):'') +
       dl('Profit', f.profit == null ? 'Pending' : money(f.profit)) + '</dl>';
@@ -1483,8 +1492,19 @@ var UI = (function () {
     h += dl('Budget', money(p.budget));
     h += dl('Talent fees', money(p.fees || 0));
     h += dl('Spent', money(p.spent) + ' <div class="bar"><div style="width:' + pct + '%"></div></div>');
+    h += dl('Film quality',p.quality == null ? 'Est. '+centerEstimate(p).value : p.quality+'/100');
+    h += dl('Hype',p.hype == null ? 'Forecast available in performance panel' : p.hype+'/100');
     h += dl('Critics', p.critic == null ? '–' : p.critic + '/100');
-    h += dl('Audience', p.audience == null ? '–' : p.audience + '/100');
+    h += dl('Audience review score', p.audience == null ? '–' : p.audience + '/100');
+    if(p.format==='short'&&p.releaseWeek!=null){
+      h+=dl('Est. screening visits',compactCount(Engine.shortAudience(p)));
+      h+=dl('Screening run',p.stage==='release'?
+        p.weeksInRelease+' / '+(p.shortRunWeeks||'?')+' weeks':(p.shortRunWeeks||p.weeksInRelease)+' weeks completed');
+      const fst=Engine.shortFestivalStatus(p);
+      if(fst)h+=dl('Festival exposure',fst.selections+' recognitions · '+fst.judged+'/'+fst.planned+' judged'+
+        (fst.next?' · next: '+esc(fst.next.name)+' '+dateLabel(fst.next.week):''));
+    }
+    if(p.format==='pilot')h+=dl('Est. TV household impressions',compactCount(Engine.estimatedTvHouseholds(p)));
     if (p.format === 'feature') h += dl('Gross', cu('gross-' + p.id, p.gross));
     h += dl('Revenue', cu('revenue-' + p.id, p.revenue));
     h += dl('Profit', profit == null ? '–' : '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>');
