@@ -2797,7 +2797,14 @@ var Engine = (function () {
     });
     const genres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]);
     const topGenre=genres[0]?.[0]||null,share=(genres[0]?.[1]||0)/Math.max(1,weight);
-    totals.genre+=share>=.5?(share-.3)*weight*2.9+(popular>=weight*.3?.4*weight:0):0;
+    // Repeated genre alone is not a cult reputation. Earlier, any single
+    // genre (including drama and comedy) multiplied by 2.9 and overwhelmed
+    // actual prestige/commercial performance, misclassifying whole careers.
+    // Only durable specialist lanes earn this score; profitable mainstream
+    // comedy and acclaimed drama remain free to establish their real identity.
+    const specialistGenre=['horror','thriller','scifi','western','action'].includes(topGenre);
+    totals.genre+=specialistGenre&&share>=.55?
+      (share-.35)*weight*1.9+(popular>=weight*.3?.15*weight:0):0;
     totals.incubator+=breakouts*1.6;
     const repeat=Object.values(talentCounts).filter(n=>n>=2).length;
     totals.star+=stars*.65+(repeat>=2?weight*.22:0);
