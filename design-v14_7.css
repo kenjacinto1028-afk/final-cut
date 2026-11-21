@@ -293,3 +293,8 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 @media(prefers-reduced-motion:reduce){
   .fc-palette-swatch,.fc-monitor-track i{transition:none!important}
 }
+
+/* Keep main canvas clear of the wider 310px persistent monitor on desktop. */
+@media(min-width:1350px){
+  #app.monitor-open #content{padding-right:310px}
+}
