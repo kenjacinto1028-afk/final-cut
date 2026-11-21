@@ -754,13 +754,55 @@ var UI = (function () {
       '<p>Optional actions only. Your festivals and screening receipts continue automatically.</p>'+
       (complete?'<div class="fc-short-actions-done">'+complete+'</div>':'')+cards+'</section>':'';
   }
+  let shortActionPending=null,shortActionReturnFocus=null;
+  function renderShortActionPrompt(){
+    const root=$('film-action-modal');
+    if(!root)return;
+    if(!shortActionPending){root.hidden=true;root.innerHTML='';return;}
+    const {id,kind}=shortActionPending,p=Engine.getProject(id),
+      q=Engine.shortPostReleaseQuote(id,kind);
+    if(!p||!q.ok){shortActionPending=null;root.hidden=true;root.innerHTML='';return;}
+    const press=kind==='press',status=press?Engine.shortFestivalStatus(p):null;
+    const label=press?'Prepare festival press kit':'Book encore screening circuit';
+    root.hidden=false;
+    root.innerHTML='<div class="fc-action-shade"><section class="fc-action-card" role="dialog" aria-modal="true" '+
+      'aria-labelledby="film-action-title" aria-describedby="film-action-description">'+
+      '<small>FILM CAMPAIGN · '+esc(p.title)+'</small><h2 id="film-action-title">'+esc(label)+'</h2>'+
+      '<p id="film-action-description">'+esc(q.description)+'</p>'+
+      (press?'<p><strong>What changes?</strong> Future festival juries assess this short at +4 merit points. '+
+        'It does not grant festival entry, selection, prizes or awards.</p>'+
+        '<p>Future judging: '+(status?.next?esc(status.next.name)+' · '+esc(dateLabel(status.next.week)):
+          'No upcoming jury date recorded')+'. Past jury decisions are never changed.</p>':
+        '<p><strong>What changes?</strong> One additional four-week screening run after completion. '+
+        'The additional receipts may fail to cover the cost.</p>')+
+      '<dl><div><dt>Campaign cost</dt><dd>'+money(q.cost)+'</dd></div>'+
+      '<div><dt>Cash after payment</dt><dd>'+money(Engine.state.cash-q.cost)+'</dd></div></dl>'+
+      '<div class="fc-action-footer"><button type="button" onclick="UI.shortActionCancel()">Cancel</button>'+
+      '<button id="film-action-confirm" class="primary" type="button" onclick="UI.shortActionConfirm()">'+
+      esc(press?'Prepare kit':'Book screenings')+' · '+money(q.cost)+'</button></div></section></div>';
+  }
   function shortReleaseAction(id,kind){
     const quote=Engine.shortPostReleaseQuote(id,kind);
     if(!quote.ok){setFlash(quote.reason);render();return;}
-    const label=kind==='press'?'festival press kit':'four-week encore screening run';
-    if(!confirm('Spend '+money(quote.cost)+' on a '+label+' for this short film? Results are not guaranteed.'))return;
+    shortActionReturnFocus=document.activeElement;
+    shortActionPending={id:Number(id),kind};
+    renderShortActionPrompt();
+    const confirm=$('film-action-confirm');if(confirm)confirm.focus();
+  }
+  function shortActionCancel(){
+    shortActionPending=null;renderShortActionPrompt();
+    const element=shortActionReturnFocus;shortActionReturnFocus=null;
+    if(element&&element.isConnected)element.focus();
+  }
+  function shortActionConfirm(){
+    if(!shortActionPending)return;
+    const {id,kind}=shortActionPending,q=Engine.shortPostReleaseQuote(id,kind);
+    if(!q.ok){shortActionCancel();setFlash(q.reason);render();return;}
+    shortActionPending=null;shortActionReturnFocus=null;
+    renderShortActionPrompt();
     const result=Engine.shortPostReleaseAction(id,kind);
-    setFlash(result.ok?'The '+label+' is now underway.':result.reason);
+    setFlash(result.ok?(kind==='press'?'Festival kit prepared. Future jury merit +4; awards are not guaranteed.':
+      'Encore screenings booked. Revenue remains uncertain.'):result.reason);
     render();
   }
   function projectPerformanceBoard(p){
@@ -2553,6 +2595,7 @@ var UI = (function () {
     renderTutorial();
     renderYearEndHonors();
     renderFilmMonitor();
+    renderShortActionPrompt();
   }
 
 // ===== SECTION: ACTIONS =====
@@ -2830,6 +2873,16 @@ var UI = (function () {
   function init() {
     render();
     document.addEventListener('keydown', e => {
+      if(shortActionPending){
+        if(e.key==='Escape'){e.preventDefault();shortActionCancel();return;}
+        if(e.key==='Tab'){
+          const buttons=Array.from($('film-action-modal').querySelectorAll('button:not(:disabled)'));
+          const index=buttons.indexOf(document.activeElement);
+          if(e.shiftKey&&index<=0){e.preventDefault();buttons[buttons.length-1].focus();}
+          else if(!e.shiftKey&&index===buttons.length-1){e.preventDefault();buttons[0].focus();}
+        }
+        return;
+      }
       if (currentYearEndReport()) {
         if (e.key === 'Escape') { e.preventDefault(); closeYearEndHonors(); return; }
         if (e.key === 'Tab') {
@@ -2857,7 +2910,7 @@ var UI = (function () {
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
-    shortReleaseAction:shortReleaseAction,
+    shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
