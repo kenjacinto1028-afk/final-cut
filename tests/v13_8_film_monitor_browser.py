@@ -61,6 +61,10 @@ try:
       Engine.nextTurn();
     }
     if(f.project.stage!=='release'||f.project.weeksInRelease<1)throw Error('Theaters did not open');
+    // Event timing can leave a legitimate decision modal open. Resolve it
+    // before testing the clickable release controls, as a player would.
+    let choices=0;while(Engine.state.pending&&choices++<12)
+      Engine.choose(Engine.state.pending.choices.length-1);
     UI.go('dashboard');
     return {id:f.project.id,gross:f.project.gross,tickets:Engine.filmAdmissions(f.project)};
   }""")
