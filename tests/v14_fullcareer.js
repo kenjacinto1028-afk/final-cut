@@ -42,7 +42,7 @@ for(const [idx,spec] of strategies.entries()){
      const topic=idx===2?'haunted':idx===1?'roadtrip':'smalltown';
      const opts={title,format:fmt,tier:0,genre,topic,
        vision:spec.vision,releasePosition:idx===0?'prestige':idx===1?'wide':'targeted',
-       cast:{director:'founder',writer:'founder',lead:'',crew:''}};
+       cast:{director:idx===0?'founder':'',writer:idx===0?'founder':'',lead:'',crew:''}};
      attemptedLaunches++;
      const r=E.startProject(opts);if(r.ok)started++;else rejected[r.reason||'unknown']=(rejected[r.reason||'unknown']||0)+1;
    }
