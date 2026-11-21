@@ -676,3 +676,21 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
  .fc-film-health strong{font-size:15px}
  .fc-film-health>div{padding:9px}
 }
+
+
+/* v14a Film DNA — restrained, inspectable creative history. */
+.fc-film-dna{border:1px solid #52665c;border-radius:8px;background:#293538;margin:15px 0;padding:13px 15px;color:#e9e8df}
+.fc-film-dna>summary{font-size:14px;font-weight:750;color:#ddeddf;cursor:pointer;padding:2px 0}
+.fc-film-hook{font:normal 16px/1.45 Georgia,Cambria,serif;margin:12px 0;color:#f0e9db}
+.fc-dna-tags{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0}
+.fc-dna-tags span{font-size:10px;color:#e2e8dc;background:#405046;border:1px solid #6a7d6c;border-radius:5px;padding:5px 8px}
+.fc-film-dna-meta{font-size:11px;color:#b6c9be;line-height:1.55;margin:7px 0 14px}
+.fc-film-dna-meta strong{color:#e1e9db}
+.fc-film-dna h4{font:normal 18px Georgia,Cambria,serif;margin:16px 0 8px;color:#e5e4d7}
+.fc-film-story{list-style:decimal;margin:0;padding-left:20px;max-height:340px;overflow-y:auto}
+.fc-film-story li{padding:9px 4px 10px 2px;border-bottom:1px solid #4b5c56}
+.fc-film-story li:last-child{border-bottom:0}
+.fc-film-story small{font-size:10px;color:#b6c3ae;display:block}
+.fc-film-story p{font-size:12px;margin:4px 0;color:#e5e7df;line-height:1.5}
+.fc-film-story em{font-size:10px;color:#d5bc98;font-style:normal}
+@media(max-width:550px){.fc-film-dna{padding:11px}.fc-film-hook{font-size:15px}}
