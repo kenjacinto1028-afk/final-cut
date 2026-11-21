@@ -184,3 +184,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 - [x] Added genre/story-aware diverse generated film titles, duplicate prevention, intentional sequel exceptions and long-career title-variety tests to `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
 - [ ] Future update: implement film title generation improvements, test early and multi-decade saves, and keep user-authored names intact.
+
+## v14.6 implementation — active branch `feature/v14-6-lifecycle-fanbase-ui`
+- [ ] Phase 1a: repair completed-film visibility / navigation in My Filmography.
+- [ ] Phase 1b: correct premiere timing in tutorial and add opening/end-of-run lifecycle summaries.
+- [ ] Phase 1c: refresh all tutorial location text and navigation targets.
+- [ ] Phase 1d: add Project Monitor → Project Details link, clear festival kit timing, and consistent in-game confirmations.
+- [ ] Phase 2: broaden film-name generation without unintentional repeats.
+- [ ] Phase 3: film-specific following, decay/retention, cult status, and sequel carryover.
+- [ ] Phase 3b: distinct studio fans and bounded effects on new projects.
+- [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
