@@ -935,7 +935,7 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 body.tutorial-open #premiere-report{pointer-events:none}
 body.tutorial-open #premiere-report .fc-premiere-shade{
   pointer-events:none;background:transparent;display:flex;
-  align-items:flex-start;justify-content:flex-end;padding:10px
+  align-items:flex-end;justify-content:flex-end;padding:10px
 }
 body.tutorial-open #premiere-report .fc-premiere-card{
   pointer-events:auto;width:min(440px,calc(100vw - 20px));
