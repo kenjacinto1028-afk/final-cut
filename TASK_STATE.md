@@ -42,3 +42,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Extended Production Center, film and project drawers with 12-week income/gross charts and modeled admissions; one-time post-opening publicity option with real cost.
 - [x] Film finance, real Chromium live monitor, mobile, poster/save v13.7, v13.6 styling, v13.5 cinematic and v13.4 honors regressions passed (GitHub Actions #44848418818); screenshots artifact #14683817710. README, HANDOFF and `docs/CHANGELOG_V13_8.md` updated.
 - [x] PR #4 merged to `main` (`26e1b38254246edc4b5bf51c3fa0741da4c49f39`); four pull-request workflows successful (#44848580247/#44848580233/#44848580176/#44848580170); GitHub Pages build and deployment #44848662193 succeeded. Screenshot artifact #14683817710 and changelog retained.
+
+## v13.9 — Short film engagement & film quality/hype/reach (2026-11-21)
+- [x] Identify FinalCut main v13.8 and existing completed checkpoints; create dedicated feature branch.
+- [x] Found shorts paid once on week 3 via `festivalResult`, despite scheduled independent festival awards; identified existing `quality`, `hype`, modeled feature admissions, TV ratings and the persistent monitor. Target weekly short receipts with capped total, estimated screening reach and TV household impressions as explicitly modeled values.
+- [x] `engine.js`: 3–12 week quality/audience-based screening run, baseline short receipts spread weekly and reconciled, modeled screening visits, tracked festival exposure and TV household impressions; original feature economy preserved.
+- [x] `engine.js`: one-time festival press kit (+4 jury merit, cost booked) and four-week capped encore (real receipts/costs), continued calendar award eligibility and legacy short compatibility.
+- [x] `ui.js`: release quality/hype, preview ranges before release, modeled theatrical/screening visits, TV household impressions, studio receipts, festival selections, actions and earnings charts in live monitor, Production Center, Filmography and drawers.
+- [x] Styled compact A+B quality/hype and festival engagement panels responsively in `theme-ab.css`; updated `docs/CHANGELOG_V13_9.md`, README and HANDOFF. Save v13 preserved and old completed shorts are not repaid.
+- [x] Passed 2 independent 10-year world simulations (72 shorts, exact screening-revenue reconciliation), engine, festivals, encore, simulated households and legacy v13 tests; full v13.5/13.6/13.7/13.8 regression suites and Chromium/mobile UI checks all green (PR Actions #44853961546/#44853961453/#44853961451/#44853961483/#44853961498). Real screenshots artifact #14686218189.
+- [ ] Merge only after passing checks and verify GitHub Pages.

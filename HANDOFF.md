@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v13.8)
+# Final Cut — Current Handoff (v13.9)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -71,3 +71,10 @@ Work belongs to `kenjacinto1028-afk/final-cut`. The previous unrelated Studio Sy
 - `index.html` mounts `#film-monitor`, and `theme-ab.css` styles a collapsible charcoal/sage/brass right-side dock above main navigation and below drawers/modals. Default open on wide desktop, manual toggle on narrow screens.
 - `tests/v13_8_film_finance.js` checks engine-side reconciliation and old saves; `tests/v13_8_film_monitor_browser.py` checks actual UI, browser reload, responsive dock, screenshots; workflow `.github/workflows/film-performance-v13_8.yml` also reruns existing regression suites.
 - Existing save schema **v13** and IndexedDB multi-save library are unchanged. Model-estimated ticket admissions are never presented as measured actual viewers; for shorts/pilots no attendance count is invented.
+
+## v13.9 — Short-film screening circuit, festival life and reach indicators
+- `engine.js`: per-short **3–12 weeks** of screening income reconciled to the old baseline lump-sum formula; `shortRunTarget`/`shortRunCollected` keep full auditability. No extra automatic money for longer screens. Optional festival press kit adds a small jury-merit bonus without guaranteed award; once-only four-week encore has real direct costs and capped additional revenue. Completed films still enter existing calendar festivals; save version remains 13.
+- `projectPulse` now also carries modeled `screenings` and `households` weekly counts. Estimated short screening admissions use $0.75 studio receipts per visit in 1970 and 3.1% annual growth; TV household impressions use simulated episode ratings (35k households per point in 1970, 2.5% growth). These are estimates, **never real unique viewers**. Pre-v13.9 complete shorts keep exact receipts but get only a labeled reconstructed lifetime estimate, without invented weekly history.
+- `ui.js`/`theme-ab.css`: quality/hype scores and pre-release ranges, per-format audience units, 2 line/bar views, release status and festival exposure in the right Project Monitor, Production Center, Filmography and drawers. The two short-film afterlife actions appear only when affordable and eligible.
+- QA: `tests/v13_9_short_engagement.js`, `tests/v13_9_short_ten_year_balance.js` (two independent ten-year leagues), and `tests/v13_9_short_browser.py` (real Chromium, desktop/mobile, screenshot review). Workflow `.github/workflows/v13_9_shorts.yml` also checks v13.8 finance/UI, v13.7 multiple saves, v13.6 layout, legacy v13 compatibility and v13.1 balance.
+- Read `docs/CHANGELOG_V13_9.md` for expected behavior, assumptions, eligibility and migration rules.
