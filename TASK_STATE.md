@@ -22,4 +22,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Revised `ui.js` navigation numbering, dashboard editorial header/actions, keyboard-friendly production rows and per-screen context prelude; engine unchanged.
 - [x] Themed all major screens, reference panels, drawer, modal, nonmodal tutorial and year-end honors; Awards page prioritizes live campaigns/trophies while collapsing reference/historical lists.
 - [x] Passed node/game regressions and 18-screen Chromium UI test, desktop/390px/360px, dialog/tutorial/drawer/navigation checks; real screenshots attached to GitHub Actions #44840730135. Documented in `docs/CHANGELOG_V13_6.md`.
-- [ ] Merge validated branch to main and verify GitHub Pages deployment.
+- [x] PR #2 merged into `main` (`3e659bea37f5`); sitewide UI and original gameplay CI passed (GitHub Actions #44840917513 and #44840917523); GitHub Pages deployment #44841003956 completed successfully.
