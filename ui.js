@@ -491,7 +491,7 @@ var UI = (function () {
     draft.allocationPreset=id;render();
   }
   function setDraft(key, val) {
-    if (key === 'tier') val = Number(val);
+    if (key === 'tier'||key==='episodeCount') val = Number(val);
     if(['title','format','genre','topic'].includes(key))draft.pitchId=null;
     draft[key] = val;
     if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;
@@ -725,7 +725,13 @@ var UI = (function () {
         (draft.format === 'feature' ? ' · ' + esc(mk.cycle.name) + ' ' + mult(mk.cycle.mult) + '. Biggest possible opening this year: ' + money(mk.audienceCap) + '. You pick the release week when it\'s done.' : '.') +
         ' <a href="#" onclick="UI.go(\'market\');return false">Market</a></p>';
     }
-    if (draft.format === 'pilot') h += '<p class="muted">Pilots go to the networks when finished. A pickup orders a season; ratings decide renewals. Shows: ' + Engine.tvSlotsUsed() + ' of ' + Engine.growthTier().maxSeries + '.</p>';
+    if (draft.format === 'pilot'){
+      h+='<label>Episodes if picked up <select onchange="UI.setDraft(\'episodeCount\',this.value)">'+
+        [4,6,8,10,13,16].map(n=>opt(n,n+' episodes',n===Number(draft.episodeCount||8))).join('')+'</select></label>'+
+        '<p class="muted">'+(draft.mediaVariant==='web'?'A web series needs an audience to expand; income follows viewers and sponsorships.':
+        'Pilots need a network pickup. Production cost and cast contracts renew each season.')+
+        ' TV slots: '+Engine.tvSlotsUsed()+' / '+Engine.growthTier().maxSeries+'.</p>';
+    }
     if (!pv.ok) h += '<p class="neg">' + esc(pv.reason) + '</p>';
     h += '<button class="primary" ' + (pv.ok ? '' : 'disabled') + ' onclick="UI.startProject()">Greenlight</button>';
     return h;
@@ -1450,7 +1456,7 @@ var UI = (function () {
     let h = '<h1>TV</h1><p class="muted">Shows ' + Engine.tvSlotsUsed() + ' of ' + g.maxSeries + ' (pilots in production included). ' +
       (g.maxSeries ? 'Start a pilot from New project.' : 'TV opens at the ' + esc(tierName(1)) + ' tier.') + '</p>';
     if (!s.series.length) return h + '<p>No series yet.</p>';
-    return h + tblHtml('tv', {
+    h += tblHtml('tv', {
       rows: () => Engine.series().slice().reverse(),
       rowId: x => x.projectId,
       onRow: openProject,
@@ -1468,6 +1474,28 @@ var UI = (function () {
         { key: 'profit', label: 'Profit', num: true, value: x => x.revenue - x.cost, render: x => '<span class="' + (x.revenue - x.cost < 0 ? 'neg' : '') + '">' + money(x.revenue - x.cost) + '</span>' }
       ]
     });
+    const live=Engine.series().filter(x=>x.flexibleSeries&&x.status!=='ended').slice(-5).reverse();
+    h+='<h2>Series production & renewals</h2><p class="muted">Plan the next season without weekly chores. Higher ratings can attract sponsorships and make returning stars much more expensive. Established contracts are honored until renewal.</p>';
+    h+=live.map(x=>
+      '<article class="fc-series-card"><h3>'+esc(x.title)+' · Season '+x.season+
+      '</h3><p>Episode budget '+money(x.episodeBudget||x.epCost)+' · Current cost '+money(x.epCost)+
+      '/episode · Contracted fee '+money(x.fee)+'/episode · Season production need '+money(x.epCost*x.episodes)+
+      ' · Sponsor receipts to date '+money(x.sponsorRevenue||0)+'</p>'+
+      '<p>Star-demand quote '+(x.starDemand||1).toFixed(2)+'× · Sponsor '+(x.sponsor?esc(x.sponsor.name):'none signed')+'</p>'+
+      '<div class="fc-series-controls"><label>Next season cast <select onchange="UI.seriesPlan('+x.id+',this.value)">'+
+        [['retain','Keep returning stars'],['lean','Lean production'],['recast','Recast lead / local talent']].map(v=>
+        '<option value="'+v[0]+'"'+(v[0]===(x.talentStrategy||'retain')?' selected':'')+'>'+v[1]+'</option>').join('')+
+        '</select></label><label>Next season episodes <select onchange="UI.seriesEpisodeCount('+x.id+',this.value)">'+
+        [4,6,8,10,13,16].map(n=>'<option value="'+n+'"'+(n===(x.nextEpisodeCount||x.episodes)?' selected':'')+'>'+n+'</option>').join('')+
+        '</select></label><label>Production scope <select onchange="UI.seriesScope('+x.id+',this.value)">'+
+        Object.keys(FinalCutBudget.SCOPE).map(v=>'<option value="'+v+'"'+(v===(x.scope||'standard')?' selected':'')+'>'+v+'</option>').join('')+
+        '</select></label></div>'+
+      (x.sponsorOffer?'<p><strong>Sponsor offer: '+esc(x.sponsorOffer.name)+'</strong> · '+
+        money(x.sponsorOffer.perEpisode)+'/episode for the remaining season. Expires after episode '+
+        x.sponsorOffer.expiresEpisode+'.</p><div class="fc-actions"><button class="primary" onclick="UI.seriesSponsor('+x.id+',true)">Accept sponsorship</button>'+
+        '<button onclick="UI.seriesSponsor('+x.id+',false)">Decline</button></div>':'')+
+      '</article>').join('');
+    return h;
   }
 
 // ===== SECTION: VIEW_STAFF =====
@@ -2902,6 +2930,16 @@ var UI = (function () {
       draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
       draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
+  function seriesPlan(id,kind){const r=Engine.seriesPlan(id,kind);if(!r.ok)setFlash(r.reason);render();}
+  function seriesEpisodeCount(id,n){
+    const s=Engine.getSeries(id);if(!s)return;
+    const r=Engine.seriesPlan(id,s.talentStrategy||'retain',n);if(!r.ok)setFlash(r.reason);render();
+  }
+  function seriesScope(id,scope){const r=Engine.seriesScope(id,scope);if(!r.ok)setFlash(r.reason);render();}
+  function seriesSponsor(id,accept){
+    const r=accept?Engine.signSeriesSponsor(id):Engine.declineSeriesSponsor(id);
+    if(!r.ok)setFlash(r.reason);render();
+  }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
   function upgrade() { const r = Engine.upgradeTier(); setFlash(r.ok ? '' : r.reason); render(); }
@@ -3081,6 +3119,7 @@ var UI = (function () {
     tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     setMediaVariant:setMediaVariant,setScope:setScope,setBudgetCap:setBudgetCap,
+    seriesPlan:seriesPlan,seriesEpisodeCount:seriesEpisodeCount,seriesScope:seriesScope,seriesSponsor:seriesSponsor,
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
