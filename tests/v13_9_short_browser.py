@@ -76,7 +76,7 @@ try:
   if quote['ok']:
    current=page.evaluate('Engine.state.cash')
    # In-game film campaign dialog replaces native browser confirm.
-   page.evaluate('UI.closePremiereReport()')
+   page.evaluate("for(let i=0;i<4&&!document.getElementById('premiere-report').hidden;i++)UI.closePremiereReport()")
    page.locator('.fc-center .fc-short-choice',has_text='festival press kit').get_by_role('button').click()
    assert page.locator('#film-action-modal [role="dialog"]').is_visible()
    page.locator('#film-action-confirm').click()
