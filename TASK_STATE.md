@@ -237,3 +237,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Timeline now projects rough premiere milestones beyond the 12-week calendar; New Project release comparison explicitly says no rival forecast is available beyond that horizon, instead of claiming no competition (`ui.js`, f4d0dce).
   - [x] v14.8 Node and Playwright suites passed after first fixes; corrected Python indentation of the updated four-control legacy dashboard assertion (`tests/v13_6_sitewide_browser.py`, 938b73d).
   - [x] Updated `docs/NEXT_UI_POLISH_PLAN.md` from proposed work to accurate v14.8 feature inventory with explicit saved-forecast and legacy-data limits (`8b57c41`).
+
+## v14.8 dashboard layout polish — compact identity + restore side Studio Wire (branch `fix/v14-8-compact-identity-side-wire`)
+- [ ] Refactor Dashboard studio classification into a compact one-row summary with its Studio Profile button aligned inside the card; retain full evidence in Studio Profile.
+- [ ] Restore two-column Dashboard / Studio Wire layout at desktop and laptop widths; stack at narrow/mobile and monitor-constrained widths.
+- [ ] Add/extend browser responsive tests for button placement, card height, side-by-side placement, Studio Wire tabs, mobile overflow and palette support.
+- [ ] Run existing regression workflows, fix failures, merge to main and verify GitHub Pages deployment.
