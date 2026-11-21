@@ -2270,8 +2270,13 @@ var UI = (function () {
     if(p.releaseWeek!=null)history.push(['Premiere',dateLabel(p.releaseWeek),true]);
     else{
       const scheduled=Engine.v14ReleaseCalendar().flatMap(w=>w.mine.map(f=>({...f,week:w.week}))).find(f=>f.id===p.id);
+      const fmt=Engine.TUNING.formats[p.format], order=['development','preproduction','shoot','post'];
+      const stageIndex=order.indexOf(p.stage);
+      const fallback=fmt&&stageIndex>=0?Engine.state.week+(p.stageWeeksLeft||0)+
+        order.slice(stageIndex+1).reduce((n,k)=>n+Math.max(0,fmt.stages?.[k]||0),0):null;
       history.push(['Expected premiere',scheduled?
-        dateLabel(scheduled.week)+(scheduled.estimate?' · estimated':' · scheduled'):'Date to be determined',false]);
+        dateLabel(scheduled.week)+(scheduled.estimate?' · estimated':' · scheduled'):
+        fallback!=null?'Around '+dateLabel(fallback)+' · rough forecast':'Date to be determined',false]);
     }
     if(p.stage==='release')history.push(['Screenings',Math.max(1,p.weeksInRelease||1)+' weeks into release',true]);
     if(p.stage==='done'&&p.releaseWeek!=null)history.push(['Screening run','Completed',true]);
@@ -2287,6 +2292,11 @@ var UI = (function () {
   function releaseConflictPanel(genre,topic,releaseWeek){
     if(!Number.isFinite(releaseWeek))return '';
     const weeks=Engine.v14ReleaseCalendar();
+    if(weeks.length&&releaseWeek>weeks[weeks.length-1].week){
+      return '<section class="fc-qol-release-clashes"><h3>Release Conflict Check</h3><p class="muted">Estimated premiere '+
+        dateLabel(releaseWeek)+' is beyond the available 12-week rival schedule. No conflict prediction is possible yet.</p>'+
+        '<button type="button" onclick="UI.go(&quot;calendar&quot;)">View announced releases</button></section>';
+    }
     const clashes=weeks.filter(w=>Math.abs(w.week-releaseWeek)<=2).flatMap(w=>w.rivals
       .filter(f=>f.genre===genre||(topic&&f.topic===topic)).map(f=>({...f,week:w.week}))).slice(0,4);
     const options=weeks.map(w=>({week:w.week,penalty:w.rivals.filter(f=>f.genre===genre||(topic&&f.topic===topic)).length}))
