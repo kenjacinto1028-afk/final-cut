@@ -6,6 +6,8 @@ Film projects now develop as persistent, connected stories: discover three quart
 
 **Studio Profile** shows a classification earned from your films, genre/story focus, awards, collaborators and financial track record, plus optional ambitions and delegation preferences. Rivals are evaluated by the same evidence and can contest scripts or release dates. All new financial costs and earnings use the original accounting engine.
 
+Long-career campaigns now use lossless FCP2 save compression only when needed, retaining plain JSON, FCP1, v13 saves and existing save slots; 8 full-career simulated 5MiB roundtrips passed. See docs/V14_BALANCE_FOLLOWUP.md for details and remaining balance questions.
+
 Original v13 saves and independent saved-game slots remain compatible. See `docs/CHANGELOG_V14.md`. Cinematic A+B colors, custom posters, talent records, awards, and the existing festival and release systems remain intact.
 
 ## v13.9 — A longer life for short films
@@ -29,7 +31,7 @@ A browser-based movie studio management simulation starting in 1970. Make shorts
 ## Play
 Open **`index.html`** in a modern browser, or publish the repository root using GitHub Pages. No build step required.
 
-## v13.3 — Interactive tutorial (current release)
+## v13.3 — Interactive tutorial (retained feature)
 Start a new studio to see an **interactive 13-step guided tour**. The compact nonmodal guide lets you **click the actual Dashboard, New Project, Projects, Filmography, Finance, Rivals and Awards buttons**, and advances automatically as you navigate. It highlights relevant controls and explains cash, film budgets, talent, casting, production, regional distribution, reviews, history and competition. Minimize/resume, Next/Back, Skip, and replay via **? Tutorial** are supported. The guide works on mobile and does not spend cash or advance time. See `docs/CHANGELOG_V13_3.md` and `docs/TEST_REPORT_V13_3.md`.
 
 ## v13.2 — Short tutorial

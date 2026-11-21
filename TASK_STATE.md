@@ -68,8 +68,12 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14 follow-up — Normal-start balancing (2026-11-21)
 - [x] Reviewed accepted v14a–h and funded 61/15/15-year metrics; standard-start strategy parity remains unproven.
 - [x] Added eight normal-start careers, cross-region award/solvency/save reporting and separate GitHub workflow; no gameplay changes.
-- [ ] Verify CI, record observed figures and prioritize only demonstrated imbalances.
+- [x] CI #44864111660 / #44864296282 confirmed two-region, four-strategy full-career economic/award gaps and all eight 5MiB FCP1 save failures.
 
 - [x] Follow-up sizing diagnostic: Report exact legacy FCP1 compact payload characters and UTF-8 bytes for each long career; distinguish a genuine 5MiB quota breach from other persistence failure. Next CI determines remedy.
 
-- [x] Added additive FCP2 second-stage synchronous LZW compression only for over-3.75m-character FCP1/plain saves; old v13 JSON and FCP1 remain fully readable. Added dedicated Unicode/quota/roundtrip regression. Pending actual GitHub Actions verification.
+- [x] Added additive FCP2 second-stage synchronous LZW compression only for over-3.75m-character FCP1/plain saves; old v13 JSON and FCP1 remain fully readable. Added dedicated Unicode/quota/roundtrip regression. CI #44864678832 verified 8/8 standard-start campaigns now save and reload successfully with FCP2; #44864678975 confirmed full v14 + legacy and real-browser regressions, Pages #44864678165 deployed successfully.
+
+- [x] Final FCP2 save-capacity acceptance: FCP1 5.45m–6.02m chars fell to FCP2 1.84m–2.05m chars, all 8 under 5MiB and roundtripped; direct >17MB synthetic Unicode archive test also passed. No save version change.
+- [ ] Future balance tuning: investigate blockbuster $2bn cash, 0–1 careful-studio flops, 20–26-point player/rival quality gap and major-award density using additional regions/seeds; do not change live rules without regression proof.
+- [ ] Future manual validation: check long-save UI latency on real mobile/browser storage, since the large-save codec was exercised under Node's simulated quota.
