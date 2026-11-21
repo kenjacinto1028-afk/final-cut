@@ -1202,6 +1202,20 @@ var Engine = (function () {
     if (!state || state.gameOver) return { ok: false, reason: 'No game running.' };
     const pv = previewProject(o);
     if (!pv.ok) return pv;
+    if(pv.scriptPitch?.contested&&pv.scriptPitch.rivalId&&o.pitchApproach!=='buyout'){
+      const chance=o.pitchApproach==='partner'?.08:.20;
+      if(Math.random()<chance){
+        const rival=getRival(pv.scriptPitch.rivalId);
+        if(rival&&rival.cash>=pv.scriptPitch.fee){
+          rival.cash-=pv.scriptPitch.fee;
+          pv.scriptPitch.claimedBy='rival:'+rival.id;
+          v14RivalIncident('script',rival,null,'Outbid the player for "'+pv.scriptPitch.title+'".');
+          addLog(rival.name+' outbid your offer for "'+pv.scriptPitch.title+
+            '". The studio paid '+fmtMoney(pv.scriptPitch.fee)+' for the rights.','rival');
+          save();return {ok:false,reason:rival.name+' secured the contested screenplay. No player cash was charged.'};
+        }
+      }
+    }
     const f = TUNING.formats[o.format];
     const cast = normalizeCast(o.cast);
     const supporting=extraIds(o,'supporting'), specialists=extraIds(o,'specialists');
@@ -2648,7 +2662,31 @@ var Engine = (function () {
     genres.sort((a,b)=>(genreDemand(b)+(r.marketMemory[b]||0)*0.06)-(genreDemand(a)+(r.marketMemory[a]||0)*0.06));
     return Math.random()<0.45 ? pick(genres.slice(0,Math.min(3,genres.length))) : pick(genres);
   }
-  function greenlight(r, lead) {
+  function v14RivalIncident(kind,r,projectId,detail){
+    const v=v14State();
+    v.rivalry.push({week:state.week,kind,rivalId:r.id,rival:r.name,projectId:projectId||null,
+      detail:String(detail).slice(0,135)});
+    if(v.rivalry.length>24)v.rivalry.splice(0,v.rivalry.length-24);
+  }
+  function v14RivalScriptTick(){
+    const v=v14State(),quarter=Math.floor(state.week/13);
+    const scripts=v14Pitches();
+    if(v.auctionQuarter===quarter || state.week%13<6)return;
+    v.auctionQuarter=quarter;
+    const script=scripts.find(p=>p.contested&&!p.claimedBy);
+    if(!script)return;
+    const r=getRival(script.rivalId);
+    if(!r||r.status!=='active'||r.cash<script.fee+Math.max(20000,rivalBudget(r))||
+      r.films.filter(f=>f.stage==='planned').length>=TUNING.rivals.maxPlanned)return;
+    const movie=greenlight(r,rint(12,22),script);
+    if(movie){
+      script.claimedBy='rival:'+r.id;
+      v14RivalIncident('script',r,null,r.name+' secured screenplay "'+script.title+'" over the open market.');
+      addLog(r.name+' acquires "'+script.title+'" for '+fmtMoney(script.fee)+
+        ' and prepares an upcoming film.','rival');
+    }
+  }
+  function greenlight(r, lead, pitch) {
     const R = TUNING.rivals, S = stratDef(r.strategy);
     let budget = rivalBudget(r) * rnd(0.7, 1.3);
     if (r.cash < budget) budget *= 0.5;
@@ -2659,10 +2697,10 @@ var Engine = (function () {
     const craft = role => { const arr=rivalTalent(r).filter(t=>t.role===role); return arr.length?Math.max(...arr.map(t=>t.skill||50)):50; };
     const skillCraft=(craft('director')-50)*.12+(craft('writer')-50)*.09+(craft('actor')-50)*.06;
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
-    const sequelSource=hits.length && Math.random()<.07 ? pick(hits) : null;
-    const genre = sequelSource ? sequelSource.genre : rivalGenre(r);
+    const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
+    const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);
       const topics = CONTENT.TOPICS.filter(t => t.good.includes(genre));
-      const subject = sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
+      const subject = pitch?{id:pitch.topic}:sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
       const owned = rivalTalent(r);
       const credits = {}, creditIds={};
       [['director', 'director'], ['writer', 'writer'], ['lead', 'actor'], ['crew', 'crew']].forEach(pair => {
@@ -2676,7 +2714,8 @@ var Engine = (function () {
     const supporting=support.length?pick(support):null;
     credits.supporting=supporting?[supporting.name]:[pick(CONTENT.FIRST_NAMES)+' '+pick(CONTENT.LAST_NAMES)];
     creditIds.supporting=supporting?[supporting.id]:[];
-    const f = { id: r.nextFilmId++, title: sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
+    const f = { id: r.nextFilmId++, title: pitch?pitch.title:sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
+      dna:pitch?{hook:pitch.hook,strengths:pitch.strengths.slice(),risk:pitch.risk,vision:pitch.vision,lane:pitch.vision==='bold'?'genre':'arthouse',origin:'marketplace'}:null,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
       quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
@@ -2684,7 +2723,7 @@ var Engine = (function () {
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);
     f.week = bestWeek(r, f, state.week + lead - 2, state.week + lead + 3);
-    r.cash -= budget;
+    r.cash -= budget+(pitch?pitch.fee:0);
     r.films.push(f);
     return f;
   }
@@ -2816,13 +2855,18 @@ var Engine = (function () {
         f.week = bestWeek(r, f, myWeek + 2, myWeek + 2 + R.rescheduleRange);
         f.moved = true;
         addLog(rtx('moved', { rival: r.name, title: f.title, mine: p.title }), 'rival');
+        if(p.dna){filmStory(p,'rival',r.name+' moved "'+f.title+'" away from our release week.');
+          v14RivalIncident('release',r,p.id,'Shifted '+f.title+' to avoid '+p.title+'.');}
       } else if (f.genre === p.genre) {
         addLog(rtx('holds', { rival: r.name, title: f.title, genre: genreName(f.genre), mine: p.title }), 'rival');
+        if(p.dna){filmStory(p,'rival',r.name+' kept "'+f.title+'" against our opening.');
+          v14RivalIncident('release',r,p.id,'Held an opening opposite '+p.title+'.');}
       }
     }));
   }
   function rivalTick() {
     const R = TUNING.rivals;
+    v14RivalScriptTick();
     activeRivals().forEach(r => {
       const oh = rivalOverhead(r);
       r.cash -= oh;
@@ -4140,6 +4184,7 @@ var Engine = (function () {
     v14Chemistry:v14Chemistry, v14PairKey:v14PairKey, v14SetDelegation:v14SetDelegation,
     v14ReleasePlans:()=>V14_RELEASE_PLANS, v14SetReleasePlan:v14SetReleasePlan, v14ReleaseCalendar:v14ReleaseCalendar,
     v14ReleaseResponseQuote:v14ReleaseResponseQuote, v14ReleaseResponse:v14ReleaseResponse,
-    v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote
+    v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote,
+    v14Rivalry:()=>v14State().rivalry.slice(-15)
   };
 })();
