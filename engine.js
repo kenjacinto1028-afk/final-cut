@@ -335,6 +335,7 @@ var Engine = (function () {
     if(!state.v14||typeof state.v14!=='object')state.v14={};
     const v=state.v14;
     if(!Array.isArray(v.pitches))v.pitches=[];
+    if(!Array.isArray(v.pitchHistory))v.pitchHistory=[];
     if(!v.partnerships||typeof v.partnerships!=='object')v.partnerships={};
     if(!Array.isArray(v.rivalry))v.rivalry=[];
     if(!Array.isArray(v.classChanges))v.classChanges=[];
@@ -389,7 +390,55 @@ var Engine = (function () {
     {title:'The Invisible Encore',genre:'documentary',topic:'rockband',hook:'A forgotten touring band reunites to confront its lost recording.',
       strengths:['research','emotion'],risk:'marketing',vision:'prestige'},
     {title:'The Machine Next Door',genre:'scifi',topic:'robots',hook:'An ordinary family discovers the neighbor has built a curious machine.',
-      strengths:['spectacle','heart'],risk:'expensive',vision:'mainstream'}
+      strengths:['spectacle','heart'],risk:'expensive',vision:'mainstream'},
+    {title:'The Last Postmark',genre:'drama',topic:'familysecret',hook:'A rural postmaster must decide whether to deliver a letter held for thirty years.',
+      strengths:['dialogue','emotion'],risk:'narrow',vision:'prestige'},
+    {title:'Second Bell',genre:'drama',topic:'comingofage',hook:'A young teacher protects a troubled class while confronting the school board.',
+      strengths:['heart','ensemble'],risk:'controversial',vision:'prestige'},
+    {title:'A Place in the Crowd',genre:'documentary',topic:'underdog',hook:'An overlooked amateur team risks everything to preserve its community.',
+      strengths:['research','emotion'],risk:'marketing',vision:'prestige'},
+    {title:'When the Wires Went Quiet',genre:'thriller',topic:'medical',hook:'A hospital loses contact with the outside world during a dangerous night.',
+      strengths:['atmosphere','research'],risk:'difficult',vision:'prestige'},
+    {title:'End of a Summer',genre:'romance',topic:'comingofage',hook:'Two childhood friends spend their last summer together before leaving home.',
+      strengths:['heart','dialogue'],risk:'narrow',vision:'prestige'},
+    {title:'Mercy Beyond the Valley',genre:'western',topic:'frontier',hook:'An isolated frontier doctor must decide whom the town will protect.',
+      strengths:['research','emotion'],risk:'difficult',vision:'prestige'},
+    {title:'The Apprentice',genre:'drama',topic:'organizedcrime',hook:'An unwilling apprentice inherits a family debt and an impossible moral choice.',
+      strengths:['dialogue','twist'],risk:'controversial',vision:'prestige'},
+    {title:'The Last Picture',genre:'documentary',topic:'celebrity',hook:'A photographer catalogues the forgotten people behind a famous screen star.',
+      strengths:['research','originality'],risk:'narrow',vision:'prestige'},
+    {title:'Midnight Exchange',genre:'action',topic:'heist',hook:'A routine courier delivery becomes an impossible overnight escape.',
+      strengths:['spectacle','twist'],risk:'expensive',vision:'mainstream'},
+    {title:'The Return Trip',genre:'comedy',topic:'roadtrip',hook:'A family chooses the wrong bus and finds a reason to stay together.',
+      strengths:['humor','heart'],risk:'untested',vision:'mainstream'},
+    {title:'Saturday Heroes',genre:'drama',topic:'underdog',hook:'A fading local team receives one final chance to save its season.',
+      strengths:['ensemble','emotion'],risk:'difficult',vision:'mainstream'},
+    {title:'A Good Wrong Turn',genre:'romance',topic:'firstlove',hook:'A missed appointment sends two rivals on the same unexpected journey.',
+      strengths:['dialogue','heart'],risk:'narrow',vision:'mainstream'},
+    {title:'The Very Unusual Guest',genre:'comedy',topic:'supernatural',hook:'An eccentric houseguest exposes a family secret in the most inconvenient way.',
+      strengths:['humor','mystery'],risk:'marketing',vision:'mainstream'},
+    {title:'The Rockwell Mystery',genre:'thriller',topic:'familysecret',hook:'A family searching for an heir discovers that the estate was never abandoned.',
+      strengths:['twist','atmosphere'],risk:'untested',vision:'mainstream'},
+    {title:'The Neighborhood Watch',genre:'comedy',topic:'smalltown',hook:'Three suspicious neighbors mistakenly recruit an entire town into their investigation.',
+      strengths:['ensemble','humor'],risk:'narrow',vision:'mainstream'},
+    {title:'Three Minutes to Midnight',genre:'action',topic:'espionage',hook:'An exhausted courier holds the only evidence of a capital-city conspiracy.',
+      strengths:['spectacle','twist'],risk:'expensive',vision:'mainstream'},
+    {title:'The Wrong Orbit',genre:'scifi',topic:'spacecolony',hook:'An orbital miner receives a map to a planet that no one believes exists.',
+      strengths:['originality','spectacle'],risk:'expensive',vision:'bold'},
+    {title:'The Last Transmission',genre:'horror',topic:'supernatural',hook:'An abandoned communications station begins broadcasting tomorrow’s voices.',
+      strengths:['atmosphere','mystery'],risk:'marketing',vision:'bold'},
+    {title:'No Name on the Door',genre:'thriller',topic:'espionage',hook:'A secret agent learns that the enemy headquarters has been moved into her apartment.',
+      strengths:['twist','originality'],risk:'untested',vision:'bold'},
+    {title:'Signal Seven',genre:'scifi',topic:'timetravel',hook:'A scientist receives seven messages from possible versions of herself.',
+      strengths:['mystery','originality'],risk:'difficult',vision:'bold'},
+    {title:'The Green Room',genre:'horror',topic:'rockband',hook:'A touring band hears an unknown instrument playing behind a locked venue door.',
+      strengths:['atmosphere','ensemble'],risk:'marketing',vision:'bold'},
+    {title:'Children of the House',genre:'horror',topic:'haunted',hook:'A new caretaker uncovers a family that was never listed in the old records.',
+      strengths:['atmosphere','emotion'],risk:'controversial',vision:'bold'},
+    {title:'The City Beneath',genre:'scifi',topic:'robots',hook:'Maintenance workers discover their city is being quietly rebuilt from below.',
+      strengths:['spectacle','originality'],risk:'expensive',vision:'bold'},
+    {title:'The Unseen Rival',genre:'thriller',topic:'revenge',hook:'A quiet investigator follows a rival who seems to anticipate every move.',
+      strengths:['twist','craft'],risk:'difficult',vision:'bold'}
   ];
   function v14Hash(key){
     let x=2166136261;for(const c of String(key)){x=Math.imul(x^c.charCodeAt(0),16777619)>>>0;}
@@ -398,11 +447,15 @@ var Engine = (function () {
   function v14Pitches(){
     const v=v14State(),quarter=Math.floor(state.week/13);
     if(v.pitchQuarter===quarter&&v.pitches.length===3)return v.pitches;
-    const offers=['safe','prestige','risk'];
+    const offers=['safe','prestige','risk'],history=v.pitchHistory;
     const unlocked=state.studio.tier>0&&state.studio.fame>=TUNING.formats.feature.unlockFame;
     v.pitches=offers.map((lane,i)=>{
       const templates=V14_PITCHES.filter(t=>i===1?t.vision==='prestige':i===2?t.vision==='bold':t.vision==='mainstream');
-      let d=templates[v14Hash(state.campaignId+':'+quarter+':'+i)%templates.length];
+      const fresh=templates.filter(t=>!history.includes(t.title));
+      let catalog=fresh.length?fresh:templates;
+      let d=catalog[v14Hash(state.campaignId+':'+quarter+':'+i)%catalog.length];
+      history.push(d.title);
+      if(history.length>18)history.splice(0,history.length-18);
       const identity=v14Identity('you');
       if(i===2 && identity?.primary==='genre' && identity.topGenre){
         const focused=V14_PITCHES.filter(t=>t.genre===identity.topGenre);
