@@ -653,3 +653,44 @@ tr.warn td, tr.warn.clickable:hover td { background: #fff0bb; }
 .fc-reach-list{padding:4px 0 5px 17px;font-size:13px}
 .fc-reach-list li{padding:5px 0}
 @media(max-width:480px){.fc-hub-hero{grid-template-columns:70px minmax(0,1fr);gap:10px}.fc-hub-poster{width:70px;height:105px}.fc-hub-intro>h2{font-size:20px}.fc-hub-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}.fc-hub-tabs button{min-height:42px}}
+
+
+/* ===== V14.5 · RELEASE REPORT OVERLAY ===== */
+#premiere-report[hidden]{display:none}
+#premiere-report{position:fixed;inset:0;z-index:28}
+.fc-premiere-shade{position:absolute;inset:0;background:rgba(11,15,21,.81);display:grid;place-items:center;padding:16px}
+.fc-premiere-card{width:min(740px,100%);max-height:94dvh;overflow:auto;border:2px solid #b69e72;border-radius:12px;box-shadow:0 20px 90px #000b;background:#f8f5ed;color:#202621}
+.fc-premiere-mast{display:flex;justify-content:space-between;align-items:center;background:#202b2a;color:#f1e5c9;padding:12px 20px}
+.fc-premiere-mast small{font-size:10px;font-weight:800;letter-spacing:.15em}
+.fc-premiere-mast button{border:1px solid #b3ac97;background:transparent;color:#f1e5c9;border-radius:5px;padding:3px 10px}
+.fc-premiere-content{padding:16px 22px 7px}
+.fc-premiere-titlebar{display:grid;grid-template-columns:93px minmax(0,1fr);gap:16px;align-items:center}
+.fc-premiere-poster{width:93px;height:139px;overflow:hidden;border:1px solid #898d81;background:#25312e}
+.fc-premiere-poster svg,.fc-premiere-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.fc-premiere-titlebar h2{font:700 clamp(25px,4vw,36px)/1.14 Georgia,serif;border:0;padding:0;margin:4px 0 7px}
+.fc-premiere-titlebar small{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#5d695e;font-weight:700}
+.fc-premiere-titlebar p{font-size:13px;color:#465047;line-height:1.5}
+.fc-premiere-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:18px 0}
+.fc-premiere-stats>div{border:1px solid #c5c9bc;border-radius:7px;text-align:center;padding:10px 5px;background:#fff}
+.fc-premiere-stats small{display:block;color:#667568;font-size:10px;text-transform:uppercase}
+.fc-premiere-stats strong{font:800 21px/1.25 'Archivo',sans-serif}
+.fc-premiere-reach{border-left:3px solid #6a9181;padding:10px 13px;background:#e5eee7;font-size:13px}
+.fc-premiere-reach p{font-size:12px;margin:4px 0}
+.fc-premiere-content>h3{margin:15px 0 6px;font-size:15px}
+.fc-premiere-reviews{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fc-premiere-reviews article{background:#fff;border:1px solid #d9d7c8;border-radius:7px;padding:10px}
+.fc-premiere-reviews article>div{display:flex;justify-content:space-between;gap:7px;font-size:12px}
+.fc-premiere-reviews article>div span{font-weight:800;white-space:nowrap}
+.fc-premiere-reviews small{font-size:10px;color:#5d675d}
+.fc-premiere-reviews p{font-size:12px;margin:4px 0 0;line-height:1.45}
+.fc-premiere-impact{font-size:11px;color:#617060}
+.fc-premiere-actions{display:flex;justify-content:flex-end;gap:8px;padding:13px 22px;position:sticky;bottom:0;border-top:1px solid #d3d4c9;background:#f8f5ed}
+@media(max-width:530px){
+  .fc-premiere-shade{padding:6px}.fc-premiere-content{padding:12px}
+  .fc-premiere-mast{padding:11px 12px}.fc-premiere-titlebar{grid-template-columns:62px minmax(0,1fr);gap:10px}
+  .fc-premiere-poster{width:62px;height:93px}
+  .fc-premiere-reviews{grid-template-columns:1fr}
+  .fc-premiere-stats{gap:3px}.fc-premiere-stats strong{font-size:15px}
+  .fc-premiere-actions{padding:11px;flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.fc-premiere-card{animation:none!important}}
