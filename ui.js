@@ -890,7 +890,7 @@ var UI = (function () {
       (press?'<p><strong>What changes?</strong> Future festival juries assess this short at +4 merit points. '+
         'It does not grant festival entry, selection, prizes or awards.</p>'+
         '<p>Future judging: '+(status?.next?esc(status.next.name)+' · '+esc(dateLabel(status.next.week)):
-          'No upcoming jury date recorded')+'. Past jury decisions are never changed.</p>':
+          'No upcoming jury date recorded')+'. Past jury decisions are never changed. Screening completion does not end festival eligibility.</p>':
         '<p><strong>What changes?</strong> One additional four-week screening run after completion. '+
         'The additional receipts may fail to cover the cost.</p>')+
       '<dl><div><dt>Campaign cost</dt><dd>'+money(q.cost)+'</dd></div>'+
@@ -1031,7 +1031,7 @@ var UI = (function () {
       const q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value;
       const h=Number.isFinite(p.hype)?p.hype+'/100':'Est. '+Math.max(0,Math.min(100,
         Math.round((s.studio.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
-      const info=short&&fest?'<p class="fc-monitor-festival">'+fest.selections+' festival recognitions'+
+      const info=short&&fest?'<p class="fc-monitor-festival">'+(p.stage==='done'&&fest.next?'Screenings complete · festival campaign still active · ':'')+fest.selections+' festival recognitions'+
         (fest.next?' · next '+esc(fest.next.name)+' '+esc(dateLabel(fest.next.week)):'')+'</p>':'';
       const time=short&&live?' · wk '+p.weeksInRelease+'/'+(p.shortRunWeeks||'?'):
         live?' · wk '+p.weeksInRelease:'';
@@ -1048,7 +1048,7 @@ var UI = (function () {
         '<div class="fc-monitor-audience">'+reach+
         '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+
         money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
-        info+filmPulseChart(p,metric,7)+
+        info+'<div class="fc-monitor-details"><button type="button" onclick="UI.openProject('+p.id+')">Project Details · Film Hub</button></div>'+filmPulseChart(p,metric,7)+
         (live&&feature?releasePushAction(p):'')+
         (short?shortFilmActions(p,true):'')+
         '</article>';
