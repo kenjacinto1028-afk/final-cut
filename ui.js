@@ -1636,6 +1636,7 @@ var UI = (function () {
     renderNav();
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
+    $('app').classList.toggle('save-manager', view==='saves');
     let h;
     if (!s && view === 'saves') h = viewSaveLibrary();
     else if (!s) h = viewStart();
@@ -1674,12 +1675,105 @@ var UI = (function () {
   }
 
 // ===== SECTION: ACTIONS =====
-  function startGame() { Engine.newGame({ studioName: $('f_studio').value, founderName: $('f_founder').value, homeRegion: $('f_region').value }); go('dashboard'); openTutorial(); }
-  function loadGame() { const r = Engine.load(); setFlash(r.ok ? '' : r.reason); resetHistory(); render(); }
-  function quit() {
-    if (Engine.state && !Engine.state.gameOver && !confirm('Start a new game? Your current save will be replaced when you start.')) return;
-    Engine.clearSave();
-    location.reload();
+  let saveBusy=false;
+  function clearForSaveTransition(){
+    drawer=null;drawerMsg='';centerProjectId=null;centerShowOlder=false;
+    tutorialStep=-1;tutorialMinimized=false;tutorialReturnFocus=null;
+    yearEndReplayYear=null;yearEndRendered='';yearEndStage=0;
+    yearEndReturnFocus=null;
+    if(posterEdit)closePosterEditor();
+    resetHistory();setFlash('');
+  }
+  async function startGame(){
+    if(saveBusy)return;
+    const opts={studioName:$('f_studio').value,founderName:$('f_founder').value,homeRegion:$('f_region').value};
+    saveBusy=true;
+    try{
+      if(typeof SaveSlots!=='undefined')await SaveSlots.beginNew(opts);
+      else Engine.newGame(opts);
+      clearForSaveTransition();go('dashboard');openTutorial();
+    }catch(err){setFlash('Could not start campaign: '+err.message);render();}
+    finally{saveBusy=false;}
+  }
+  async function loadGame(){
+    if(saveBusy)return;
+    if(typeof SaveSlots==='undefined'){
+      const r=Engine.load();setFlash(r.ok?'':r.reason);resetHistory();render();return;
+    }
+    const info=SaveSlots.list();
+    if(!info.activeId){go('saves');return;}
+    await openSave(info.activeId);
+  }
+  async function saveNow(){
+    if(saveBusy)return;
+    if(typeof SaveSlots==='undefined'){
+      setFlash(Engine.save()?'Campaign saved.':'Save failed: browser storage is full.');render();return;
+    }
+    try{
+      const result=SaveSlots.manualSave();
+      setFlash(result.ok?'Campaign saved to the active slot.':result.reason);
+    }catch(err){setFlash('Save failed: '+err.message);}
+    render();
+  }
+  async function openSave(slotId){
+    if(saveBusy)return;
+    const list=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
+    const target=list?.slots.find(s=>s.id===slotId);
+    if(!target){setFlash('Save slot not found.');render();return;}
+    if(Engine.state&&!target.active&&!confirm('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
+    saveBusy=true;
+    try{
+      await SaveSlots.activate(slotId);
+      clearForSaveTransition();render();
+    }catch(err){setFlash('Could not load save: '+err.message);render();}
+    finally{saveBusy=false;}
+  }
+  function renameSave(slotId){
+    if(typeof SaveSlots==='undefined')return;
+    const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
+    if(!slot)return;
+    const value=prompt('Name this save slot:',slot.name);
+    if(value==null)return;
+    try{SaveSlots.rename(slotId,value);setFlash('Save slot renamed.');}
+    catch(err){setFlash('Rename failed: '+err.message);}
+    render();
+  }
+  async function copySave(){
+    if(saveBusy||!Engine.state||typeof SaveSlots==='undefined')return;
+    const info=SaveSlots.list(),active=info.slots.find(s=>s.active);
+    const label=prompt('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
+    if(label==null)return;
+    saveBusy=true;
+    try{
+      await SaveSlots.duplicate(label);
+      setFlash('Independent copy created. Your original studio is still active.');
+    }catch(err){setFlash('Could not create copy: '+err.message);}
+    finally{saveBusy=false;render();}
+  }
+  async function deleteSave(slotId){
+    if(saveBusy||typeof SaveSlots==='undefined')return;
+    const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
+    if(!slot||!confirm('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
+    saveBusy=true;
+    try{
+      await SaveSlots.remove(slotId);
+      clearForSaveTransition();
+      view=Engine.state?'saves':'saves';
+      setFlash('Save deleted.');
+    }catch(err){setFlash('Could not delete save: '+err.message);}
+    finally{saveBusy=false;render();}
+  }
+  function quit(){
+    if(typeof SaveSlots==='undefined'){
+      if(Engine.state&&!Engine.state.gameOver&&!confirm('Start a new game? Your current save will be replaced when you start.'))return;
+      Engine.clearSave();location.reload();return;
+    }
+    if(Engine.state&&!confirm('Return to title? The current studio will remain saved in its own slot.'))return;
+    if(Engine.state){
+      const result=SaveSlots.manualSave();
+      if(!result.ok){setFlash(result.reason);render();return;}
+    }
+    Engine.closeSession();clearForSaveTransition();render();
   }
   function nextWeek() { if (currentYearEndReport()) return; Engine.nextTurn(); render(); }
   function advance() { if (currentYearEndReport()) return; Engine.advance(); render(); }
@@ -1841,7 +1935,8 @@ var UI = (function () {
   document.addEventListener('DOMContentLoaded', init);
 
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
-    quit: quit, nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
+    quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
+    nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
