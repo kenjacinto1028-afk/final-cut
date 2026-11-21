@@ -194,3 +194,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase 3: added derived film following, natural decay, loyal survivors, earned cult status and bounded sequel awareness (engine.js 0624621, ui.js dc0bad7).
 - [x] Phase 3b: added separate studio active/loyal fans, overlap-aware aggregation, bounded opening-hype lift and Studio Profile card (engine.js 0624621, ui.js dc0bad7).
 - [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
+  - [x] Added tests/v14_6_regression.js for title variety, fan decay/loyalty, sequel bounds and save migration, plus .github/workflows/v14_6.yml (89664af, 0fb7dea).
+  - [ ] All GitHub Actions and desktop/mobile tests green; merge and verify Pages.
