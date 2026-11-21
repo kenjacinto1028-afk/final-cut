@@ -59,7 +59,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v14b engine: three authored quarterly pitches, safe early short, risk/fee, conditional rival interest and acquisition on greenlight; no infinite reroll, separate script cost, retained custom/sequels (`engine.js`, commit 2e0804b). UI selection and real AI bidding continue in v14f/h.
 - [x] v14c engine: one Film DNA-specific production dilemma, three distinct choices, persistent consequences and one-at-a-time queue, simple ask/director/commercial delegation; existing cut decision retained.
 - [x] v14d engine: bounded (36 pairs) director/writer relationship histories, creative-trust consequences, modest capped craft effect, sequel/return continuity still intact; no actor career profile.
-- [ ] v14e: Implement forecast release competition, strategic positioning and bounded mid-run choices.
+- [x] v14e: `engine.js` provides 12-week rival calendar, four pre-release strategies with opening/legs/critic tradeoffs, one early theatrical response (expand/focus/hold/pull) with actual direct expenses and non-guaranteed returns (commit 442b5a).
 - [ ] v14f: Extend rival behavior and causal industry news driven by real film and personnel competition.
 - [ ] v14g: Implement film afterlives, studio ambitions and earned evidence-backed classifications (player and AI).
 - [ ] v14h: Integrate A+B UI, docs, short/tutorial changes, real-browser tests, save regression and multi-world tuning.
