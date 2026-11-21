@@ -43,7 +43,6 @@ try:
   assert table.get_by_role('columnheader',name='Box office').count()==1
   assert table.get_by_role('columnheader',name='Studio receipts').count()==1
   assert table.get_by_role('columnheader',name='Profit / loss').count()==1
-  assert table.get_by_role('row',name=lambda x: False).count()==0 if False else True
   row=table.locator('tbody tr',has_text='Little Festival Film').first
   assert row.count()==1
   assert '—' in row.inner_text()
