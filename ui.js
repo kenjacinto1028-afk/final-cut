@@ -1792,6 +1792,7 @@ var UI = (function () {
       '<small>FILM HUB · '+(original?esc(original.result||CONTENT.STAGE_LABELS[original.stage]||'Released'):'Industry record')+'</small>'+
       '<h2>'+esc(f.title)+'</h2>'+
       '<p>'+esc(f.dna?.hook||f.review?.headline||'A recorded production in the industry archive.')+'</p>'+
+      (original?'<p class="fc-filmhub-open"><button type="button" onclick="UI.openProject('+original.id+')">Open Film Hub · production actions</button></p>':'')+
       '<div class="fc-hub-numbers">'+[
         ['Quality',f.quality],['Critics',f.critic],['Audience',f.audience],['Hype',f.hype]
       ].map(x=>'<span><small>'+x[0]+'</small><strong>'+(x[1]==null?'—':x[1]+'/100')+'</strong></span>').join('')+'</div></div></div>'+tabs;
