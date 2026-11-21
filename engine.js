@@ -4377,7 +4377,7 @@ var Engine = (function () {
       if(gross||revenue||spent||screenings||households||old.stage!==p.stage||ACTIVE_STAGES.includes(p.stage)||p.stage==='release')
         recordProjectPulse(p,state.week,gross,revenue,spent,p.stage,admissions,screenings,households);
     });
-    save();
+    scheduleTurnSave();
     emit('turn');
     return true;
   }
@@ -4502,7 +4502,59 @@ var Engine = (function () {
       Object.prototype.hasOwnProperty.call(reverse, key) ? '"' + reverse[key] + '":' : match);
     return JSON.parse(json);
   }
+  // v14.1: weekly autosaves for history-heavy browser campaigns encode off
+  // the UI thread. Explicit saves, imports and slot switches remain synchronous.
+  // Every write is tagged, so an older worker result can never overwrite a new
+  // campaign or a more recent manual/weekly save.
+  let largeSaveWorker=null,largeSaveScheduled=null,largeSaveGeneration=0,largeSaveWorkerUnavailable=false;
+  function invalidatePendingLargeSave(){
+    largeSaveGeneration++;
+    if(largeSaveScheduled!==null&&typeof clearTimeout==='function')clearTimeout(largeSaveScheduled);
+    largeSaveScheduled=null;
+  }
+  function scheduleTurnSave(){
+    if(fastSimulationTesting)return true;
+    if(typeof document==='undefined'||typeof Worker==='undefined'||typeof setTimeout!=='function'||
+      largeSaveWorkerUnavailable||!state||((state.filmArchive?.rivals?.length||0)<1600 && (state.projects?.length||0)<340))
+      return save();
+    if(!largeSaveWorker){
+      try{
+        largeSaveWorker=new Worker('save-worker.js');
+        largeSaveWorker.onmessage=event=>{
+          const x=event.data;
+          if(!x||x.generation!==largeSaveGeneration||!state||x.campaignId!==state.campaignId)return;
+          if(x.type==='encoded'){
+            try{storage()?.setItem(SAVE_KEY,x.payload);}catch(e){console.warn('Large FinalCut autosave could not fit browser storage',e);}
+          }else console.warn('FinalCut background save failed',x.reason);
+        };
+        largeSaveWorker.onerror=event=>{
+          console.warn('FinalCut save worker unavailable; reverting to normal synchronous saving');
+          largeSaveWorkerUnavailable=true;
+          largeSaveWorker.terminate();largeSaveWorker=null;
+          if(state)save();
+        };
+      }catch(e){largeSaveWorkerUnavailable=true;return save();}
+    }
+    invalidatePendingLargeSave();
+    const token=largeSaveGeneration,campaignId=state.campaignId;
+    largeSaveScheduled=setTimeout(()=>{
+      largeSaveScheduled=null;
+      if(!state||largeSaveGeneration!==token||state.campaignId!==campaignId)return;
+      try{largeSaveWorker.postMessage({type:'encode',generation:token,campaignId,snapshot:state});}
+      catch(e){largeSaveWorkerUnavailable=true;save();}
+    },350);
+    return true;
+  }
+  if(typeof document!=='undefined'&&document.addEventListener){
+    // A dirty, queued snapshot must be flushed before a tab is hidden.
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='hidden'&&largeSaveScheduled!==null&&state)save();
+    });
+    if(typeof window!=='undefined'&&window.addEventListener)
+      window.addEventListener('pagehide',()=>{if(largeSaveScheduled!==null&&state)save();});
+  }
   function save() {
+    invalidatePendingLargeSave();
     if(fastSimulationTesting)return true; // test-only: persist a real full save at the end of a long simulated career
     const ls = storage();
     if (!ls || !state) return false;
@@ -4587,7 +4639,7 @@ var Engine = (function () {
     emit('load');
     return { ok: true };
   }
-  function clearSave() { try { const ls = storage(); if (ls) ls.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
+  function clearSave() { invalidatePendingLargeSave(); try { const ls = storage(); if (ls) ls.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
   // Save-library helpers: the original active autosave key and save version stay
   // unchanged. IndexedDB holds inactive campaigns; the UI owns slot metadata.
   function inspectSave(raw) {
@@ -4600,7 +4652,7 @@ var Engine = (function () {
         releases:Number(data.studio.releases)||0};
     } catch(e){return null;}
   }
-  function closeSession(){state=null;emit('close');}
+  function closeSession(){invalidatePendingLargeSave();state=null;emit('close');}
 
 // ===== SECTION: PUBLIC_API =====
   return {
