@@ -2742,7 +2742,7 @@ var UI = (function () {
     "target": "#main .fc-section-tabs [data-view=\"calendar\"]",
     "location": "Industry → Release Calendar",
     "text": "Rivals have real releases. Your own features, shorts and pilots are marked, with forecast labels where timing is uncertain. Genre/topic collisions are warnings, not certain losses.",
-    "visit": "rivals"
+    "visit": "calendar"
   },
   {
     "section": "Your studio",
