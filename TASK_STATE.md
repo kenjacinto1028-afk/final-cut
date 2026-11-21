@@ -181,3 +181,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Audited v14.5 release/festival behavior: `engine.js` premieres on `releaseWeek`, `ui.js` suppresses pending premiere reports while tutorial active; short press kit legitimately remains available after screening if future first-year jury date remains.
 - [x] Added delayed premiere correction, separate end-of-run recap, festival eligibility clarity and studio-wide follower/loyal-fan design to `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
 - [ ] Future implementation: correct tutorial/premiere modal timing; clarify future festival kit dates and eligibility; add studio followers and cross-film loyalty with long-run balancing tests.
+
+- [x] Added genre/story-aware diverse generated film titles, duplicate prevention, intentional sequel exceptions and long-career title-variety tests to `docs/NEXT_UI_POLISH_PLAN.md` (planning only).
+- [ ] Future update: implement film title generation improvements, test early and multi-decade saves, and keep user-authored names intact.
