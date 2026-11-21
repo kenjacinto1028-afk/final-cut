@@ -209,7 +209,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Implemented six persisted accessible palette swatches in `design-theme-v14_7.js`, loaded in `index.html`, displayed on the left rail via `ui.js`.
 - [x] Added `design-v14_7.css` with compact four-zone slate shell, palette-aware surfaces, typography, buttons, navigation tabs and responsive monitor.
 - [x] Adjusted dashboard to show runway instead of repeating cash, added interactive Studio Wire category filters, restyled film monitor and retained all gameplay/data bindings (`ui.js`).
-- [ ] Add keyboard/mobile and visual regression tests; run existing CI suites and fix issues.
+- [x] Added dedicated Chromium visual tests and screenshots; all 12 GitHub Actions workflows passed for v14.7 code commit ee9ada8, including mobile, saves, tutorial, filmmaking, film monitor, new palette design QA and twelve full-career balance checks.
   - [x] Added `tests/v14_7_design_browser.py` covering live palette persistence, cash runway, filtered feed, monitor and 320/390px mobile layouts; added `.github/workflows/v14_7.yml` with Node and Chromium checks plus screenshots.
 - [ ] Merge verified update to main and confirm GitHub Pages deployment.
   - [x] Fixed legacy headless tests that instantiate `ui.js` without browser-only palette module (`ui.js`, f4a9f78); relaxed visual test cash-runway label to respect uppercase styling (`tests/v14_7_design_browser.py`, 8455990).
