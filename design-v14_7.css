@@ -355,3 +355,12 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 .fc-qol-release-clashes{border-left:3px solid var(--ds-accent)}
 .fc-qol-clash{padding:9px;background:var(--ds-panel);border:1px solid var(--ds-border);border-left:2px solid var(--ds-warning);border-radius:7px;font-size:11px}
 .fc-qol-clear{font-size:11px;color:var(--ds-positive)}
+
+/* v14.8 concise finance glossary and completed-film postmortems */
+.fc-qol-finance-glossary,.fc-qol-postmortem{margin:15px 0;padding:13px 15px;background:var(--ds-card);border:1px solid var(--ds-border);border-radius:10px;color:var(--ds-secondary)}
+.fc-qol-finance-glossary summary{cursor:pointer;font-size:12px;color:var(--ds-accent);font-weight:750}
+.fc-qol-finance-glossary dl,.fc-qol-postmortem dl{margin:10px 0;font-size:11px}
+.fc-qol-finance-glossary dt,.fc-qol-postmortem dt{font-weight:750;color:var(--ds-text)}
+.fc-qol-finance-glossary dd,.fc-qol-postmortem dd{color:var(--ds-secondary);margin:2px 0 11px}
+.fc-qol-postmortem h3{margin:0 0 8px;font-size:14px}
+.fc-qol-postmortem>small{color:var(--ds-muted);font-size:10px}
