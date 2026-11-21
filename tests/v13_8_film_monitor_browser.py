@@ -94,6 +94,7 @@ try:
   # Studio film drawer: weekly graph and modeled audience; on top of the dock.
   page.locator('.fc-monitor-card',has_text='Cinema Rising').get_by_role('button',name='Cinema Rising').click()
   assert page.locator('#drawer.open').count()==1
+  page.evaluate("UI.closePremiereReport();UI.filmHubSelect('performance')")
   assert page.locator('#drawer .fc-performance-board').count()==1
   layers=page.evaluate("""()=>{
      const drawer=parseInt(getComputedStyle(document.getElementById('drawer')).zIndex);
