@@ -3554,6 +3554,19 @@ var Engine = (function () {
     return { ok: true };
   }
   function clearSave() { try { const ls = storage(); if (ls) ls.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
+  // Save-library helpers: the original active autosave key and save version stay
+  // unchanged. IndexedDB holds inactive campaigns; the UI owns slot metadata.
+  function inspectSave(raw) {
+    try {
+      const data=decodeSave(raw);
+      if(!data || !Number.isInteger(data.version) || data.version<8 || data.version>SAVE_VERSION ||
+          !data.studio || !Number.isFinite(data.week)) return null;
+      return {version:data.version,campaignId:data.campaignId||null,studio:String(data.studio.name||'Untitled Pictures'),
+        week:data.week,year:TUNING.startYear+Math.floor(data.week/TUNING.weeksPerYear),
+        releases:Number(data.studio.releases)||0};
+    } catch(e){return null;}
+  }
+  function closeSession(){state=null;emit('close');}
 
 // ===== SECTION: PUBLIC_API =====
   return {
@@ -3585,6 +3598,7 @@ var Engine = (function () {
     reputationInfo: reputationInfo, legacyInfo: legacyInfo, initiativeQuote: initiativeQuote, startInitiative: startInitiative, reissueQuote: reissueQuote, reissueFilm: reissueFilm,
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
     dateOf: dateOf, eraOf: eraOf, eraInfo: eraInfo, eraLines: eraLines,
-    save: save, load: load, hasSave: hasSave, clearSave: clearSave
+    save: save, load: load, hasSave: hasSave, clearSave: clearSave,
+    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession
   };
 })();
