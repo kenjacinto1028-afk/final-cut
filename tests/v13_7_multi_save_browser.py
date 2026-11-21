@@ -74,8 +74,9 @@ try:
     copy=page.evaluate("SaveSlots.list().slots.find(s=>s.name==='Alternate Cut')")
     assert copy and copy["campaignId"]!=original_campaign
     copy_id=copy["id"]
+    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Alternate Cut").get_by_role("button",name="Load campaign").click()
-    page.wait_for_function("(id)=>SaveSlots.list().activeId===id",arg=copy_id)
+    page.wait_for_function("(id)=>SaveSlots.list().activeId===id",arg=copy_id,timeout=12000)
     assert page.evaluate("Engine.getProject(%s).posterCustom"%project_id)==True
     assert page.evaluate("async (id)=>(await PosterStore.missing([id])).length",project_id)==0
     page.evaluate("Engine.state.cash += 17001;Engine.save()")
@@ -85,6 +86,7 @@ try:
     page.locator(".fc-save-card",has_text="Alternate Cut").get_by_role("button",name="Rename").click()
     assert page.evaluate("(id)=>SaveSlots.list().slots.find(s=>s.id===id).name",copy_id)=="Director's Alternate"
     # Returning to Aurora restores its independent cash and original artwork.
+    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Aurora Pictures").get_by_role("button",name="Load campaign").click()
     page.wait_for_function("(id)=>SaveSlots.list().activeId===id",arg=aurora_id)
     assert page.evaluate("Engine.state.cash")==original_cash
@@ -111,6 +113,7 @@ try:
       assert page.evaluate("async (id)=>(await PosterStore.missing([id])).length",project_id)==0
     # Switch to pre-v13.7 original, and check that the studio was not overwritten.
     page.evaluate("UI.go('saves')")
+    page.once("dialog",lambda d:d.accept())
     page.locator(".fc-save-card",has_text="Legacy Lantern").get_by_role("button",name="Load campaign").click()
     page.wait_for_function("Engine.state?.studio.name==='Legacy Lantern'")
     assert page.evaluate("Engine.state.version")==13
