@@ -409,9 +409,11 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_NEW_PROJECT =====
   const draft = { title: '', format: 'short', genre: 'drama', topic: 'smalltown', tier: 0,
-    cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0 };
+    cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0,
+    pitchId:null,pitchApproach:'standard',vision:'mainstream',releasePosition:'wide' };
   function setDraft(key, val) {
     if (key === 'tier') val = Number(val);
+    if(['title','format','genre','topic'].includes(key))draft.pitchId=null;
     draft[key] = val;
     if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
     if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
@@ -453,6 +455,46 @@ var UI = (function () {
     });
     return '<label>' + esc(CONTENT.SLOT_LABELS[slot]) + ' <select onchange="UI.setCast(\'' + slot + '\', this.value)">' + o.join('') + '</select></label>';
   }
+
+  function v14SelectScript(id){
+    const p=Engine.v14MarketInfo().pitches.find(x=>x.id===id&&!x.claimedBy);
+    if(!p)return;
+    const was=draft.format;
+    draft.pitchId=p.id;draft.pitchApproach='standard';
+    draft.format=p.format;draft.genre=p.genre;draft.topic=p.topic;draft.title=p.title;draft.vision=p.vision;
+    draft.releasePosition=p.vision==='prestige'?'prestige':p.vision==='bold'?'targeted':'wide';
+    draft.tier=0;delete draft.sequelOf;
+    if(was!==p.format){draft.cast={director:'founder',writer:'founder',lead:'',crew:''};
+      draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;}
+    render();
+  }
+  function v14CustomScript(){
+    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();render();
+  }
+  function v14ScriptCards(){
+    const pitch=Engine.v14MarketInfo(),v=Engine.v14Strengths(),risks=Engine.v14Risks();
+    const cards=pitch.pitches.map(x=>{
+      const claimed=!!x.claimedBy,selected=draft.pitchId===x.id;
+      return '<article class="fc-v14-script'+(selected?' is-selected':'')+'"><div class="fc-v14-script-head"><small>'+
+        esc(x.lane==='safe'?'ACCESSIBLE PITCH':x.lane==='prestige'?'CRITICAL PROSPECT':'HIGH-RISK PROJECT')+
+        '</small>'+(x.contested?'<span class="fc-v14-warning">Rival interest</span>':'')+'</div>'+
+        '<h3>'+esc(x.title)+'</h3><p>'+esc(x.hook)+'</p>'+
+        '<div class="fc-v14-meta"><span>'+esc(nameOf(Engine.formats(),x.format))+'</span>'+
+        '<span>'+esc(nameOf(CONTENT.GENRES,x.genre))+'</span></div>'+
+        '<p class="fc-v14-script-qualities">+'+x.strengths.map(i=>esc(v[i])).join(' · +')+
+        '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span></p>'+
+        '<div class="fc-v14-script-foot"><strong>'+money(x.fee)+' script fee</strong>'+
+        '<button'+(claimed?' disabled':'')+' onclick="UI.v14SelectScript(&quot;'+esc(x.id)+'&quot;)">'+
+        (claimed?'Rights taken':selected?'Selected':'Develop this script')+'</button></div></article>';
+    }).join('');
+    const next='The next three pitches arrive '+dateLabel(pitch.nextRefreshWeek)+
+      '. Custom originals and sequels remain available.';
+    return '<section class="fc-v14-pitches"><div class="fc-v14-section-heading"><div>'+
+      '<small>THE SCRIPT MARKETPLACE / QUARTERLY SLATE</small><h2>Choose a story worth telling</h2>'+
+      '<p>'+esc(next)+'</p></div><button onclick="UI.v14CustomScript()">Create an original</button></div>'+
+      '<div class="fc-v14-script-grid">'+cards+'</div></section>';
+  }
+
   function viewNewProject() {
     if (!draft.title) draft.title = Engine.randomTitle();
     if (Engine.founderRole() === 'executive') ['director', 'writer'].forEach(s => { if (draft.cast[s] === 'founder') draft.cast[s] = ''; });
@@ -460,7 +502,7 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1>' + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
+    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
     h += '<label>Title <input value="' + esc(draft.title) + '" oninput="UI.setDraft(\'title\', this.value)"> <button onclick="UI.randomizeTitle()">Random</button></label>';
     h += '<label>Format <select onchange="UI.setDraft(\'format\', this.value)">' +
       fmts.map(f => opt(f.id, f.name + (f.unlocked ? '' : ' (needs ' + (Engine.state.studio.tier < f.minTier ? tierName(f.minTier) : 'fame ' + f.unlockFame) + ')'), f.id === draft.format, !f.unlocked)).join('') + '</select></label>';
@@ -472,6 +514,19 @@ var UI = (function () {
       fmt.tiers.map((t, i) => opt(i, t.name + ' (' + money(t.budget) + ')' + (t.locked ? ' – needs ' + tierName(t.minTier) : ''), i === draft.tier, t.locked)).join('') + '</select></label>';
     if (pv.continuity && pv.continuity.notes.length) h += '<section class="franchise-card"><strong>Original cast continuity</strong><p>Estimated hype ' + (pv.continuity.hype >= 0 ? '+' : '') + pv.continuity.hype + ' from returning or recast creative leads. Replacement skills still determine quality.</p>' +
       pv.continuity.notes.map(n => '<p>' + esc(CONTENT.SLOT_LABELS[n.slot]) + ': ' + esc(n.originalName) + ' — ' + esc(n.status) + ' (' + (n.delta >= 0 ? '+' : '') + n.delta + ' hype)</p>').join('') + '</section>';
+    h += '<div class="fc-v14-creative"><h2>Creative direction</h2>'+
+      '<p class="muted">Every film has a creative promise. This guides both production dilemmas and audience expectations, without guaranteeing quality.</p>'+
+      '<label>Creative vision <select onchange="UI.setDraft(\'vision\',this.value)">'+
+      Object.entries(Engine.v14Visions()).map(([id,v])=>opt(id,v.name,id===draft.vision)).join('')+'</select></label>'+
+      '<label>Release positioning <select onchange="UI.setDraft(\'releasePosition\',this.value)">'+
+      Object.entries(Engine.v14ReleasePlans()).map(([id,v])=>opt(id,v.name,id===draft.releasePosition)).join('')+'</select></label>'+
+      (draft.pitchId?'<label>Script acquisition <select onchange="UI.setDraft(\'pitchApproach\',this.value)">'+
+        opt('standard','Standard offer',draft.pitchApproach==='standard')+
+        opt('partner','Writer partnership (lower fee; limited bidding protection)',draft.pitchApproach==='partner')+
+        opt('buyout','Secure rights outright (higher fee; no contested bid)',draft.pitchApproach==='buyout')+
+        '</select></label><p>Script rights cost: '+money(pv.scriptFee||0)+'. Included in cash requirements.</p>':
+        '<p>Original commission: no external script rights fee. Genre/topic and talent will still determine craft and appeal.</p>')+
+      '</div>';
     h += '</div><h2>Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
       Engine.SLOTS.map(castPicker).join('') + '</div>';
     const caps=Engine.ensembleCaps(draft.format,draft.tier);
@@ -2082,7 +2137,7 @@ var UI = (function () {
   function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -2248,7 +2303,8 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
+    v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     shortReleaseAction:shortReleaseAction,
