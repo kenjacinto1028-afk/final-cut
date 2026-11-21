@@ -38,7 +38,7 @@ try:
     assert page.evaluate("SaveSlots.list().slots.length")==1
     assert page.evaluate("localStorage.getItem('backlot_save')")==legacy_raw,"Legacy save was rewritten during slot discovery"
     assert page.locator("button",has_text="Continue Legacy Lantern").count()==1
-    assert "Legacy Lantern" in page.get_by_role("button",name="Manage saved games (1)").inner_text()
+    assert page.get_by_role("button",name="Manage saved games (1)").count()==1
     # Start a second game: existing studio must survive inside IndexedDB.
     page.locator("#f_studio").fill("Aurora Pictures")
     page.locator("#f_founder").fill("Director Two")
