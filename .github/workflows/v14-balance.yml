@@ -1,0 +1,26 @@
+name: FinalCut v14 normal-start balance diagnostics
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/v14_balance_followup.js'
+      - 'sim.js'
+      - 'engine.js'
+      - 'content.js'
+      - '.github/workflows/v14-balance.yml'
+  workflow_dispatch:
+jobs:
+  normal-start-balance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run four studio strategies in two regions
+        run: |
+          node --check engine.js
+          node --check sim.js
+          node --check tests/v14_balance_followup.js
+          node tests/v14_balance_followup.js

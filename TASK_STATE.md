@@ -64,3 +64,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v14g engine: bounded film afterlife offers (license/retrospective/fan tour), 1–3-year studio ambitions and earned conditional script access, shared evidence-based player/rival classifications with quarterly hysteresis, two descriptors and standing/trajectory. UI integration follows v14h.
 - [x] v14h: Completed A+B UI, navigable tutorial, docs, causal movie UI, rival calendar, 61-year + two 15-year strategy sweeps, real Chromium/mobile checks and v13.5–v13.9 save/economy regression gates (`tests/v14_gameplay.js`, `tests/v14_fullcareer.js`, `tests/v14_browser.py`; Actions #44862463065 and companion suites).
 - [x] PR #6 merged tested v14a–h integration to `main` (merge `9b47703b1da0854e1d96015406988cbe24df6134`). All six final PR workflows passed; Pages build/deploy #44862636326 succeeded. The earned-classification scoring flaw was fixed and proven with five player/rival strategy fixtures. Existing v13 save schema and multiple slots preserved. Future stages: merge each completed, tested stage to main before starting the next.
+
+## v14 follow-up — Normal-start balancing (2026-11-21)
+- [x] Reviewed accepted v14a–h and funded 61/15/15-year metrics; standard-start strategy parity remains unproven.
+- [x] Added eight normal-start careers, cross-region award/solvency/save reporting and separate GitHub workflow; no gameplay changes.
+- [ ] Verify CI, record observed figures and prioritize only demonstrated imbalances.
