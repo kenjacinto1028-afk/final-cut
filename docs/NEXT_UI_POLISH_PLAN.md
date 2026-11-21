@@ -99,3 +99,15 @@ Priority: **High** — complete this together with the Filmography fix to ensure
 - [ ] Validate generated names in early and 15/61-year careers for duplication rate, variety, genre fit, offensive/unintended combinations, save/load stability and runtime performance.
 
 Goal: make the film industry feel varied without generating obviously repetitive, unrelated, or duplicate movie names. This is planned only.
+
+## Next update: Dashboard trend movers — genres and topics (planned, not implemented)
+
+- [ ] Add one compact, scannable **Market Trends** panel to the Dashboard (beneath the main KPI area or alongside the Studio Wire without crowding smaller screens).
+- [ ] Present **genres** and **topics** as separate subtabs or stacked compact sections. For each, show exactly the **top 3 rising** and **bottom 3 falling** trends, ranked by **change in audience demand**, not by absolute popularity.
+- [ ] Each item shows its name, a green upward or coral downward arrow, and a clearly labeled change value (e.g. demand points over the previous 8 in-game weeks). Use accessible trend text rather than color alone.
+- [ ] Derive changes from the **existing in-game market-demand system** and its genuine prior snapshots; avoid random indicators, invented prior-period numbers, and unnecessary new game mechanics. If no historical baseline exists, add bounded history tracking with backward-compatible initialization and show **Insufficient trend history** until comparison is valid.
+- [ ] Allow direct navigation from the panel to the existing **Market** view for detailed demand, with no duplicated dashboard counters or crowded action rows.
+- [ ] Update trend rankings as in-game weeks advance, respecting market shifts and their expiration; handle tied/unchanged values, fewer than three qualifying trends, older saves, and mobile layouts.
+- [ ] Add browser and long-running career tests to ensure the panel reflects real changes, doesn't affect market demand itself, and doesn't create gameplay advantages merely by opening the Dashboard.
+
+**Priority:** Medium. **Recommended model:** GPT-6 Medium for display and navigation; GPT-6 High for history compatibility/testing if new tracking is necessary. **Status:** Planned only.
