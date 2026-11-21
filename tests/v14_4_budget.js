@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const sources=['content.js','budget-v14_4.js','engine.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8'));
+const sources=['content.js','engine.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8'));
 const mock=Math.random;
 function game(seed=0.07){
   const db=new Map();
