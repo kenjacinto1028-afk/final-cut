@@ -1954,23 +1954,225 @@ var UI = (function () {
   // An expandable, nonmodal guide: page controls remain clickable and clickable
   // navigation steps advance automatically. There is no saved progress or game logic.
   const TUTORIAL_STEPS = [
-    { title: 'Welcome to Final Cut', view: 'dashboard', visit: 'dashboard', target: '#nav [data-view="dashboard"]', location: 'Dashboard', text: 'Your studio begins in 1970. You can click anything while this guide is open. First, click Dashboard in the sidebar (or use Open Dashboard below).' },
-    { title: 'Read your dashboard', view: 'dashboard', target: '#main .strip', location: 'Studio → Dashboard · Cash & Weekly burn', text: 'Watch Cash, Weekly burn and profit. Fame is long-term recognition, Current Buzz is recent attention, and Current Prestige reflects recent achievements. Try keeping enough money for payroll.' },
-    { title: 'Open New Project', view: 'newproject', visit: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project', text: 'Click New project in the sidebar to design your first film. Shorts are the most affordable way to learn, but you can try other unlocked formats.' },
-    { title: 'Pick a story', view: 'newproject', target: '#main .fc-v14-script-grid', location: 'New project → Script marketplace', text: 'Three quarterly script pitches offer different artistic strengths, risks and fees. Select one, or Create an original for your own genre and topic. The starting pitch is free. Some sought-after scripts have rival studio interest.' },
-    { title: 'Choose a creative vision', view: 'newproject', target: '#main .fc-v14-creative', location: 'New project → Creative direction', text: 'Prestige-first, Accessible Entertainment, Bold Genre and Star Vehicle shape the promise of your film. Production challenges and release strategy can test that promise. This is a choice with tradeoffs, not a guaranteed rating.' },
-    { title: 'Plan your film', view: 'newproject', target: '#main .form', location: 'New project → Title / Format / Genre / Topic / Budget', text: 'Choose a script, title, budget and creative team. Genre and topic shape demand, while writer/director choices develop ongoing relationships. Film planning shows all upfront fees and the required cash cushion.' },
-    { title: 'Choose talent and crew', view: 'newproject', target: '#main .form.cast', location: 'New project → Cast and crew', text: 'Skill helps film quality; fame boosts opening hype. A little-known actor can be excellent. Directors, writers, lead actors and optional supporting cast add different costs and benefits.' },
-    { title: 'View your projects', view: 'projects', visit: 'projects', target: '#nav [data-view="projects"]', location: 'Studio → Projects', text: 'Click Projects to see films in production and films awaiting release. Projects appear here after you start them. You do not need to spend money or start a movie to finish this guide.' },
-    { title: 'Film stories and release tradeoffs', view: 'projects', target: '#main .fc-center', location: 'Studio → Projects / Production Center', text: 'Click a film to see its Film DNA, story so far, budget and earnings. Production runs automatically until a meaningful issue arises. For feature films, choose an opening approach and respond to early box office once. Catalog opportunities arrive only when eligible.' },
-    { title: 'Move production forward', view: 'projects', target: '#topbar [data-guide="advance"]', location: 'Top bar → Advance to next decision', text: 'Next week and Advance to next decision move time forward; routine work is automated. Important dilemmas test creative integrity, cost and industry reputation. Set delegation preferences in Studio Profile to minimize interruptions.' },
-    { title: 'Open My Filmography', view: 'filmography', visit: 'filmography', target: '#nav [data-view="filmography"]', location: 'Studio → My Filmography', text: 'Click My Filmography. Every completed film is kept here, along with its poster, credits, finances and critical reception.' },
-    { title: 'Learn from your film history', view: 'filmography', target: '#main', location: 'My Filmography → All Films / My Rankings', text: 'Compare your best films by overall score, genre, topic, box office, critics and awards. Click a finished film for its details. This list will be empty until you release one.' },
-    { title: 'Find your studio identity', view: 'studio_profile', visit: 'studio_profile', target: '#nav [data-view="studio_profile"]', location: 'Studio → Studio Profile', text: 'Your classification emerges from completed films, performance, genres, story preferences, awards and talent relationships. You can pursue optional multi-year ambitions, and delegate creative dilemmas to directors or business staff.' },
-    { title: 'Check studio finances', view: 'finance', visit: 'finance', target: '#nav [data-view="finance"]', location: 'Business → Finance', text: 'Click Finance to review income, spending, cash and debt. Budget constraints also apply to scripts, production delays, marketing and catalog revivals. More expensive choices never guarantee higher earnings.' },
-    { title: 'Study rival studios', view: 'rivals', visit: 'rivals', target: '#nav [data-view="rivals"]', location: 'Business → Rivals', text: 'Rivals pursue scripts, compete for opening weeks and grow their own earned identities. Review the real 12-week release calendar before positioning a feature against a competitor. The studio wire reports consequences of real bids and releases.' },
-    { title: 'Watch festivals and awards', view: 'awards', visit: 'awards', target: '#nav [data-view="awards"]', location: 'World → Awards', text: 'Click Awards to review nominations and winners. Prestigious recognition is rare; quality and critical praise matter. Smaller studios can still earn major honors with an exceptional movie.' },
-    { title: 'Your next move', view: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project / Founder / World', text: 'You are ready to run your studio. Use Founder to grow your business, World Film Archive to study historic films, and New project to make your first release. Reopen this guide anytime with ? Tutorial.' }
+      {
+          "section": "Start here",
+          "title": "Welcome to Final Cut",
+          "view": "dashboard",
+          "visit": "dashboard",
+          "target": "#nav [data-view=\"dashboard\"]",
+          "location": "Studio → Dashboard",
+          "text": "Run a film studio from 1970 onward. This guide never blocks other controls: click pages, use Next and Back, or minimize it. You can finish without making a film or spending cash. Select Dashboard to begin."
+      },
+      {
+          "section": "Start here",
+          "title": "Your studio at a glance",
+          "view": "dashboard",
+          "target": "#main .strip",
+          "location": "Dashboard → cash, reputation and projects",
+          "text": "Cash pays for films, staff and debt. Fame is lasting recognition, Current Buzz tracks fresh attention, and Current Prestige reflects recent achievements. Your studio identity changes as your completed films build a reputation."
+      },
+      {
+          "section": "Create films",
+          "title": "Open New Project",
+          "view": "newproject",
+          "visit": "newproject",
+          "target": "#nav [data-view=\"newproject\"]",
+          "location": "Studio → New project",
+          "text": "Choose New project to plan a short, feature or TV pilot. Shorts are a practical first step. Available formats and budgets grow with your studio; you can explore every option without committing."
+      },
+      {
+          "section": "Create films",
+          "title": "Discover scripts and film DNA",
+          "view": "newproject",
+          "target": "#main .fc-v14-script-grid",
+          "location": "New project → script marketplace",
+          "text": "Three script opportunities refresh every 13 game weeks. Each pitch has a hook, strengths, creative risk and possible rival interest. Choose one, make your own original story or develop a sequel. This Film DNA follows your movie throughout its life."
+      },
+      {
+          "section": "Create films",
+          "title": "Trade money for script access",
+          "view": "newproject",
+          "target": "#main .fc-v14-script-grid",
+          "location": "New project → script pitch cards",
+          "text": "A writers' partnership can cost less but carries competition risk; purchasing outright costs more but avoids the rival bid. The opening accessible pitch is free. Fees and bidding risk matter, so do not buy every script."
+      },
+      {
+          "section": "Create films",
+          "title": "Choose your creative direction",
+          "view": "newproject",
+          "target": "#main .fc-v14-creative",
+          "location": "New project → creative vision",
+          "text": "Prestige-first, Accessible Entertainment, Bold Genre and Star Vehicle affect quality, hype, critics and audience fit in different ways. Your vision has tradeoffs, not a guaranteed hit. Later creative decisions can strengthen or compromise it."
+      },
+      {
+          "section": "Create films",
+          "title": "Build a realistic budget",
+          "view": "newproject",
+          "target": "#main .form",
+          "location": "New project → format, budget, marketing and market fit",
+          "text": "Choose format, genre, topic, production scale and marketing within your available cash. Higher budgets can reach more viewers but have diminishing returns and greater downside; closely spaced releases can compete with your own slate. A high-quality film can still flop."
+      },
+      {
+          "section": "Create films",
+          "title": "Cast, collaborations and sequels",
+          "view": "newproject",
+          "target": "#main .form.cast",
+          "location": "New project → cast and crew",
+          "text": "Director and writer craft help quality; actors' fame helps hype. Returning creative partnerships can build trust and modest craft bonuses. Sequels benefit from retaining familiar key talent; replacements can reduce audience excitement. Supporting cast adds costs and benefits."
+      },
+      {
+          "section": "Production",
+          "title": "Open Production Center",
+          "view": "projects",
+          "visit": "projects",
+          "target": "#nav [data-view=\"projects\"]",
+          "location": "Studio → Projects",
+          "text": "Projects shows films in development, shooting, release and completion. Select a film to inspect its story, finances and decisions. If you have not made a movie, the production area can still be explored."
+      },
+      {
+          "section": "Production",
+          "title": "Follow each film's story",
+          "view": "projects",
+          "target": "#main .fc-center",
+          "location": "Projects → Production Center → film details",
+          "text": "A film's story records the screenplay, creative strengths, risks, production choices, premiere and later industry reaction. These memories can affect trust and the film's identity. Older saves keep historical results without invented story events."
+      },
+      {
+          "section": "Production",
+          "title": "Handle creative dilemmas",
+          "view": "projects",
+          "target": "#main .fc-center",
+          "location": "Projects → film decisions",
+          "text": "During shooting, a meaningful dilemma can ask you to protect the vision, spend for a fix or favor wider appeal. Your decision can change time, cost, quality or relationships. Routine production work proceeds automatically."
+      },
+      {
+          "section": "Production",
+          "title": "Advance without micromanaging",
+          "view": "projects",
+          "target": "#topbar [data-guide=\"advance\"]",
+          "location": "Top bar → Advance to next decision",
+          "text": "Next week and Advance to next decision move the calendar. You need not click every production task. Important events, release choices and end-of-year honors can interrupt advancement. Studio Profile lets you delegate certain creative issues."
+      },
+      {
+          "section": "The industry",
+          "title": "Study competing studios",
+          "view": "rivals",
+          "visit": "rivals",
+          "target": "#nav [data-view=\"rivals\"]",
+          "location": "Business → Rivals",
+          "text": "Rivals manage actual budgets, talent, scripts and releases. Their own film records drive studio identity and success. Check who is rising, who is struggling and who is positioning an opening against your films."
+      },
+      {
+          "section": "The industry",
+          "title": "Read the release calendar",
+          "view": "rivals",
+          "target": "#main .fc-v14-calendar",
+          "location": "Rivals → upcoming release calendar",
+          "text": "The twelve-week calendar shows scheduled competitors and market congestion. Similar genre releases and crowded weeks divide attention. A well-chosen date can help, but rivals may also react or reschedule."
+      },
+      {
+          "section": "Release",
+          "title": "Plan the opening strategy",
+          "view": "projects",
+          "visit": "projects",
+          "target": "#nav [data-view=\"projects\"]",
+          "location": "Projects → select a feature film",
+          "text": "When a feature reaches release, choose wide, targeted, prestige or cautious rollout. These options trade opening strength against later box-office legs and exposure. No strategy guarantees profit; film quality, hype and audience tastes still matter."
+      },
+      {
+          "section": "Release",
+          "title": "Respond after opening week",
+          "view": "projects",
+          "target": "#main .fc-center",
+          "location": "Production Center → theatrical performance",
+          "text": "Use Film Performance to follow weekly gross, studio receipts, estimated admissions and public reaction. After the initial result you may make one limited response—push publicity, focus on receptive viewers, hold course or leave theaters—when eligible. Extra marketing may not pay off."
+      },
+      {
+          "section": "Release",
+          "title": "Shorts, TV and audience reach",
+          "view": "filmography",
+          "visit": "filmography",
+          "target": "#nav [data-view=\"filmography\"]",
+          "location": "Studio → My Filmography",
+          "text": "Short films can screen for several weeks, attract viewers, gain festival exposure and earn encore opportunities. TV pilots track estimated household reach. Audience counts are modeled estimates, not independently measured viewers."
+      },
+      {
+          "section": "Release",
+          "title": "Keep films alive after release",
+          "view": "filmography",
+          "target": "#main",
+          "location": "My Filmography → open a completed film",
+          "text": "Finished features can qualify for later licensing, prestige retrospectives and fan screenings. Each opportunity has timing, cost or rights tradeoffs; it does not change the original box office. Your catalog, direct film P/L and history remain accessible."
+      },
+      {
+          "section": "Your studio",
+          "title": "Earn your company classification",
+          "view": "studio_profile",
+          "visit": "studio_profile",
+          "target": "#nav [data-view=\"studio_profile\"]",
+          "location": "Studio → Studio Profile",
+          "text": "Your company type is earned from completed films: genres, story interests, critics, awards, financial results and collaborators. A sustained trend can establish Prestige, Genre/Cult, Commercial, Independent, TV/Rights or other identities. No one-time selection locks it in."
+      },
+      {
+          "section": "Your studio",
+          "title": "Pick ambitions and delegation",
+          "view": "studio_profile",
+          "target": "#main .fc-v14-profile-section",
+          "location": "Studio Profile → ambitions and delegation",
+          "text": "Optional medium-term ambitions give direction without daily chores. You can also choose Ask me, Trust the director or Trust the business team for some creative dilemmas. Delegation trades control for fewer interruptions, not better outcomes every time."
+      },
+      {
+          "section": "Money",
+          "title": "Understand the new film economy",
+          "view": "finance",
+          "visit": "finance",
+          "target": "#nav [data-view=\"finance\"]",
+          "location": "Business → Finance",
+          "text": "Check weekly burn, cash flow, debt and direct film profitability. Big productions offer higher upside and more commercial risk; careful budgets are safer but not invincible. Theatrical gross is not the same as your studio's revenue. Watch the full cost of your release slate."
+      },
+      {
+          "section": "Recognition",
+          "title": "Awards and year-end honors",
+          "view": "awards",
+          "visit": "awards",
+          "target": "#nav [data-view=\"awards\"]",
+          "location": "World → Awards",
+          "text": "Strong quality, critics, campaigns and competitive rivals affect nominations and wins. Major awards now require stronger results, so expect fewer automatic trophies. Year-end honors summarize recorded results without drawing a second set of awards."
+      },
+      {
+          "section": "Recognition",
+          "title": "Explore industry history",
+          "view": "archive",
+          "visit": "archive",
+          "target": "#nav [data-view=\"archive\"]",
+          "location": "World → World Film Archive",
+          "text": "Study films from your studio and AI studios across the years. Use Film Rankings to compare notable features and shorts. Old releases are preserved, even after a rival closes; the archive does not fabricate missing details from older saves."
+      },
+      {
+          "section": "Saving",
+          "title": "Open your Saved Games",
+          "view": "saves",
+          "visit": "saves",
+          "target": "#nav [data-view=\"saves\"]",
+          "location": "Studio → Saved Games",
+          "text": "Each studio career has its own local save slot. Switch between careers, rename one, or create an independent copy before trying a risky strategy. Copying also keeps campaign-specific custom posters separate."
+      },
+      {
+          "section": "Saving",
+          "title": "Save safely on desktop or phone",
+          "view": "saves",
+          "target": "#main .fc-save-list",
+          "location": "Saved Games → Save now / independent copy / backups",
+          "text": "Weekly autosaves and Save Now preserve your progress. Long saves are compressed in the background; wait for the saved confirmation before leaving. Return to Title saves first. Export a backup when switching browsers or phones: local browser saves and posters do NOT automatically sync between devices."
+      },
+      {
+          "section": "Next steps",
+          "title": "Make your next movie",
+          "view": "newproject",
+          "target": "#nav [data-view=\"newproject\"]",
+          "location": "Studio → New project",
+          "text": "You are ready to create a film, compete for audiences and shape an earned studio identity. Try one affordable project, watch how it develops, then explore rivals and the catalog. Reopen ? Tutorial anytime; no film or money is required to finish this guide."
+      }
   ];
   let tutorialStep = -1;
   let tutorialMinimized = false;
@@ -1987,7 +2189,7 @@ var UI = (function () {
     if (!target || !target.getClientRects().length) return;
     target.classList.add('tutorial-target');
     if (scroll && item.view === view && target.closest('#main')) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.scrollIntoView({ behavior: typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     }
   }
   function renderTutorial(scroll) {
@@ -2012,7 +2214,7 @@ var UI = (function () {
     const where = item.view && Engine.state && view !== item.view;
     const label = GROUPS.flatMap(g => g[1]).find(x => x[0] === item.view);
     el.innerHTML = '<section class="tutorial-card" role="complementary" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">' +
-      '<div class="tutorial-head"><span class="tutorial-kicker">GUIDED TOUR · ' + (i + 1) + ' / ' + n + '</span>' +
+      '<div class="tutorial-head"><span class="tutorial-kicker">' + esc(item.section || 'GUIDED TOUR').toUpperCase() + ' · ' + (i + 1) + ' / ' + n + '</span>' +
       '<div class="tutorial-head-actions"><button type="button" class="tutorial-close" onclick="UI.tutorialMinimize()" aria-label="Minimize tutorial" title="Minimize">−</button>' +
       '<button type="button" class="tutorial-close" aria-label="Close tutorial" onclick="UI.closeTutorial()" title="Close">✕</button></div></div>' +
       '<div class="tutorial-progress" aria-hidden="true"><div style="width:' + Math.round((i + 1) / n * 100) + '%"></div></div>' +
@@ -2024,6 +2226,7 @@ var UI = (function () {
         item.visit ? '<p class="tutorial-note">Click the highlighted link to advance automatically, or use Open section.</p>' : '') +
       '<div class="tutorial-actions">' +
       '<button type="button" class="tutorial-skip" onclick="UI.closeTutorial()">Skip tutorial</button>' +
+      (i === 0 ? '<button type="button" onclick="UI.tutorialJumpToUpdates()">Jump to new features</button>' : '') +
       (i ? '<button type="button" onclick="UI.tutorialMove(-1)">Back</button>' : '') +
       (where ? '<button type="button" onclick="UI.tutorialOpenSection()">Open ' + esc(label ? label[1] : 'section') + '</button>' : '') +
       (last ? '<button type="button" class="primary" onclick="UI.closeTutorial(true)">Finish · Plan a film</button>' :
@@ -2040,6 +2243,13 @@ var UI = (function () {
     renderTutorial(false);
     const heading = $('tutorial-title');
     if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus(); }
+  }
+  // Returning players can skip basic controls without losing the full guide.
+  function tutorialJumpToUpdates() {
+    if(tutorialStep<0)return;
+    tutorialStep=TUTORIAL_STEPS.findIndex(step=>step.title==='Discover scripts and film DNA');
+    tutorialMinimized=false;
+    renderTutorial(true);
   }
   function tutorialMove(delta) {
     if (tutorialStep < 0) return;
@@ -2440,7 +2650,7 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialJumpToUpdates: tutorialJumpToUpdates, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,

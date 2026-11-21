@@ -108,6 +108,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.2 tutorial refresh (November 21, 2026)
 - [x] Review tutorial against approved v14/v14.1/v14.2 mechanics and preserve nonmodal interaction.
-- [ ] Expand walkthrough for scripts, production, releases, rivalry, studio classification, finance, awards and saves.
+- [x] Expanded to 26 chapter-labeled steps in ui.js covering script acquisition/Film DNA, creative dilemmas, sequels, rival release calendar, audience reach, afterlife, studio identity/ambitions, v14.1 balance and v14.2 save slots/backups. Added an optional shortcut for returning players and reduced-motion-aware targeting.
 - [ ] Add browser acceptance for every tutorial step, page navigation, preview, minimized mode, mobile/reduced motion and no accidental gameplay mutation.
 - [ ] Run legacy/new test workflows, merge to main and verify live deployment.
