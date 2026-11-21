@@ -645,20 +645,40 @@ var UI = (function () {
     return Number(n).toLocaleString('en-US',{notation:n>=10000?'compact':'standard',maximumFractionDigits:1});
   }
   function filmPulseChart(p,metric,limit){
-    const pulse=Engine.projectPulse(p);
-    const rows=pulse.history.slice(-(limit||10));
-    const peak=Math.max(1,...rows.map(x=>Math.max(0,x[metric]||0)));
+    const pulse=Engine.projectPulse(p),rows=pulse.history.slice(-(limit||10));
     if(!rows.length)return '<p class="fc-chart-empty">Weekly tracking begins with the next game week. Lifetime totals above are still accurate.</p>';
-    const metricLabel=metric==='gross'?'booked box office':metric==='screenings'?'modeled screening visits':
-      metric==='households'?'modeled TV household impressions':'booked studio receipts';
-    return '<div class="fc-pulse-chart" role="img" aria-label="'+esc('Weekly '+metricLabel+' for '+p.title)+'">'+
+    const countMetric=metric==='screenings'||metric==='households';
+    const fmt=v=>countMetric?Number(v).toLocaleString('en-US'):money(v);
+    const peak=Math.max(1,...rows.map(x=>Math.max(0,x[metric]||0)));
+    const max=rows.reduce((a,b)=>(b[metric]||0)>(a[metric]||0)?b:a,rows[0]);
+    const last=rows[rows.length-1],total=rows.reduce((n,x)=>n+Math.max(0,x[metric]||0),0);
+    const title=metric==='gross'?'theatrical gross':metric==='screenings'?'estimated screening visits':
+      metric==='households'?'estimated TV household impressions':'studio receipts';
+    return '<div class="fc-pulse-wrap"><p class="fc-chart-summary">Latest <strong>'+fmt(last[metric]||0)+
+      '</strong> · Peak <strong>'+fmt(max[metric]||0)+'</strong> ('+esc(dateLabel(max.week))+')</p>'+
+      '<p class="fc-chart-selection" aria-live="polite">Tap a bar or use Tab to read an individual week.</p>'+
+      '<div class="fc-pulse-chart" role="group" aria-label="'+esc('Weekly '+title+' for '+p.title)+'">'+
       rows.map(x=>{
         const v=Math.max(0,x[metric]||0),height=v?Math.max(4,Math.round(v/peak*100)):2;
-        return '<span class="fc-pulse-column" title="'+esc(dateLabel(x.week)+' · '+
-          (metric==='screenings'||metric==='households'?compactCount(v):money(v)))+'"><i style="height:'+height+'%"></i></span>';
+        const label=dateLabel(x.week)+' · '+fmt(v)+' '+title;
+        return '<button type="button" class="fc-pulse-column" aria-label="'+esc(label)+
+          '" title="'+esc(label)+'" data-desc="'+esc(label)+'" onfocus="UI.showPulseDetail(this)" '+
+          'onclick="UI.showPulseDetail(this)"><i style="height:'+height+'%"></i></button>';
       }).join('')+'</div>'+
-      '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+esc(dateLabel(rows[rows.length-1].week))+'</span></div>';
+      '<div class="fc-chart-caption"><span>'+esc(dateLabel(rows[0].week))+'</span><span>'+
+      esc(dateLabel(last.week))+'</span></div>'+
+      '<details class="fc-chart-data"><summary>View all '+rows.length+' recorded weeks · total '+fmt(total)+'</summary>'+
+      '<table><thead><tr><th>Week</th><th>'+esc(title)+'</th></tr></thead><tbody>'+
+      rows.map(x=>'<tr><td>'+esc(dateLabel(x.week))+'</td><td>'+fmt(Math.max(0,x[metric]||0))+'</td></tr>').join('')+
+      '</tbody></table></details></div>';
   }
+  function showPulseDetail(button){
+    if(!button)return;
+    const root=button.closest('.fc-pulse-wrap'),label=root&&root.querySelector('.fc-chart-selection');
+    if(label)label.textContent=button.getAttribute('data-desc')||'';
+    if(root)root.querySelectorAll('.fc-pulse-column').forEach(b=>b.classList.toggle('is-selected',b===button));
+  }
+
   function projectHealth(p){
     const finished=Number.isFinite(p.quality)&&Number.isFinite(p.hype);
     const q=finished?String(p.quality):centerEstimate(p).value;
@@ -2804,6 +2824,7 @@ var UI = (function () {
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
+    showPulseDetail:showPulseDetail,
     shortReleaseAction:shortReleaseAction,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
