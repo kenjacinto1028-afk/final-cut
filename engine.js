@@ -268,7 +268,7 @@ var Engine = (function () {
   TUNING.awards = {
     ceremonyWeek: 10,
     nominees: 4, maxPerStudio: 2, minScore: 60,
-    goldenWinMin: 111, otherWinMin: 104, criticsWinMin: 106, indieWinMin: 92, audienceWinMin: 104,
+    goldenWinMin: 113, otherWinMin: 107, criticsWinMin: 109, indieWinMin: 94, audienceWinMin: 107,
     goldenMaxWinsPerStudio: 1, otherMaxWinsPerStudio: 1, festivalWinFloorBonus: 8, festivalMaxWinsPerFilm: 2, festivalMaxStudioWinsPerYear: 2,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
@@ -2018,8 +2018,14 @@ var Engine = (function () {
       const repeatedGenre=state.projects.filter(x=>x!==p&&x.format==='feature'&&x.genre===p.genre&&
         x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
       const genreAttention=Math.max(.84,1-Math.min(4,repeatedGenre)*.04);
+      // Larger slates compete for attention even across genres. This affects
+      // only mid/high-budget features and leaves small independent films alone.
+      const recentStudioFeatures=state.projects.filter(x=>x!==p&&x.format==='feature'&&
+        x.releaseWeek!=null&&x.releaseWeek<state.week&&state.week-x.releaseWeek<=26).length;
+      const slateAttention=p.budget>=TUNING.boxOfficeRefBudget?
+        Math.max(.80,1-Math.min(5,recentStudioFeatures)*.04):1;
       const raw = scale * TUNING.boxOfficeBase * qualityFactor(p.quality) * (0.6 + p.hype / 100) * g.audience * luck() *
-        m.mult * rollout.openingMult * budgetAttention * genreAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
+        m.mult * rollout.openingMult * budgetAttention * genreAttention * slateAttention * (1 + deptBonus('distribution')) * eraMods().boxOffice;
       // Large productions can reach a wider opening audience, but never receive
       // automatic profitability; their higher budgets and marketing costs remain.
       const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
@@ -2918,6 +2924,10 @@ var Engine = (function () {
     // are stronger when making films within the genre they know best.
     const craft = role => { const arr=rivalTalent(r).filter(t=>t.role===role); return arr.length?Math.max(...arr.map(t=>t.skill||50)):50; };
     const skillCraft=(craft('director')-50)*.17+(craft('writer')-50)*.13+(craft('actor')-50)*.10+(craft('crew')-50)*.045;
+    // v14.1: only studios that have actually grown, delivered pictures and
+    // invested in productions acquire sustained craft infrastructure.
+    const earnedCraft=Math.min(12,Math.max(0,r.tier-1)*1.8+
+      Math.min(4,Math.floor((r.releases||0)/16))+(r.industryLeader?2:0));
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
     const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
     const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);
@@ -2940,7 +2950,7 @@ var Engine = (function () {
       dna:pitch?{hook:pitch.hook,strengths:pitch.strengths.slice(),risk:pitch.risk,vision:pitch.vision,lane:pitch.vision==='bold'?'genre':'arthouse',origin:'marketplace'}:null,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
-      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
+      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + earnedCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
       hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype + (sequelSource ? 7 : 0)), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);

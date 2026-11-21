@@ -33,3 +33,7 @@ Remaining observations, not fixed by save repair: across two regions blockbuster
 ## v14.1 experimental balance pass (not accepted yet)
 
 Candidate knobs: high-budget box-office scaling 0.89 → 0.86; bounded additional high-budget reach penalty only above reference budget ($350k); 26-week same-genre audience saturation (up to 16%); per-film box-office luck lower bound 0.70 → 0.64; rival paid-talent craft contribution increased and strictly tied to actual hired crew. These affect future releases only and retain the save format. Running comparative simulation/regressions before release; exact results TBD.
+
+## First v14.1 twelve-career check (PR #7, run #44866087746)
+
+North America/Europe/Asia-Pacific, four standard-start studio styles, 61 simulated years per case, all valid save reloads and 12–15 surviving rivals. Mean cash: prestige $256m, blockbuster $1.18bn, cheap $31.7m, careful $239m. Mean feature flops: 61 prestige, 56 blockbuster, 68 cheap, **only one careful**. Film quality: careful 92, blockbuster 93, prestige 89, rivals approximately 64–66. Major awards were still approximately 88–115 per high-output studio per full career. Compared with earlier v14 diagnostics (different seeds), high-budget profit growth improved but these remaining differences required another limited tuning pass. New pass rewards earned rival production experience, considers 26-week all-genre slate competition for higher-budget films, and raises only winning thresholds slightly (not festival selection or category count). Additional seeded tests required before merge.

@@ -86,3 +86,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Stage 3 testing gate: 12 standard-start 61-year region/strategy careers; v13 and v14 economic/award/save regressions; 390px Playwright mobile worker, old save slots and film UI checks. Workflow: .github/workflows/v14_1.yml.
 
 - [x] Mobile queue safety: bound large snapshots to one in-flight Worker job with coalesced dirty state, flush pending or active compression on tab hide; added rapid-turn consistency acceptance on Chromium.
+
+- [x] Stage 1b evidence-led revision after first 12-career run: large-budget cash was lower, but careful studio flops only 0–2 and rivals still averaged ~65 craft vs player ~90. Added funded studio-experience quality uplift (max 12), 26-week mid/high-budget portfolio crowding, and modest elite-award thresholds (+2/+3). Kept indie films exempt from slate pressure. Seed matrix now shares North America/Europe starting seeds with previous v14 baseline for stronger comparison. Pending CI acceptance.

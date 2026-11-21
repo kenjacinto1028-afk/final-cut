@@ -8,7 +8,7 @@ process.env.SAVE_VERIFY='1';
 for(const [ri,region] of regions.entries()){
  process.env.SIM_REGION=region;
  for(const [si,strategy] of strategies.entries()){
-  const x=run(strategy,3101+ri*20+si,{});
+  const x=run(strategy,2401+ri*10+si,{});
   assert(Number.isFinite(x.value)&&Number.isFinite(x.cash),strategy+' non-finite score/cash');
   assert(x.features>=100,strategy+' did not create a meaningful full-career sample');
   assert(x.savedOkay&&x.reloadedOkay,strategy+' long campaign must fit 5 MiB and reload');
