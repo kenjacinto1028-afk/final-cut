@@ -891,3 +891,10 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .tutorial-note button{font-size:12px;min-height:32px;padding:5px 9px}
 .tutorial-actions button:disabled{opacity:.52;cursor:not-allowed}
 @media(max-width:480px){.tutorial-actions button{min-height:44px}}
+
+/* Keep real production dilemmas clickable while guiding the response. */
+#tutorial{z-index:22}
+@media(max-width:800px){
+  body:has(#modal:not([hidden])) #tutorial{right:5px;bottom:5px;width:min(340px,calc(100vw - 10px))}
+  body:has(#modal:not([hidden])) .tutorial-card{max-height:30dvh;padding:10px 12px}
+}
