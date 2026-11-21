@@ -12,6 +12,10 @@ var UI = (function () {
   function money(n) { const s = '$' + Math.abs(Math.round(n)).toLocaleString('en-US'); return n < 0 ? '-' + s : s; }
   function dateLabel(week) { const d = Engine.dateOf(week); return 'Wk ' + d.week + ', ' + d.year; }
   function nameOf(list, id) { const x = list.find(i => i.id === id); return x ? x.name : id; }
+  function mediaName(p){
+    return p&&p.mediaVariant&&FinalCutBudget.VARIANTS[p.mediaVariant]?
+      FinalCutBudget.variant(p.mediaVariant).name:nameOf(Engine.formats(),p&&p.format);
+  }
   function roleName(t) {
     if (t.role === 'crew') return nameOf(CONTENT.CREW_SPECIALTIES, t.specialty);
     return nameOf(CONTENT.TALENT_ROLES, t.role);
@@ -567,7 +571,7 @@ var UI = (function () {
         esc(x.lane==='safe'?'ACCESSIBLE PITCH':x.lane==='prestige'?'CRITICAL PROSPECT':'HIGH-RISK PROJECT')+
         '</small>'+(x.contested?'<span class="fc-v14-warning">Rival interest</span>':'')+'</div>'+
         '<h3>'+esc(x.title)+'</h3><p>'+esc(x.hook)+'</p>'+
-        '<div class="fc-v14-meta"><span>'+esc(nameOf(Engine.formats(),x.format))+'</span>'+
+        '<div class="fc-v14-meta"><span>'+esc(mediaName(x))+'</span>'+
         '<span>'+esc(nameOf(CONTENT.GENRES,x.genre))+'</span></div>'+
         '<p class="fc-v14-script-qualities">+'+x.strengths.map(i=>esc(v[i])).join(' · +')+
         '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span></p>'+
@@ -1076,7 +1080,7 @@ var UI = (function () {
       '</p></div>'+decision+'</div></section>';
     const slate=list.slice(0,centerShowOlder?list.length:7).map(p=>{
       const stg=centerStage(p);
-      return '<button class="fc-title '+(p.id===chosen.id?'selected':'')+'" onclick="UI.centerFocus('+p.id+')"><strong>'+esc(p.title)+'</strong><small>'+esc(nameOf(Engine.formats(),p.format))+' · '+esc(stg.status)+'</small></button>';
+      return '<button class="fc-title '+(p.id===chosen.id?'selected':'')+'" onclick="UI.centerFocus('+p.id+')"><strong>'+esc(p.title)+'</strong><small>'+esc(mediaName(p))+' · '+esc(stg.status)+'</small></button>';
     }).join('');
     const old=list.length>7?'<button class="fc-more" onclick="UI.centerShowMore()">'+(centerShowOlder?'Show fewer':'Show '+(list.length-7)+' more')+'</button>':'';
     const recent=[...theaters,...screenings].slice(0,4).map(p=>{const short=p.format==='short',pulse=Engine.projectPulse(p);
@@ -1087,12 +1091,12 @@ var UI = (function () {
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE & SCREENINGS</small><h2>Now releasing</h2>'+
       '<p>Features show theatrical gross; shorts show weekly screening receipts. Stronger shorts have longer circuits.</p></div>'+
       '<div class="fc-pulse-list">'+(recent||'<p>No active releases. Completed films may still earn rights revenue and festival recognition.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(mediaName(chosen))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
     if (!s.projects.length) return centerPanel();
-    const fmtName = p => nameOf(Engine.formats(), p.format);
+    const fmtName = p => mediaName(p);
     return centerPanel() + '<details class="fc-archive"><summary>All projects · searchable production records</summary><h2>Project archive</h2>' + tblHtml('projects', {
       rows: () => Engine.state.projects.slice().reverse(),
       rowId: p => p.id,
@@ -1198,7 +1202,7 @@ var UI = (function () {
           '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
           (mine?'':'<td>'+esc(f.studio)+'</td>')+
-          '<td>'+f.year+'</td><td>'+esc(nameOf(Engine.formats(),f.format))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
+          '<td>'+f.year+'</td><td>'+esc(mediaName(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+'</td>'+
           '<td class="num">'+(f.critic==null?'—':f.critic)+'</td>'+financial+
           '<td class="num">'+(ranked?f.score:(f.awards||[]).filter(a=>a.won).length+(f.festResults||[]).filter(a=>/prize|grand|winner|won/i.test(a.result||'')).length)+'</td></tr>';
       }).join('')+
@@ -2030,16 +2034,26 @@ var UI = (function () {
   function projectDrawer(p) {
     const profit = profitOf(p);
     const pct = p.budget ? Math.min(100, Math.round(p.spent / p.budget * 100)) : 0;
-    let h = drawerHead(p.title, esc(nameOf(Engine.formats(), p.format)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
+    let h = drawerHead(p.title, esc(mediaName(p)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
     if (typeof Media !== 'undefined') h += '<div class="poster">' + posterFor(p) + '</div>' + posterActions(p);
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
-    if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
+    if(Engine.sequelEligibility(p.id).ok)
+      h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Continue this story in any media</button>';
     h += awardIcons(p);   // 8.3
     h += '<h2>Film Hub · '+esc(p.title)+'</h2>'+filmLifecycleGuide(p)+filmPromotionPanel(p)+filmCriticsPanel(p)+
       v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
+    if(p.budgetPlan){
+      const budget=Engine.v144BudgetInfo(p),label=FinalCutBudget.budgetClass(p.format,p.budget);
+      h+=dl('Budget class & scope',esc(label)+' · '+esc(p.productionScope||'intimate')+
+        ' · '+esc(p.budgetPlan.feasibility||''));
+      h+=dl('Stage allocations',FinalCutBudget.KEYS.map(k=>esc(FinalCutBudget.LABELS[k])+': '+
+        money(budget.spent[k])+' spent / '+money(budget.allocation[k])+' planned').join('<br>'));
+      h+=dl('Unspent reserve',money(budget.stageRemaining.reserve));
+      h+='<p class="fc-budget-ledger">The project budget is a cap, not money paid twice. Routine production charges vary by stage. Unused funds stay in studio cash; studio overhead and payroll are separate.</p>';
+    }
     h += dl('Talent fees', money(p.fees || 0));
     h += dl('Spent', money(p.spent) + ' <div class="bar"><div style="width:' + pct + '%"></div></div>');
     h += dl('Film quality',p.quality == null ? 'Est. '+centerEstimate(p).value : p.quality+'/100');
