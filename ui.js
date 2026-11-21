@@ -708,7 +708,7 @@ var UI = (function () {
       const metric=live&&feature?'gross':'revenue';
       const current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue;
       const reach=feature
-        ?'<span>'+compactCount(p.releaseWeek==null?null:pulse.estimatedAdmissions)+' est. ticket visits</span>'
+        ?'<span>'+compactCount(p.releaseWeek==null?null:pulse.estimatedAdmissions)+' est. admissions (ticket visits)</span>'
         :short?'<span>'+compactCount(pulse.estimatedScreeningViewers)+' est. screening visits</span>'
         :'<span>'+compactCount(pulse.estimatedHouseholdImpressions)+' est. HH impressions</span>';
       const q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value;
