@@ -88,3 +88,14 @@ Priority: **High** — complete this together with the Filmography fix to ensure
 - [ ] Validate small versus established studios, different genres, 15/61-year careers, film/studio crossover, cooldowns, decay, resurgence and save migration. Use model estimates with restrained precision, not invented exact ticket sales.
 
 **Implementation order:** fix missing films in My Filmography, correct premiere and tutorial timing, clarify festival-window UI, then integrate film fanbases followed by separate studio fanbase and bounded sequel/new-release advantages. All above are proposals, **not implemented**.
+
+## Planned: More varied and less repetitive generated film titles (not implemented)
+
+- [ ] Expand procedural title ingredients (phrasing, imagery, setting, character, conflict, emotional tone, genre and era); generate multiple title styles rather than recycling a few fixed templates.
+- [ ] Match titles to a film's **genre, themes, story premise, format and tone**; avoid nonsensical combinations. Shorts, documentaries and major features should feel appropriately different.
+- [ ] Track normalized titles across the current player's released films, planned projects and generated rival catalog; strongly prefer unused names, retry near duplicates, and reserve exact repeats for intentionally linked franchises, remakes or user-authored titles.
+- [ ] Allow player-entered titles without automatic rewriting; intentional sequels retain recognizable franchise naming. Preserve existing saved titles and prevent retroactive renaming.
+- [ ] Give rerolling a name genuinely different options rather than the same few titles with one swapped word.
+- [ ] Validate generated names in early and 15/61-year careers for duplication rate, variety, genre fit, offensive/unintended combinations, save/load stability and runtime performance.
+
+Goal: make the film industry feel varied without generating obviously repetitive, unrelated, or duplicate movie names. This is planned only.
