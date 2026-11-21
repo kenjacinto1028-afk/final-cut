@@ -49,6 +49,47 @@ var UI = (function () {
   function mult(m) { return '×' + Number(m).toFixed(2); }
   let flash = '';
   function setFlash(msg) { flash = msg || ''; }
+  // A single accessible in-game dialog replaces native browser confirm/prompt/alert.
+  // Actions execute only after explicit confirmation; closing never triggers the action.
+  let gameDialogActive=false;
+  function gameDialog(message,kind='confirm',initial='') {
+    if(gameDialogActive)return Promise.resolve(kind==='prompt'?null:false);
+    gameDialogActive=true;
+    const previous=document.activeElement;
+    const root=document.createElement('div');root.className='fc-game-dialog';
+    root.innerHTML='<div class="fc-game-dialog-shade"><section role="dialog" aria-modal="true" aria-labelledby="fc-game-dialog-title" class="fc-game-dialog-card">'+
+      '<h2 id="fc-game-dialog-title">'+(kind==='alert'?'Notification':kind==='prompt'?'Enter details':'Confirm action')+'</h2>'+
+      '<p>'+esc(message)+'</p>'+
+      (kind==='prompt'?'<label>Value<input type="text" maxlength="150" value="'+esc(initial)+'"></label>':'')+
+      '<div class="fc-game-dialog-actions">'+(kind==='alert'?'':'<button type="button" data-no>Cancel</button>')+
+      '<button type="button" data-yes class="primary">'+(kind==='alert'?'OK':'Confirm')+'</button></div></section></div>';
+    document.body.appendChild(root);
+    return new Promise(resolve=>{
+      function done(ok){
+        root.remove();gameDialogActive=false;
+        if(previous&&previous.isConnected)previous.focus();
+        resolve(kind==='prompt'?(ok?root.querySelector('input').value:null):!!ok);
+      }
+      root.querySelector('[data-yes]').addEventListener('click',()=>done(true));
+      const no=root.querySelector('[data-no]');if(no)no.addEventListener('click',()=>done(false));
+      root.addEventListener('keydown',e=>{
+        if(e.key==='Escape'){e.preventDefault();done(false);}
+        if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();done(true);}
+        if(e.key==='Tab'){
+          const controls=[...root.querySelectorAll('button,input')];
+          const i=controls.indexOf(document.activeElement);
+          if(e.shiftKey&&i<=0){e.preventDefault();controls[controls.length-1].focus();}
+          else if(!e.shiftKey&&i===controls.length-1){e.preventDefault();controls[0].focus();}
+        }
+      });
+      const focus=root.querySelector(kind==='prompt'?'input':kind==='alert'?'[data-yes]':'[data-no]');
+      if(focus)focus.focus();
+    });
+  }
+  const confirmGame=message=>gameDialog(message,'confirm');
+  const promptGame=(message,initial)=>gameDialog(message,'prompt',initial);
+  const notifyGame=message=>gameDialog(message,'alert');
+
 
 // ===== SECTION: MEDIA_HELPERS =====
   // 8.3–8.5: small display helpers over Media (art, count-up numbers, toggles). Nothing here changes game state.
@@ -964,10 +1005,10 @@ var UI = (function () {
     return '<div class="fc-release-action"><div><strong>Optional: Post-opening publicity</strong><p>'+esc(quote.description)+'</p></div>'+
       '<button type="button" onclick="UI.promoteFilm('+p.id+')">Invest '+money(quote.cost)+'</button></div>';
   }
-  function promoteFilm(id){
+  async function promoteFilm(id){
     const q=Engine.releasePushQuote(id);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
+    if(!await confirmGame('Spend '+money(q.cost)+' on a publicity push? It may help four upcoming box-office weeks, but may not pay for itself.'))return;
     const result=Engine.pushRelease(id);setFlash(result.ok?'Publicity campaign started for '+(Engine.getProject(id)||{}).title+'.':result.reason);render();
   }
   // Dock is a compact, always-available software-studio-style release monitor,
@@ -2093,18 +2134,18 @@ var UI = (function () {
       '<div><small>RECORDED FILM MARKETING</small><strong>'+money(p.marketingSpend||0)+'</strong></div>'+
       promo+'<h3>Fictional sponsors & brand fit</h3>'+sponsor+'</section>';
   }
-  function filmPromote(id,kind){
+  async function filmPromote(id,kind){
     const q=Engine.filmPromotionQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Invest '+money(q.cost)+' in '+q.name+' for this film? Potential release hype +'+
+    if(!await confirmGame('Invest '+money(q.cost)+' in '+q.name+' for this film? Potential release hype +'+
       q.hypeLift+'. This does not guarantee more income.'))return;
     const r=Engine.filmPromote(id,kind);
     setFlash(r.ok?'Film promotion commissioned for '+money(r.cost)+'.':r.reason);render();
   }
-  function filmSponsor(id){
+  async function filmSponsor(id){
     const q=Engine.filmSponsorQuote(id);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm('Accept '+q.name+' sponsorship for '+money(q.upfront)+
+    if(!await confirmGame('Accept '+q.name+' sponsorship for '+money(q.upfront)+
       '? This film will contain commercial placement; review penalty can reach '+q.criticRisk+' points.'))return;
     const r=Engine.acceptFilmSponsor(id);
     setFlash(r.ok?'Sponsor partnership signed; '+money(r.upfront)+' credited to studio receipts.':r.reason);render();
@@ -2152,16 +2193,16 @@ var UI = (function () {
   function v14Position(id,kind){
     const r=Engine.v14SetReleasePlan(id,kind);setFlash(r.ok?'Film release positioning updated.':r.reason);render();
   }
-  function v14Respond(id,kind){
+  async function v14Respond(id,kind){
     const q=Engine.v14ReleaseResponseQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm(q.name+'. '+q.description+' '+(q.cost?'Cash cost: '+money(q.cost)+'.':'No new cash cost.')+' Continue?'))return;
+    if(!await confirmGame(q.name+'. '+q.description+' '+(q.cost?'Cash cost: '+money(q.cost)+'.':'No new cash cost.')+' Continue?'))return;
     const r=Engine.v14ReleaseResponse(id,kind);setFlash(r.ok?'Release strategy response recorded.':r.reason);render();
   }
-  function v14Afterlife(id,kind){
+  async function v14Afterlife(id,kind){
     const q=Engine.v14AfterlifeQuote(id,kind);
     if(!q.ok){setFlash(q.reason);render();return;}
-    if(!confirm(q.name+'. '+q.description+(q.cost?' Cost: '+money(q.cost)+'.':'')+' Continue?'))return;
+    if(!await confirmGame(q.name+'. '+q.description+(q.cost?' Cost: '+money(q.cost)+'.':'')+' Continue?'))return;
     const r=Engine.v14AfterlifeAction(id,kind);setFlash(r.ok?'Catalog decision recorded.':r.reason);render();
   }
   function v14Calendar(){
@@ -3130,7 +3171,7 @@ var UI = (function () {
     const list=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
     const target=list?.slots.find(s=>s.id===slotId);
     if(!target){setFlash('Save slot not found.');render();return;}
-    if(Engine.state&&!target.active&&!confirm('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
+    if(Engine.state&&!target.active&&!await confirmGame('Load "'+target.name+'"? Your current campaign will be safely archived first.'))return;
     saveBusy=true;
     try{
       await SaveSlots.activate(slotId);
@@ -3138,11 +3179,11 @@ var UI = (function () {
     }catch(err){setFlash('Could not load save: '+err.message);render();}
     finally{saveBusy=false;}
   }
-  function renameSave(slotId){
+  async function renameSave(slotId){
     if(typeof SaveSlots==='undefined')return;
     const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
     if(!slot)return;
-    const value=prompt('Name this save slot:',slot.name);
+    const value=await promptGame('Name this save slot:',slot.name);
     if(value==null)return;
     try{SaveSlots.rename(slotId,value);setFlash('Save slot renamed.');}
     catch(err){setFlash('Rename failed: '+err.message);}
@@ -3151,7 +3192,7 @@ var UI = (function () {
   async function copySave(){
     if(saveBusy||!Engine.state||typeof SaveSlots==='undefined')return;
     const info=SaveSlots.list(),active=info.slots.find(s=>s.active);
-    const label=prompt('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
+    const label=await promptGame('Name the new independent save:',(active?.name||Engine.state.studio.name)+' (copy)');
     if(label==null)return;
     saveBusy=true;
     try{
@@ -3163,7 +3204,7 @@ var UI = (function () {
   async function deleteSave(slotId){
     if(saveBusy||typeof SaveSlots==='undefined')return;
     const slot=SaveSlots.list().slots.find(s=>s.id===slotId);
-    if(!slot||!confirm('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
+    if(!slot||!await confirmGame('Permanently delete "'+slot.name+'"? This removes that campaign and its custom posters from this browser. Export a backup first if needed.'))return;
     saveBusy=true;
     try{
       await SaveSlots.remove(slotId);
@@ -3176,10 +3217,10 @@ var UI = (function () {
   async function quit(){
     if(saveBusy)return;
     if(typeof SaveSlots==='undefined'){
-      if(Engine.state&&!Engine.state.gameOver&&!confirm('Start a new game? Your current save will be replaced when you start.'))return;
+      if(Engine.state&&!Engine.state.gameOver&&!await confirmGame('Start a new game? Your current save will be replaced when you start.'))return;
       Engine.clearSave();location.reload();return;
     }
-    if(Engine.state&&!confirm('Return to title? The current studio will remain saved in its own slot.'))return;
+    if(Engine.state&&!await confirmGame('Return to title? The current studio will remain saved in its own slot.'))return;
     saveBusy=true;
     try{
       if(Engine.state){
@@ -3258,17 +3299,17 @@ var UI = (function () {
   function contractResult(r, okMsg) { drawerMsg = r.ok ? okMsg : r.reason; render(); }
   function sign(id, years) { contractResult(Engine.signExclusive(id, years), 'Signed.'); }
   function renew(id, years) { contractResult(Engine.renewContract(id, years), 'Renewed.'); }
-  function releaseTalent(id) {
+  async function releaseTalent(id) {
     const t = Engine.getTalent(id);
-    if (!t || !confirm('Release ' + t.name + '? Severance: ' + money(Engine.severanceOf(t)) + '.')) return;
+    if (!t || !await confirmGame('Release ' + t.name + '? Severance: ' + money(Engine.severanceOf(t)) + '.')) return;
     contractResult(Engine.releaseContract(id), 'Released.');
   }
   // 8.1: music. setVolume doesn't re-render, so dragging the slider isn't interrupted.
   function toggleMusic() { if (typeof Media !== 'undefined') { Media.toggleMusic(); render(); } }
   function setVolume(v) { if (typeof Media !== 'undefined') Media.setVolume(Number(v) / 100); }
   // 7.2: wipes only the leaderboard, never the game save.
-  function clearLeaderboard() {
-    if (!confirm('Clear the leaderboard on this device? This cannot be undone.')) return;
+  async function clearLeaderboard() {
+    if (!await confirmGame('Clear the leaderboard on this device? This cannot be undone.')) return;
     Engine.clearLeaderboard();
     render();
   }
@@ -3329,7 +3370,7 @@ var UI = (function () {
       await PosterStore.put(id,out);
       const p=Engine.getProject(id);if(p){p.posterCustom=true;Engine.save();}
       closePosterEditor();renderDrawer();
-    }catch(e){alert('Poster could not be saved: '+e.message);}
+    }catch(e){notifyGame('Poster could not be saved: '+e.message);}
   }
   async function exportBackup(){
     if(!Engine.state)return;
@@ -3339,11 +3380,11 @@ var UI = (function () {
       const data=JSON.stringify({format:'finalcut-v13-backup',created:new Date().toISOString(),game:Engine.state,posters:images});
       const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='FinalCut-backup-'+Engine.dateOf().year+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-    }catch(e){alert('Backup export failed: '+e.message);}
+    }catch(e){notifyGame('Backup export failed: '+e.message);}
   }
   async function importBackup(input){
     const f=input.files&&input.files[0];if(!f)return;
-    if(f.size>25000000){alert('The backup exceeds 25 MB.');input.value='';return;}
+    if(f.size>25000000){notifyGame('The backup exceeds 25 MB.');input.value='';return;}
     if(saveBusy){input.value='';return;}
     saveBusy=true;
     try{
@@ -3366,10 +3407,10 @@ var UI = (function () {
           Engine.save();posterNote+=' '+absent.length+' unavailable poster(s) use generated art.';
         }
         clearForSaveTransition();view='saves';render();
-        alert('Backup imported into a new independent save slot.'+posterNote);
+        notifyGame('Backup imported into a new independent save slot.'+posterNote);
       }else{
         // Standalone compatibility path for older embed builds.
-        if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
+        if(Engine.state&&!await confirmGame('Replace your current game with this backup?'))return;
         const old=localStorage.getItem('backlot_save');
         try{
           localStorage.setItem('backlot_save',JSON.stringify(b.game));
@@ -3380,13 +3421,13 @@ var UI = (function () {
           const absent=await PosterStore.missing(declared);
           if(absent.length){const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save();}
           resetHistory();closeDrawer();render();
-          alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
+          notifyGame('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
         }catch(err){
           if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old);
           if(old)Engine.load();throw err;
         }
       }
-    }catch(e){alert('Backup import failed: '+e.message);}
+    }catch(e){notifyGame('Backup import failed: '+e.message);}
     finally{saveBusy=false;input.value='';}
   }
 
