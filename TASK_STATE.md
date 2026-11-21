@@ -42,3 +42,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Extended Production Center, film and project drawers with 12-week income/gross charts and modeled admissions; one-time post-opening publicity option with real cost.
 - [x] Film finance, real Chromium live monitor, mobile, poster/save v13.7, v13.6 styling, v13.5 cinematic and v13.4 honors regressions passed (GitHub Actions #44848418818); screenshots artifact #14683817710. README, HANDOFF and `docs/CHANGELOG_V13_8.md` updated.
 - [x] PR #4 merged to `main` (`26e1b38254246edc4b5bf51c3fa0741da4c49f39`); four pull-request workflows successful (#44848580247/#44848580233/#44848580176/#44848580170); GitHub Pages build and deployment #44848662193 succeeded. Screenshot artifact #14683817710 and changelog retained.
+
+## v13.9 — Short film engagement & film quality/hype/reach (2026-11-21)
+- [x] Identify FinalCut main v13.8 and existing completed checkpoints; create dedicated feature branch.
+- [ ] Audit short-film release/festival simulation, project quality and hype, audience reporting, and relevant UI components.
+- [ ] Implement quality-dependent multiweek short screening with real weekly receipts, festival exposure, estimated screening reach and bounded economy effects.
+- [ ] Introduce limited short-film postrelease choices and ongoing catalog/festival follow-ups, preserving existing finances and historical awards.
+- [ ] Add quality, hype, and accurately labelled audience/household estimates in the right-side project monitor, Production Center and film details.
+- [ ] Style new screen elements and keep save format v13 compatible; update documentation.
+- [ ] Test player + rival balance, week-by-week receipts, legacy saves, browser and mobile views.
+- [ ] Merge only after passing checks and verify GitHub Pages.
