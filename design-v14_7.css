@@ -298,3 +298,9 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 @media(min-width:1350px){
   #app.monitor-open #content{padding-right:310px}
 }
+
+/* Mobile navigation must remain reachable while the optional monitor is open. */
+@media(max-width:800px){
+  #mobile-nav-toggle{position:relative;z-index:12}
+  #app.menu-open #nav{position:relative;z-index:13}
+}
