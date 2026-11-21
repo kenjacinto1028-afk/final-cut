@@ -929,3 +929,18 @@ td .bar,.dept .bar,#drawer .bar,.bar{background:#404f4f;border-radius:80px}
 .fc-fan-summary span{font-size:13px;color:#c9d8ce}
 .fc-fan-summary small{font-size:11px;color:#aebdb5}
 .fc-monitor-fans{font-size:12px;color:#bdd4bb;margin:7px 0 2px}
+
+/* While following the interactive tour, present premiere/wrap-up immediately without
+   stealing the clickable guided controls behind a full-screen scrim. */
+body.tutorial-open #premiere-report{pointer-events:none}
+body.tutorial-open #premiere-report .fc-premiere-shade{
+  pointer-events:none;background:transparent;display:flex;
+  align-items:flex-start;justify-content:flex-end;padding:10px
+}
+body.tutorial-open #premiere-report .fc-premiere-card{
+  pointer-events:auto;width:min(440px,calc(100vw - 20px));
+  max-height:min(68dvh,590px);box-shadow:0 12px 42px #000b
+}
+@media(max-width:650px){
+  body.tutorial-open #premiere-report .fc-premiere-card{max-height:35dvh;width:min(360px,calc(100vw - 20px))}
+}
