@@ -1388,7 +1388,7 @@ var Engine = (function () {
     const pend = {
       projectId: p.id, id: def.id, talentId: t ? t.id : null, text: fill(def.text, p, t),
       category: def.category || null, disaster: !!def.disaster,
-      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, result: c.result ? fill(c.result, p, t) : null }))
+      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, trust:c.trust||0, flag:c.flag||null, result: c.result ? fill(c.result, p, t) : null }))
     };
     p.lastEventWeek = state.week;
     state.stopFlag = true;
