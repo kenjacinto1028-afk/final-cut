@@ -171,7 +171,7 @@ var UI = (function () {
 // ===== SECTION: NAV =====
   // [id, label, soon?]  soon = tab shown but disabled until that view exists.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
+    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['studio_profile', 'Studio Profile'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
     ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
     ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
     ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
@@ -357,6 +357,8 @@ var UI = (function () {
     h += '<div class="strip reputation-strip">'+stat('Lifetime fame',rep.fame+'/100')+stat('Current buzz',rep.buzz+'/100')+
       stat('Current prestige',rep.currentPrestige+'/100')+stat('Lifetime legacy',rep.lifetimeLegacy+' pts')+'</div>';
     h += '<p class="muted">Fame is your long-term public recognition; buzz reflects recent attention. Prestige follows the last five years. Lifetime legacy never decays.</p>';
+    h += '<div class="fc-v14-dashboard-identity">'+v14IdentityCard('you')+
+      '<button onclick="UI.go(&quot;studio_profile&quot;)">Studio identity & ambitions</button></div>';
     if(legacy.industryShift) h += '<div class="market-shift"><strong>Industry shift: '+esc(legacy.industryShift.name)+'</strong><p>Temporary audience interest in '+legacy.industryShift.genres.map(id=>esc(nameOf(CONTENT.GENRES,id))).join(' and ')+'. Ends '+dateLabel(legacy.industryShift.endWeek)+'.</p></div>';
     if (!s.studio.releases && s.week < 53) h += '<div class="onboarding"><strong>Getting started</strong><p>Start with a small project. Craft improves the finished film; fame attracts attention. Keep enough cash for production weeks, then choose how widely to screen your film.</p><div class="actions"><button class="primary" onclick="UI.go(&quot;newproject&quot;)">Plan your first film</button><button onclick="UI.go(&quot;market&quot;)">View market demand</button></div></div>';
     else if (s.studio.releases && s.studio.tier === 0 && s.studio.fame < 15) h += '<div class="onboarding"><strong>Grow your studio</strong><p>Film releases and festival recognition build fame. Keep an eye on profits and the Founder page for your next studio upgrade.</p></div>';
@@ -494,6 +496,49 @@ var UI = (function () {
       '<p>'+esc(next)+'</p></div><button onclick="UI.v14CustomScript()">Create an original</button></div>'+
       '<div class="fc-v14-script-grid">'+cards+'</div></section>';
   }
+
+
+  function v14IdentityCard(who){
+    const c=Engine.v14Identity(who);if(!c)return '';
+    return '<section class="fc-v14-identity"><div class="fc-v14-section-heading"><div><small>EARNED STUDIO CLASSIFICATION</small>'+
+      '<h2>'+esc(c.label)+'</h2><p>'+esc(c.standing)+' · '+esc(c.trajectory)+' · '+c.count+' recent films</p></div></div>'+
+      '<div class="fc-v14-tags">'+c.descriptors.map(d=>'<span>'+esc(d)+'</span>').join('')+'</div>'+
+      '<p class="muted">This identity reflects real films, awards, genre/story focus, and the talent you work with. It can evolve.</p>'+
+      '<details><summary>What earned this classification?</summary><div class="fc-v14-evidence">'+
+      (c.evidence.length?c.evidence.map(x=>'<div><strong>'+esc(x.title)+'</strong><small>'+esc(nameOf(CONTENT.GENRES,x.genre))+
+        ' · critics '+(x.critics==null?'—':x.critics)+' · P/L '+money(x.profit)+'</small></div>').join(''):
+        '<p>Release more films to establish an identity.</p>')+'</div></details></section>';
+  }
+  function viewStudioProfile(){
+    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation;
+    const active=a.active&&!a.active.completed&&a.active.expiresWeek>=Engine.state.week;
+    let h='<h1>Studio Profile</h1><p class="muted">Your studio is classified by the films it actually makes, not by a permanent starting choice.</p>'+
+      v14IdentityCard('you')+
+      '<section class="fc-v14-profile-section"><h2>Creative delegation</h2>'+
+      '<p>Routine work is automatic. Decide whether major creative dilemmas interrupt you.</p>'+
+      '<div class="fc-v14-seg">'+[
+      ['ask','Ask me','Choose the creative tradeoff'],['director','Trust the director','Prioritize the original vision'],
+      ['commercial','Trust the business team','Prioritize mainstream appeal']].map(([id,name,desc])=>
+        '<button class="'+(policy===id?'is-selected':'')+'" onclick="UI.v14Delegation(&quot;'+id+'&quot;)"><strong>'+
+        esc(name)+'</strong><small>'+esc(desc)+'</small></button>').join('')+'</div></section>'+
+      '<section class="fc-v14-profile-section"><h2>Studio ambitions</h2>'+
+      '<p>Optional multi-year targets unlock small, conditional industry opportunities—not free profits.</p>'+
+      (a.active?'<div class="fc-v14-ambition-current"><strong>'+esc(a.active.name)+'</strong> · '+
+        (a.active.completed?'Completed':active?'Until '+dateLabel(a.active.expiresWeek):'Expired')+
+        '<p>'+esc(a.active.reward)+'</p></div>':'')+
+      (!active?'<div class="fc-v14-ambitions">'+a.options.map(x=>'<article><strong>'+esc(x.name)+'</strong><p>'+
+        esc(x.desc)+'</p><small>'+x.years+' years · '+esc(x.reward)+'</small>'+
+        '<button onclick="UI.v14Ambition(&quot;'+x.id+'&quot;)">Choose ambition</button></article>').join('')+'</div>':'')+
+      (a.recent.length?'<h3>Earned opportunities</h3>'+a.recent.map(x=>
+        '<p>'+esc(x.reward)+' · '+(x.used?'Used':x.expiresWeek<Engine.state.week?'Expired':'Available')+'</p>').join(''):'')+
+      '</section>';
+    const changes=Engine.v14State().classChanges||[];
+    if(changes.length)h+='<section class="fc-v14-profile-section"><h2>Studio identity changes</h2>'+
+      changes.slice(-8).reverse().map(x=>'<p>'+dateLabel(x.week)+' · '+esc(x.from)+' → '+esc(x.to)+'</p>').join('')+'</section>';
+    return h;
+  }
+  function v14Delegation(id){const r=Engine.v14SetDelegation(id);setFlash(r.ok?'Delegation preference updated.':r.reason);render();}
+  function v14Ambition(id){const r=Engine.v14PickAmbition(id);setFlash(r.ok?'Ambition started.':r.reason);render();}
 
   function viewNewProject() {
     if (!draft.title) draft.title = Engine.randomTitle();
@@ -1951,6 +1996,7 @@ var UI = (function () {
   // A+B editorial screen navigation: concise context, no new game state.
   const PAGE_CONTEXT = {
     saves:['CAMPAIGN LIBRARY','Manage independent studio careers and local save slots'],
+    studio_profile:['INDUSTRY REPUTATION','Earned classification, studio ambitions and delegation'],
     newproject:['GREENLIGHT DESK','Plan cast, budget, creative direction and distribution'],
     filmography:['YOUR CATALOG','Released pictures, awards and permanent studio history'],
     talent:['CASTING OFFICE','Scout talent by skill, recognition, reliability and fee'],
@@ -1984,6 +2030,7 @@ var UI = (function () {
     else if (!s) h = viewStart();
     else if (view === 'saves') h = viewSaveLibrary();
     else if (view === 'newproject') h = viewNewProject();
+    else if (view === 'studio_profile') h = viewStudioProfile();
     else if (view === 'projects') h = viewProjects();
     else if (view === 'filmography') h = viewFilmography();
     else if (view === 'archive') h = viewArchive();
@@ -2304,7 +2351,8 @@ var UI = (function () {
   document.addEventListener('DOMContentLoaded', init);
 
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
-    v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
+    v14Delegation:v14Delegation, v14Ambition:v14Ambition, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     shortReleaseAction:shortReleaseAction,
