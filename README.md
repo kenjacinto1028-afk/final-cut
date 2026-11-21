@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v13.8 — Film performance, admissions and profitability
+**My Filmography** now shows studio receipts and direct project profit/loss alongside feature-film theatrical gross. Shorts and pilots no longer misleadingly show `$0` as their only financial number. Feature admissions are **modeled estimates** from ticket gross, not measured viewers. A collapsible **Project Monitor** docks to the right on wide screens and tracks active stages, earnings, audience and weekly performance, with mobile access via the top bar. Production Center and project details include charts, and features may invest in one optional post-opening publicity push. Campaign autosaves and original save format v13 remain compatible. See `docs/CHANGELOG_V13_8.md`.
+
 ## v13.7 — Multiple saved studios
 FinalCut now supports multiple browser-local save slots. Use **Saved Games** in the sidebar or **Manage saved games** on the title screen. Create independent campaigns, autosave the active one, switch, rename, delete, or **Make a copy** (including custom poster artwork). Imported backups create new slots without overwriting existing campaigns. The original `backlot_save` format and save version 13 remain compatible. For protection across devices or browser resets, export a full backup. See `docs/CHANGELOG_V13_7.md`.
 
