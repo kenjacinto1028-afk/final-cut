@@ -2256,7 +2256,7 @@ var UI = (function () {
     "view": "newproject",
     "target": "#main .form",
     "location": "New project → Start project",
-    "text": "Click Start project. The game charges real upfront fees. If this campaign already has a film, you can choose Follow my latest existing film instead.",
+    "text": "Click Greenlight. Any real upfront fees are charged now; production expenses continue week by week. If this campaign already has a film, choose Follow my latest existing film instead.",
     "goal": "project"
   },
   {

@@ -63,7 +63,7 @@ try:
     const p=Engine.state.projects.at(-1);
     return {id:p.id,title:p.title,cash:Engine.state.cash,year:Engine.dateOf().year};
   }""")
-  assert new['cash']<initial_cash
+  assert new['cash']<=initial_cash,'Upfront fees should never add free cash'
   next_step();step(7,'Go to Production Center')
   sidebar('projects');step(8,'Open its Film Hub')
   page.locator('.fc-center').get_by_role('button',name='Open project details').click()
