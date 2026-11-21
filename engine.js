@@ -4615,6 +4615,13 @@ var Engine = (function () {
       return save();
     const snapshot=state;
     invalidatePendingLargeSave();
+    // An already-running weekly archive is obsolete when a manual save
+    // begins. Stop it so a constrained phone never encodes two huge copies
+    // concurrently, then let the explicit save be the sole writer.
+    if(largeSaveWorkerBusy&&largeSaveWorker){
+      largeSaveWorker.terminate();largeSaveWorker=null;
+      largeSaveWorkerBusy=false;largeSaveNeedsLatest=false;
+    }
     const generation=largeSaveGeneration;
     try{
       const packed=await encodeSavePayloadAsync(snapshot);

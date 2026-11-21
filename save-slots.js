@@ -18,7 +18,10 @@ var SaveSlots=(function(){
   }
   function cachedSummary(raw){
     if(!raw)return null;
-    if(summaryCache&&fingerprint(raw)===summarySignature)return summaryCache;
+    // FCP2 text has content-dependent randomized-looking ends; a same-tab
+    // cache hit for that large binary archive is extremely unlikely to alias.
+    // Small plaintext/FCP1 saves keep exact index-repair parsing.
+    if(raw.startsWith('FCP2')&&summaryCache&&fingerprint(raw)===summarySignature)return summaryCache;
     return cacheSummary(raw,summary(raw));
   }
   function storage(){try{return typeof localStorage==='undefined'?null:localStorage;}catch(_){return null;}}
