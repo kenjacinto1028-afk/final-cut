@@ -1,5 +1,7 @@
 # FinalCut v14.2 — Mobile & Save Reliability Polish
 
+Merged to `kenjacinto1028-afk/final-cut/main` via PR #8 on November 21, 2026 (merge commit `9d175561`).
+
 Release scope: speed up long-campaign saves and improve smaller phones **without** changing film quality, studio economics, awards or save compatibility.
 
 ## Changes
