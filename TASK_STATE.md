@@ -230,4 +230,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase D: added Film Timeline in active/released Film Hub and release conflict insight in New Project, comparing existing rival calendar by genre/topic and showing lowest-conflict nearby weeks as informational only (`ui.js`, `design-v14_7.css`).
 - [x] Phase E: added per-studio session-scoped Filmography/Archive/Rankings filters, completed-film postmortem from recorded actuals, and reusable definitions for gross/receipts/P&L/overhead/reach/followers (`ui.js`, `design-v14_7.css`). Studio Wire tab and genre/topic subtab selections already persist within session.
 - [ ] Phase F: dedicated tests, all existing CI and long-career balancing; fix regressions.
+  - [x] Added Node demand-history/save compatibility suite (`tests/v14_8_regression.js`), Chromium Studio Wire/film/QoL/mobile suite (`tests/v14_8_browser.py`) and `.github/workflows/v14_8.yml`.
 - [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
