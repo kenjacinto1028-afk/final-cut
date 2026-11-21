@@ -1,0 +1,35 @@
+name: FinalCut v14.5 navigation, premiere and regional charts
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JS and v14.5 regression
+        run: |
+          node --check ui.js
+          node --check engine.js
+          node tests/v14_5_regression.js
+          node tests/v14_4a_balance.js
+          node tests/v14_3b_promotions.js
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Validate the new navigation, premiere and Film Hub on desktop/mobile
+        run: python tests/v14_5_browser.py
