@@ -41,3 +41,17 @@ Priority: **High** — player film history must be reliable before navigation im
 - [ ] Keep tutorial wording and navigation targets centrally aligned so future UI reorganizations are less likely to break instructions.
 
 Priority: **High** — complete this together with the Filmography fix to ensure the guided tour leads to a film that is actually visible.
+
+## Planned gameplay: Film cult following, lasting fans and sequel demand (not implemented)
+
+- [ ] Track a **film-specific fanbase** for released films: estimated active followers plus a smaller loyal/core following. Label both as simulated estimates, separate from ticket sales, households or cumulative audience reach.
+- [ ] Seed follower growth from **quality, audience reception, real recorded release reach, genre/story appeal, word of mouth and later exposure**. A high-quality film with little initial reach can grow into a sleeper cult classic; a broadly seen poor film should not automatically develop a strong loyal following.
+- [ ] After release, let most **active followers decay over time** at varied rates. Strong reception, enduring genre identity, awards, fan campaigns, repeat exposure and exceptional word of mouth can preserve a loyal core for years or create occasional resurgences. Not all successful films become cult classics; avoid automatic immortality.
+- [ ] Define clear, earned film fanbase classifications (e.g. Emerging Following, Dedicated Fans, Cult Classic, Enduring Favorite) using quality and **retention**, not raw follower count alone. Allow commercial blockbusters with broad but shallow followings.
+- [ ] Display active followers, loyal/core followers and trend in **Film Hub → Reach & Rankings / Awards & Legacy**, with a compact count/trend in **Project Monitor** and the film's sequel planning view. Show changes after new exposure or campaigns, rather than requiring weekly micromanagement.
+- [ ] When pitching a sequel/spinoff/continuation, show the predecessor's active and loyal following and an **estimated audience-demand/hype boost**. Retaining key actors and the original director/writer, continuity of genre/story, and sufficient sequel quality can preserve or amplify that advantage; recasting, long gaps, poor fit and franchise fatigue can erode it.
+- [ ] Keep followings scoped to film/franchise: sequels should inherit **some** earned audience interest but not copy the entire audience count, automatically sell tickets, or guarantee profitability. A weak sequel can lose fans and harm later franchise entries; a strong installment can revive dormant fans.
+- [ ] Add optional low-micromanagement fan-engagement decisions (e.g. anniversary re-release, fan event, restored edition) using existing afterlife mechanics when eligible, with bounded costs/benefits, cooldowns and diminishing returns.
+- [ ] Balance and QA across short films, features and other eligible media as appropriate, multiple regions and early/late careers; test long-term follower decay, exceptional sustained cult followings, sequel continuity, save/load and old-save initialization. Avoid runaway hype/revenue and inflated fabricated audience precision.
+
+**Recommended rollout:** first repair My Filmography completeness (so all qualifying films can be viewed), then add film-following persistence/decay, display the metrics in Film Hub/monitor, and finally integrate a bounded sequel advantage. Gameplay is **planned only**, with parameters to tune through career simulations.
