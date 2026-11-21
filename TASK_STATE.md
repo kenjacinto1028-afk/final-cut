@@ -228,6 +228,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Implemented real 20-week genre/topic demand snapshots and 8-week movers with old-save baseline (`engine.js`, ffbe5d1).
 - [x] Phase C: added Next Action routing, prioritized Action Inbox, and bounded eight-week Skip Quiet Weeks with stop conditions for decisions, reports, stage changes, cash risks, major news and contracts (`ui.js`, `design-v14_7.css`).
 - [x] Phase D: added Film Timeline in active/released Film Hub and release conflict insight in New Project, comparing existing rival calendar by genre/topic and showing lowest-conflict nearby weeks as informational only (`ui.js`, `design-v14_7.css`).
-- [ ] Phase E: remember tabs/filters, film postmortem and financial language/tooltip clarity.
+- [x] Phase E: added per-studio session-scoped Filmography/Archive/Rankings filters, completed-film postmortem from recorded actuals, and reusable definitions for gross/receipts/P&L/overhead/reach/followers (`ui.js`, `design-v14_7.css`). Studio Wire tab and genre/topic subtab selections already persist within session.
 - [ ] Phase F: dedicated tests, all existing CI and long-career balancing; fix regressions.
 - [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
