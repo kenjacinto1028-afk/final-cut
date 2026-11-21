@@ -55,7 +55,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14 — Integrated filmmaking overhaul (2026-11-21)
 - [x] Read approved `FinalCut_V14_Gameplay_Design_Proposal.md` and existing FinalCut v13.9 checkpoints; branch from correct `final-cut/main`.
-- [ ] v14a: Add Film DNA, persistent concise story/partnership context with save v13 compatibility.
+- [x] v14a foundation: `engine.js` adds compact Film DNA, creative vision, ordered causal film story, additive `state.v14` hydration; existing save version 13 unchanged (commit 92b60bf). Partnership mechanics follow in v14d.
 - [ ] v14b: Implement quarterly three-script marketplace, option/commission, affordable early shorts and greenlighting integration.
 - [ ] v14c: Implement contextual production dilemmas, meaningful consequences, limited decision pacing and delegation.
 - [ ] v14d: Add sparse director/writer partnerships and repeat-collaborator effects without actor-profile expansion.
