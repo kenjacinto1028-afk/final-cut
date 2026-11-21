@@ -63,10 +63,14 @@ console.log('PASS: staged cost booking, cap safety, short completion and v13 sav
 const parent=E.getProject(p.id);parent.quality=82;parent.critic=85;
 const eligibility=E.sequelEligibility(parent.id);assert(eligibility.ok,eligibility.reason);
 E.state.studio.fame=65;E.state.studio.tier=3;E.state.cash=1_000_000;
+const lead=E.slotOptions('lead','pilot','drama','smalltown',30000)
+  .find(x=>typeof x.id==='number'&&!x.busy&&!x.elite&&x.fee<=1500);
+assert(lead,'expected affordable supporting lead for a low-budget pilot');
+const fameBefore=E.getTalent(lead.id).fame;
 const follow={title:'The Quiet Letters',format:'pilot',mediaVariant:'pilot',budgetCap:30000,
   episodeCount:6,scope:'intimate',tier:0,genre:'drama',topic:'smalltown',
   sequelOf:parent.id,continuationType:'adaptation',
-  cast:{director:'founder',writer:'founder',lead:'',crew:''}};
+  cast:{director:'founder',writer:'founder',lead:lead.id,crew:''}};
 const fq=E.previewProject(follow);assert(fq.ok,fq.reason);
 const f=E.startProject(follow);assert(f.ok,f.reason);
 assert.equal(f.project.sequelOf,parent.id);assert.equal(f.project.continuationType,'adaptation');
@@ -84,7 +88,11 @@ assert(series.firstEpCost>0 && series.firstEpCost<=Math.round(f.project.budget*.
 const pre=series.revenue;
 advance(E,8,()=>series.sponsorOffer!=null);
 const offer=series.sponsorOffer;assert(offer.perEpisode>0);
+assert.equal(E.seriesFeasibility(series.id).guaranteedSponsorship,0,
+  'unsigned sponsor offer must not be projected as confirmed cash');
 assert(E.signSeriesSponsor(series.id).ok);
+assert(E.seriesFeasibility(series.id).guaranteedSponsorship>=offer.perEpisode,
+  'signed recurring sponsor may be included only for future aired episodes');
 const beforeSponsor=series.sponsorRevenue;
 advance(E,5,()=>series.sponsorRevenue>beforeSponsor);
 assert(series.sponsorRevenue>=offer.perEpisode);
@@ -92,6 +100,7 @@ assert(series.revenue>pre);
 assert(E.seriesPlan(series.id,'retain',8).ok);
 advance(E,30,()=>series.season>=2||series.status==='ended');
 assert.equal(series.seasonHistory.length,1);
+assert(E.getTalent(lead.id).fame>=fameBefore,'actual credited series talent must retain or gain fame');
 if(series.season>=2){
  assert(series.starDemand>=1);
  assert(series.epCost>=series.firstEpCost*.6);
