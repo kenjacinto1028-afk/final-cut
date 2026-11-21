@@ -25,22 +25,26 @@ for(const [idx,spec] of strategies.entries()){
  s.cash=40_000_000;s.studio.tier=3;s.studio.fame=70;
  E.v14SetDelegation(spec.policy);
  A(E.setFastSimulationTesting(true),'Fast career QA must be Node-only');
- let started=0,dilemmas=0,profitable=0,flops=0,pressured=0;
- for(let week=0;week<52*horizonYears;week++){
-   if(week%28===0&&E.activeProjects().length<E.capacity()&&!s.gameOver){
-     const prefer=idx===0?'short':week%3===0?'short':'feature';
-     const fmt=prefer;
-     const title='Film '+idx+'-'+week;
-     const genre=idx===2?'horror':idx===1?'comedy':'drama';
+ let started=0,dilemmas=0,profitable=0,flops=0,pressured=0,lastLaunchWeek=-1;
+ let attempts=0;
+ while(s.week<52*horizonYears&&attempts++<52*horizonYears*4&&!s.gameOver){
+   if(s.pending){
+     if(s.pending.id?.startsWith('v14_issue_'))dilemmas++;
+     E.choose(s.pending.choices.length-1);
+     continue; // resolving a decision does not advance the week
+   }
+   const week=s.week;
+   if(week%28===0&&lastLaunchWeek!==week&&E.activeProjects().length<E.capacity()){
+     lastLaunchWeek=week;
+     const fmt=idx===0?'short':week%3===0?'short':'feature';
+     const title='Film '+idx+'-'+week,genre=idx===2?'horror':idx===1?'comedy':'drama';
      const topic=idx===2?'haunted':idx===1?'roadtrip':'smalltown';
-     const opts={title,format:fmt,tier:fmt==='feature'?0:0,genre,topic,
+     const opts={title,format:fmt,tier:0,genre,topic,
        vision:spec.vision,releasePosition:idx===0?'prestige':idx===1?'wide':'targeted',
        cast:{director:'founder',writer:'founder',lead:'',crew:''}};
      const r=E.startProject(opts);if(r.ok)started++;
    }
-   if(s.pending){if(s.pending.id?.startsWith('v14_issue_'))dilemmas++;E.choose(s.pending.choices.length-1);}
-   if(!E.nextTurn()&&s.pending)continue;
-   if(s.gameOver)break;
+   E.nextTurn();
  }
  const done=s.projects.filter(p=>p.stage==='done');
  profitable=done.filter(p=>p.revenue>p.spent).length;
