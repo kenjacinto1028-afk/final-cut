@@ -396,8 +396,22 @@ var UI = (function () {
 // ===== SECTION: VIEW_DASHBOARD =====
   // 8.3: era backdrop banner on top. 8.5: gross of films in theaters counts up (cu).
   let wireTab='news',wireTrendKind='genres';
-  function setWireTab(tab){if(!['news','rivals','trends'].includes(tab))return;wireTab=tab;render();}
-  function setWireTrendKind(kind){if(!['genres','topics'].includes(kind))return;wireTrendKind=kind;render();}
+  try{
+    const saved=sessionStorage.getItem('finalcut-wire-tab');
+    const kind=sessionStorage.getItem('finalcut-wire-trend-kind');
+    if(['news','rivals','trends'].includes(saved))wireTab=saved;
+    if(['genres','topics'].includes(kind))wireTrendKind=kind;
+  }catch(_){}
+  function setWireTab(tab){
+    if(!['news','rivals','trends'].includes(tab))return;
+    wireTab=tab;try{sessionStorage.setItem('finalcut-wire-tab',tab);}catch(_){}
+    render();
+  }
+  function setWireTrendKind(kind){
+    if(!['genres','topics'].includes(kind))return;
+    wireTrendKind=kind;try{sessionStorage.setItem('finalcut-wire-trend-kind',kind);}catch(_){}
+    render();
+  }
   function wireRivalReleases(){
     const upcoming=Engine.v14ReleaseCalendar().flatMap(w=>w.rivals.map(f=>({...f,week:w.week}))).slice(0,8);
     if(!upcoming.length)return '<p class="fc-wire-empty">No announced rival films in the next 12 weeks.</p>';
@@ -1962,15 +1976,28 @@ var UI = (function () {
 // ===== SECTION: DRAWER =====
   let drawer = null;     // { kind: 'project' | 'talent', id } or null
   let drawerMsg = '';
+  const hubTabCache={};
+  function hubKey(id){return 'finalcut-hub-'+(Engine.state?.campaignId||'legacy')+'-'+id;}
+  function rememberHubTab(){
+    if(!drawer||drawer.kind==='talent')return;
+    const id=drawer.kind==='project'?'player:'+drawer.id:String(drawer.id);
+    hubTabCache[id]=filmHubTab;
+    try{sessionStorage.setItem(hubKey(id),filmHubTab);}catch(_){}
+  }
+  function restoreHubTab(id){
+    let tab=hubTabCache[id];
+    if(!tab)try{tab=sessionStorage.getItem(hubKey(id));}catch(_){}
+    return ['overview','reviews','reach','performance','legacy','production'].includes(tab)?tab:'overview';
+  }
   function openProject(id) {
-    drawer = { kind:'project',id:Number(id) };drawerMsg='';filmHubTab='overview';
+    drawer = { kind:'project',id:Number(id) };drawerMsg='';filmHubTab=restoreHubTab('player:'+Number(id));
     if(tutorialStep>=0&&TUTORIAL_STEPS[tutorialStep].goal==='hub'&&tutorialTargetId==null)
       tutorialTargetId=Number(id);
     renderDrawer();renderTutorial(false);
   }
   function openTalent(id) { drawer = { kind: 'talent', id: Number(id) }; drawerMsg = ''; renderDrawer(); }
   function openFilm(id) {
-    drawer={kind:'film',id};drawerMsg='';filmHubTab='overview';
+    drawer={kind:'film',id};drawerMsg='';filmHubTab=restoreHubTab(String(id));
     renderDrawer();renderTutorial(false);
   }
 
@@ -1983,7 +2010,7 @@ var UI = (function () {
   ];
   function filmHubSelect(tab){
     if(!FILM_HUB_TABS.some(x=>x[0]===tab))return;
-    filmHubTab=tab;renderDrawer();
+    filmHubTab=tab;rememberHubTab();renderDrawer();
     const el=$('drawer');if(el)el.scrollTop=0;
   }
   function criticReachName(tier){
