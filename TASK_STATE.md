@@ -143,3 +143,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Created docs/CHANGELOG_V14_4A.md and PR #15; full compatibility gates await final branch head.
 - [x] All nine PR #15 workflows on b82a8ff passed; merged to main as d0e8cb7 and GitHub Pages deployment #44887771506 succeeded.
 - [ ] Physical iPhone/Android performance and broader multi-seed TV-series strategy balance remain future checks.
+
+## v14.5 implementation — checklist (2026-11-21)
+- [x] Created isolated branch feature/v14-5-ui-and-premiere-20261121 from main 6f38d6f; audited current UI, release engine and workflows.
+- [ ] Consolidate sidebar navigation and local subtabs; preserve routes/tutorials.
+- [ ] Consolidate Film Hub with clear short-tab detail sections.
+- [ ] Premiere report and critic classifications, sequential dismissal and saved replay.
+- [ ] Add geographic distribution reach and grounded rankings/filter controls.
+- [ ] Strengthen marketplace script vs original screenplay differentiation.
+- [ ] Add QA coverage, run workflows, fix regressions and review UI on mobile.
+- [ ] Update release documentation and merge validated branch.
