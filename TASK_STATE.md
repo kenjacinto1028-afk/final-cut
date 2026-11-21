@@ -45,7 +45,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v13.9 — Short film engagement & film quality/hype/reach (2026-11-21)
 - [x] Identify FinalCut main v13.8 and existing completed checkpoints; create dedicated feature branch.
-- [ ] Audit short-film release/festival simulation, project quality and hype, audience reporting, and relevant UI components.
+- [x] Found shorts paid once on week 3 via `festivalResult`, despite scheduled independent festival awards; identified existing `quality`, `hype`, modeled feature admissions, TV ratings and the persistent monitor. Target weekly short receipts with capped total, estimated screening reach and TV household impressions as explicitly modeled values.
 - [ ] Implement quality-dependent multiweek short screening with real weekly receipts, festival exposure, estimated screening reach and bounded economy effects.
 - [ ] Introduce limited short-film postrelease choices and ongoing catalog/festival follow-ups, preserving existing finances and historical awards.
 - [ ] Add quality, hype, and accurately labelled audience/household estimates in the right-side project monitor, Production Center and film details.
