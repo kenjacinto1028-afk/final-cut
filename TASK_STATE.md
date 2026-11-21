@@ -244,3 +244,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added dedicated Playwright layout checks at desktop/laptop/mobile widths for card height, in-card button position, side/stack logic, Studio Wire tabs, palette switching and horizontal overflow (`tests/v14_8a_layout_browser.py`); screenshot workflow `.github/workflows/v14_8a.yml`.
   - [x] Added `tests/v14_8a_layout_browser.py` for desktop/laptop/monitor/mobile placement and `.github/workflows/v14_8a.yml` CI gate.
 - [ ] Run existing regression workflows, fix failures, merge to main and verify GitHub Pages deployment.
+  - [x] All 14 GitHub Actions workflows passed for final executable commit `b2c7556`, including the new desktop/laptop/mobile layout visual tests and twelve full-career balance simulations. PR #21 is ready to merge.
