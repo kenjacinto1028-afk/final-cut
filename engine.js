@@ -1357,7 +1357,8 @@ var Engine = (function () {
     const production = tier.quality * prodQualityMult(p.budget, p.fees || 0);
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
-    const staff = deptBonus('development'), era = eraQuality(p.genre), decisions = p.qualityMod || 0, variance = rnd(-8, 8);
+    const staff = deptBonus('development'), era = eraQuality(p.genre),
+      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
     const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
     p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
@@ -1375,7 +1376,8 @@ var Engine = (function () {
     const studio = state.studio.fame * T.hypeStudioFame + founderHype() + (state.reputation?state.reputation.buzz*TUNING.reputation.buzzHype:0);
     const publicity = talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype;
     const ensemble=entourageContribution(p);
-    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod + rnd(-5, 5);
+    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod +
+      (p.dna?(V14_VISIONS[p.dna.vision]?.hype||0):0) + rnd(-5, 5);
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.hype)), 0, 100);
     p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, decisions:p.hypeMod, result };
     return result;
@@ -1397,8 +1399,98 @@ var Engine = (function () {
     state.pending = pend;
     emit('decision_pending', state.pending);
   }
+
+  // A sparse shared-history record; actors keep existing credits only.
+  function v14PairKey(p){
+    if(!p||!p.cast)return null;
+    const d=p.cast.director,w=p.cast.writer;
+    if(d==null||w==null||d===''||w===''||(d==='founder'&&w==='founder'))return null;
+    return [String(d),String(w)].join(':');
+  }
+  function v14Chemistry(p){
+    const key=v14PairKey(p),t=key&&v14State().partnerships[key];
+    return t?clamp(Number(t.trust)||0,-4,4):0;
+  }
+  function v14PartnershipOutcome(p){
+    const key=v14PairKey(p);if(!key||p.partnershipCommitted)return;
+    const partners=v14State().partnerships,old=partners[key]||{count:0,trust:0,week:0};
+    const delta=Number(p.v14TrustDelta)||0;
+    const next={count:old.count+1,trust:clamp(old.trust+delta+(p.quality>=73?1:0),-4,4),week:state.week};
+    partners[key]=next;p.partnershipCommitted=true;
+    // Preserve only the most recently active partnership records.
+    const keys=Object.keys(partners);if(keys.length>36)keys.sort((a,b)=>partners[a].week-partners[b].week)
+      .slice(0,keys.length-36).forEach(id=>delete partners[id]);
+    if(next.count>1)filmStory(p,'partnership','Returning writer/director partnership '+(next.trust>=0?'builds':'strains')+
+      ' trust ('+next.count+' films together).');
+  }
+  const V14_STORY_ISSUES={
+    narrow:['The intended audience looks smaller than expected. The team wants to reconsider the central scene.',
+      ['Protect the distinctive story','Try a measured rewrite','Make a commercial compromise']],
+    difficult:['A location problem threatens the shoot and the director disagrees with the producer.',
+      ['Rework the scene creatively','Add a week for the original plan','Simplify the set']],
+    controversial:['The leading players disagree about whether a risky scene should stay.',
+      ['Protect the writer’s intent','Hold a mediated rehearsal','Soften the confrontation']],
+    untested:['Early footage suggests the unusual approach may divide viewers.',
+      ['Trust the experiment','Arrange a careful reshoot','Favor accessible storytelling']],
+    expensive:['An ambitious sequence is consuming more of the budget than planned.',
+      ['Solve it with a practical effect','Fund a careful extension','Scale back the sequence']],
+    marketing:['The trailer team cannot explain why the film is worth watching.',
+      ['Lead with its unusual premise','Work with the writer on a new hook','Promote the star instead']]
+  };
+  function v14IssueDefinition(p){
+    const risk=p.dna&&p.dna.risk||'untested',row=V14_STORY_ISSUES[risk]||V14_STORY_ISSUES.untested;
+    const pct=p.format==='short'?.015:.025;
+    return {id:'v14_issue_'+risk,stage:'shoot',category:'production',text:row[0]+' ("{title}")',
+      choices:[
+        {label:row[1][0],effects:{quality:2,hype:-1},trust:1,flag:'authentic',result:'The creative team keeps its promise but accepts narrower initial appeal.'},
+        {label:row[1][1],effects:{quality:2,weeks:1,costPct:pct},trust:1,flag:'supported',result:'A careful compromise improves the craft while adding real cost and time.'},
+        {label:row[1][2],effects:{quality:-1,hype:3},trust:-1,flag:'accessible',result:'The project moves faster toward mass appeal, but a creative disagreement lingers.'}
+      ]};
+  }
+  function v14Choice(p,pd,c){
+    if(!p||!p.dna)return;
+    if(pd.id&&pd.id.startsWith('v14_issue_')){
+      p.dna.choiceFlags=p.dna.choiceFlags||[];
+      if(c.flag&&!p.dna.choiceFlags.includes(c.flag))p.dna.choiceFlags.push(c.flag);
+      p.v14TrustDelta=clamp((p.v14TrustDelta||0)+(c.trust||0),-4,4);
+      filmStory(p,'production',c.result||c.label);
+    }else if(pd.id==='cut'){
+      filmStory(p,'post','The creative team settled the final cut: '+c.label+'.');
+    }else if(pd.id==='release_date'){
+      filmStory(p,'release','Positioned the release date against the current rival slate.');
+    }else if(pd.category==='production'){
+      filmStory(p,'production',c.result||c.label);
+    }
+    if(pd.category==='production'||(pd.id&&pd.id.startsWith('v14_issue_')))
+      p.storyChoices=Math.min(5,(p.storyChoices||0)+1);
+  }
+  function v14MaybeIssue(p){
+    if(!p.dna||p.flags.v14Issue||p.stage!=='shoot'||(p.storyChoices||0)>0)return false;
+    p.flags.v14Issue=true;
+    const def=v14IssueDefinition(p),policy=v14State().delegation;
+    if(policy==='director'||policy==='commercial'){
+      const selection=policy==='director'?0:2,choice=def.choices[selection];
+      applyEffects(p,choice.effects);v14Choice(p,def,choice);
+      p.usedEvents.push(def.id);
+      addLog('Delegated "'+p.title+'" decision to '+policy+' policy: '+choice.result,'production');
+      return true;
+    }
+    // raise preserves the existing one-decision-at-a-time queue and UI.
+    raise(p,def);
+    return true;
+  }
+  function v14SetDelegation(policy){
+    if(!['ask','director','commercial'].includes(policy))return {ok:false,reason:'Invalid delegation setting.'};
+    v14State().delegation=policy;save();emit('policy',{policy});return {ok:true};
+  }
+
   function maybeEvent(p) {
     if (state.pending) return;
+    if(p.dna){
+      if(p.stage==='development')return; // the creative pitch is already the opening commitment
+      if(v14MaybeIssue(p))return;
+      if((p.storyChoices||0)>=(p.format==='feature'?2:1))return;
+    }
     if (state.week - p.lastEventWeek <= TUNING.eventCooldownWeeks) return;
     if (p.stage === 'development' && p.flags.devEvent) return;
     const chance = p.stage === 'shoot' ? TUNING.eventChanceShoot : (p.stage === 'development' ? TUNING.eventChanceDev : 0);
@@ -1536,6 +1628,7 @@ var Engine = (function () {
       addLog(c.result || c.label, 'event', pd.category);
     } else if (p) {
       applyEffects(p, c.effects);
+      v14Choice(p,pd,c);
       if(pd.talentId!=null) {
         const participant=getTalent(pd.talentId);
         if(participant)careerEvent(participant,pd.disaster?'controversy':'production',c.result||c.label,'player:'+p.id);
@@ -1693,12 +1786,14 @@ var Engine = (function () {
     applyInitiative(p);
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
-    p.critic = clamp(Math.round(p.quality + g.critics + rnd(-10, 10)), 1, 100);
+    p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0) + rnd(-10, 10)), 1, 100);
     p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
     if (p.sequelOf != null) {
       p.audience = clamp(Math.round(p.audience - (p.franchiseExpectation||0) + (p.quality>=78 ? 5 : 0)),1,100);
     }
     p.review = receptionText(p);
+    if(p.dna){p.audience=clamp(p.audience+(V14_VISIONS[p.dna.vision]?.viewer||0),1,100);
+      filmStory(p,'premiere','Critics rated the '+p.dna.vision+' film '+p.critic+'/100; viewers rated it '+p.audience+'/100.');}
     p.stage = 'release';
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
@@ -1719,6 +1814,7 @@ var Engine = (function () {
       const t = typeof p.cast[slot] === 'number' ? getTalent(p.cast[slot]) : null;
       if (t) p.talentSnapshot[slot] = { id:t.id, name:t.name, skill:t.skill, fame:t.fame, recognition:recognition(t).name, homeRegion:t.homeRegion };
     });
+    v14PartnershipOutcome(p);
     castTalent(p).forEach(t => {
       if (t.contract && t.contract.type === 'project' && t.contract.projectId === p.id) t.contract = null;
       if (!t.credits.includes(p.id)) t.credits.push(p.id);
@@ -3973,6 +4069,7 @@ var Engine = (function () {
     inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
     v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
     v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
+    v14Chemistry:v14Chemistry, v14PairKey:v14PairKey, v14SetDelegation:v14SetDelegation,
     v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote
   };
 })();
