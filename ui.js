@@ -409,7 +409,39 @@ var UI = (function () {
     if (!items.length) return '<p class="muted">Nothing yet.</p>';
     return '<ul class="log">' + items.map(n => '<li class="t-' + n.type + '"><span class="wire-meta"><strong class="news-tag">' + esc(n.label) + '</strong><small>' + dateLabel(n.week) + '</small></span><p>' + esc(n.text) + '</p></li>').join('') + '</ul>';
   }
-  function stat(label, value) { return '<div><div class="muted">' + label + '</div><div class="big">' + value + '</div></div>'; }
+  const FC_HELP={
+    'film quality':'Final craftsmanship reflects staff, production resources, story fit and choices; it is not box office.',
+    'quality forecast':'Estimated final craft, which can change during production.',
+    'release hype':'Public awareness at opening, influenced by marketing, stars, choices and critic reviews.',
+    'hype forecast':'Early estimate of public awareness. Final hype can change.',
+    'critics':'Aggregate simulated critic response, separate from public audience ratings and individual fictional reviews.',
+    'lifetime fame':'Long-term public recognition earned from prior releases; unlocks possible sponsor access.',
+    'current buzz':'Recent audience interest which fades during inactive weeks.',
+    'current prestige':'Recent award and critical standing, not a permanent trait.',
+    'lifetime legacy':'Permanent accomplishments; unlike buzz or current prestige it does not decay.',
+    'studio receipts':'Actual studio income from ticket shares, short screenings, network earnings, sponsorship and later rights; not worldwide gross.',
+    'direct p/l so far':'Revenue minus direct project costs, including talent and marketing. Studio overhead is excluded.',
+    'estimated screening visits':'Estimated visits derived from the short film’s recorded screening income; repeat audiences can count more than once.',
+    'est. screening visits':'Modeled short-film visits, not counted unique people.',
+    'est. theatrical admissions':'Estimated ticket visits based on gross and modeled ticket prices.',
+    'est. tv household impressions':'Modelled TV household impressions from aired episodes; not unique homes.',
+    'film promotion':'Optional paid pre-release audience campaign, with no guaranteed revenue.',
+    'festival exposure':'Future festival selection is never certain; a press kit only boosts future jury merit by four.',
+    'market pressure':'Nearby competitor releases and market conditions can divide audience attention.'
+  };
+  function helpTip(key){
+    const info=FC_HELP[String(key||'').toLowerCase()];
+    if(!info)return '';
+    return '<span class="fc-help"><button type="button" title="'+esc(info)+
+      '" aria-label="About '+esc(key)+'" aria-expanded="false" onclick="UI.toggleHelpTip(this)">?</button>'+
+      '<span class="fc-help-info" hidden>'+esc(info)+'</span></span>';
+  }
+  function toggleHelpTip(btn){
+    const tip=btn&&btn.closest('.fc-help')?.querySelector('.fc-help-info');
+    if(!tip)return;
+    tip.hidden=!tip.hidden;btn.setAttribute('aria-expanded',String(!tip.hidden));
+  }
+  function stat(label, value) { return '<div><div class="muted">' + label + helpTip(label) + '</div><div class="big">' + value + '</div></div>'; }
   function logList(items) {
     return '<ul class="log">' + items.map(l => '<li class="t-' + l.type + '"><span class="muted">' + dateLabel(l.week) + '</span> ' + esc(l.text) + '</li>').join('') + '</ul>';
   }
@@ -688,10 +720,10 @@ var UI = (function () {
       const guess=Math.max(0,Math.min(95,Math.round((Engine.state?.studio?.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
       hype=Math.max(0,guess-9)+'–'+Math.min(100,guess+9);
     }
-    const score=finished?'<div><small>Critics</small><strong>'+p.critic+'/100</strong><em>Final critic score</em></div>':'';
+    const score=finished?'<div><small>Critics'+helpTip('Critics')+'</small><strong>'+p.critic+'/100</strong><em>Final critic score</em></div>':'';
     return '<div class="fc-film-health">'+
-      '<div><small>'+ (finished?'Film quality':'Quality forecast') +'</small><strong>'+esc(q)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Finished film craftsmanship':'Uncertain until release')+'</em></div>'+
-      '<div><small>'+(finished?'Release hype':'Hype forecast')+'</small><strong>'+esc(hype)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Public awareness at opening':'Planning estimate, not final')+'</em></div>'+
+      '<div><small>'+ (finished?'Film quality':'Quality forecast') +helpTip(finished?'Film quality':'Quality forecast')+'</small><strong>'+esc(q)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Finished film craftsmanship':'Uncertain until release')+'</em></div>'+
+      '<div><small>'+(finished?'Release hype':'Hype forecast')+helpTip(finished?'Release hype':'Hype forecast')+'</small><strong>'+esc(hype)+(finished?'/100':'')+'</strong><em>'+esc(finished?'Public awareness at opening':'Planning estimate, not final')+'</em></div>'+
       score+'</div>';
   }
   function shortFestivalPanel(p){
@@ -755,10 +787,10 @@ var UI = (function () {
       '<div class="fc-performance-metrics"><div><small>This week · receipts</small><strong>'+money(pulse.thisWeekRevenue)+'</strong><em>Booked studio earnings</em></div>'+
       '<div><small>All-time receipts</small><strong>'+money(p.revenue||0)+'</strong><em>All earned project income</em></div>'+
       watchers+
-      '<div><small>Direct P/L so far</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less direct film spending</em></div></div>'+
-      '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
+      '<div><small>Direct P/L so far'+helpTip('Direct P/L so far')+'</small><strong class="'+(net<0?'neg':'fc-positive')+'">'+money(net)+'</strong><em>Receipts less direct film spending</em></div></div>'+
+      '<div class="fc-earnings-visuals"><div><small>Weekly studio receipts'+helpTip('Studio receipts')+'</small>'+filmPulseChart(p,'revenue',12)+'</div>'+
       (feature?'<div><small>Weekly theatrical gross</small>'+filmPulseChart(p,'gross',12)+'</div>':
-        p.format==='short'?'<div><small>Weekly estimated screening visits</small>'+filmPulseChart(p,'screenings',12)+'</div>':
+        p.format==='short'?'<div><small>Weekly estimated screening visits'+helpTip('Estimated screening visits')+'</small>'+filmPulseChart(p,'screenings',12)+'</div>':
           '<div><small>Weekly estimated household impressions</small>'+filmPulseChart(p,'households',12)+'</div>')+'</div>'+
       '<p class="fc-performance-caveat">'+esc(disclaimer)+'</p>'+
       (p.format==='short'?shortFestivalPanel(p)+shortFilmActions(p,false):'')+
@@ -1799,7 +1831,7 @@ var UI = (function () {
   function v14Calendar(){
     const weeks=Engine.v14ReleaseCalendar(),fmt=f=>nameOf(Engine.formats(),f.format||'feature');
     return '<section class="fc-v14-profile-section"><div class="fc-v14-section-heading"><div>'+
-      '<small>COMPETITIVE RELEASE PLANNING</small><h2>Upcoming 12 weeks</h2>'+
+      '<small>COMPETITIVE RELEASE PLANNING</small><h2>Upcoming 12 weeks</h2>'+helpTip('Market pressure')+''+
       '<p>Highlighted titles are real scheduled releases. Your planned shorts and TV pilots may have <strong>estimated</strong> dates that change with production decisions.</p></div></div>'+
       '<p class="fc-calendar-legend">Your studio · rival features · genre/story-topic clashes within two weeks. A warning signals audience overlap, not a guaranteed loss.</p>'+
       '<div class="fc-v14-calendar">'+weeks.map(w=>
@@ -2824,7 +2856,7 @@ var UI = (function () {
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
-    showPulseDetail:showPulseDetail,
+    showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
