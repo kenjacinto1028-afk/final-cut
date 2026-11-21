@@ -24,6 +24,7 @@ for(const [idx,spec] of strategies.entries()){
  // viability verdict for starter cash. Early-game affordability has its own tests.
  s.cash=40_000_000;s.studio.tier=3;s.studio.fame=70;
  E.v14SetDelegation(spec.policy);
+ A(E.setFastSimulationTesting(true),'Fast career QA must be Node-only');
  let started=0,dilemmas=0,profitable=0,flops=0,pressured=0;
  for(let week=0;week<52*horizonYears;week++){
    if(week%28===0&&E.activeProjects().length<E.capacity()&&!s.gameOver){
@@ -50,6 +51,8 @@ for(const [idx,spec] of strategies.entries()){
  const history=s.v14.classChanges||[],role=E.v14Identity('you');
  const quality=done.reduce((n,p)=>n+(p.quality||0),0)/Math.max(1,done.length);
  const score=done.reduce((n,p)=>n+Math.max(0,Math.min(100,p.audience||0)),0)/Math.max(1,done.length);
+ A(E.setFastSimulationTesting(false));
+ A(E.save(),'Full normal final persistence must succeed');
  const stored=db.get('backlot_save')||'';
  const years=Math.floor(s.week/52);
  A(!s.gameOver,'funded multi-decade stress game ended prematurely');
