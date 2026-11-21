@@ -221,3 +221,12 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Revised the proposed separate Dashboard Market Trends panel into **Studio Wire tabs**: News, upcoming Rival Releases, and Market Trends (genre/topic top 3 rise and bottom 3 fall). Updated `docs/NEXT_UI_POLISH_PLAN.md` with relevant schedule/demand sources, responsive states and tests.
 - [x] Added optional quality-of-life improvement candidates to `docs/NEXT_UI_POLISH_PLAN.md` for review (not approved or implemented).
 - [ ] Implement Studio Wire tabs, rivalry scheduling, trend history if needed, and regression tests in next update.
+
+## v14.8 — Studio Wire and full quality-of-life pass (active branch `feature/v14-8-studio-wire-qol`)
+- [ ] Phase A: inspect live engine calendar/market/film lifecycle and UI navigation to choose compatible integration points.
+- [ ] Phase B: Studio Wire tabs (News, Rival Releases, Market Trends) with genuine comparison snapshots and old-save handling.
+- [ ] Phase C: Next Action, prioritized notifications, safe quiet-week auto-advance.
+- [ ] Phase D: film timeline, rival release collision warnings and safer timing.
+- [ ] Phase E: remember tabs/filters, film postmortem and financial language/tooltip clarity.
+- [ ] Phase F: dedicated tests, all existing CI and long-career balancing; fix regressions.
+- [ ] Phase G: merge into main only after tests green; verify deployed Pages build.
