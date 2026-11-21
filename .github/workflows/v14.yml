@@ -1,7 +1,7 @@
 name: FinalCut v14 integrated filmmaking QA
 on:
   push:
-    branches: [feature/v14-filmmaking-overhaul]
+    branches: [feature/v14-filmmaking-overhaul, main]
   pull_request:
     branches: [main]
 jobs:

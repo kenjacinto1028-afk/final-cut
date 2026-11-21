@@ -17,3 +17,7 @@ Status: automated diagnostic authored, awaiting CI figures.
 ## Initial eight-career baseline (Actions #44864111660)
 
 Normal-start full-career runs passed simulations. Net cash: prestige $404–456m, blockbuster $1.96–2.07bn, cheap $36.8–49.2m, careful $262.8–295.9m. Careful had 0–1 feature flops, rival quality lagged the prestige/major studios by roughly 20–26 points, and raw save JSON was 7.9–8.6 MB. All eight returned false from the simulated 5MiB active-save roundtrip. The new exact packed-size instrumentation will determine whether this is a quota limit or another test defect. These are synthetic bot outcomes, not predictions for human players.
+
+## Confirmed active-save capacity bug and remediation
+
+Measured compact FCP1 payloads in #44864296282: 5.45m–6.02m characters across all eight long careers, exceeding the explicit simulated 5MiB browser budget. The game previously swallowed a quota failure by returning false from Engine.save(). FCP2 is a new backwards-compatible, lossless LZW layer for lifetime-size active saves only; no currency, award, or campaign data is removed. Plain JSON and FCP1 continue loading. Dedicated tests verify Unicode, synthetic giant history, real engine save/reload under the quota and older versions. CI must prove 8/8 standard-start long career saves now roundtrip before marking fixed.

@@ -4394,6 +4394,72 @@ var Engine = (function () {
   // remains lossless; older plain-JSON saves and human-readable exports still load.
   const SAVE_PACK_PREFIX = 'FCP1';
   const SAVE_PACK_KEYS = /"([^"\\]+)":/g;
+
+  // v14: second-stage lossless compression for lifetime-sized campaigns.
+  // FCP2 wraps an exact older FCP1/plain payload. Old saves remain readable.
+  // Fixed 17-bit LZW codes and plain ASCII base64, no dependencies or RNG.
+  const SAVE_PACK_PREFIX_V2='FCP2';
+  const SAVE_PACK_B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  function packSaveLzw17(input){
+    const dictionary=new Map(),bytes=[];let next=65536,word='',bitbuf=0,bitcount=0;
+    const emit=code=>{
+      bitbuf|=code<<bitcount;bitcount+=17;
+      while(bitcount>=8){bytes.push(bitbuf&255);bitbuf>>>=8;bitcount-=8;}
+    };
+    for(let i=0;i<input.length;i++){
+      const ch=input.charAt(i);
+      if(!word){word=ch;continue;}
+      const both=word+ch;
+      if(dictionary.has(both)){word=both;continue;}
+      emit(word.length===1?word.charCodeAt(0):dictionary.get(word));
+      if(next===131071){emit(131071);dictionary.clear();next=65536;}
+      else dictionary.set(both,next++);
+      word=ch;
+    }
+    if(word)emit(word.length===1?word.charCodeAt(0):dictionary.get(word));
+    if(bitcount>0)bytes.push(bitbuf&255);
+    const chunks=[];let out='';
+    for(let i=0;i<bytes.length;i+=3){
+      const a=bytes[i],b=i+1<bytes.length?bytes[i+1]:0,c=i+2<bytes.length?bytes[i+2]:0;
+      out+=SAVE_PACK_B64[a>>>2]+SAVE_PACK_B64[((a&3)<<4)|(b>>>4)]+
+        (i+1<bytes.length?SAVE_PACK_B64[((b&15)<<2)|(c>>>6)]:'=')+
+        (i+2<bytes.length?SAVE_PACK_B64[c&63]:'=');
+      if(out.length>32768){chunks.push(out);out='';}
+    }
+    chunks.push(out);return chunks.join('');
+  }
+  function unpackSaveLzw17(base){
+    if(base.length%4!==0||base.length>40000000)throw Error('Invalid compressed save length');
+    const binary=new Uint8Array(Math.floor(base.length*3/4));let count=0;
+    for(let i=0;i<base.length;i+=4){
+      const a=SAVE_PACK_B64.indexOf(base[i]),b=SAVE_PACK_B64.indexOf(base[i+1]);
+      const c=base[i+2]==='='?0:SAVE_PACK_B64.indexOf(base[i+2]),d=base[i+3]==='='?0:SAVE_PACK_B64.indexOf(base[i+3]);
+      if(a<0||b<0||c<0||d<0||(base[i+2]==='='&&base[i+3]!=='=')||(i+4<base.length&&(base[i+2]==='='||base[i+3]==='=')))
+        throw Error('Invalid compressed save data');
+      const triplet=(a<<18)|(b<<12)|(c<<6)|d;
+      binary[count++]=(triplet>>>16)&255;
+      if(base[i+2]!=='=')binary[count++]=(triplet>>>8)&255;
+      if(base[i+3]!=='=')binary[count++]=triplet&255;
+    }
+    let dict=[],next=65536,prev='',parts=[],acc=0,bits=0,total=0;
+    for(let i=0;i<count;i++){
+      acc|=binary[i]<<bits;bits+=8;
+      if(bits<17)continue;
+      const code=acc&131071;acc>>>=17;bits-=17;
+      if(code===131071){dict=[];next=65536;prev='';continue;}
+      let entry;
+      if(code<65536)entry=String.fromCharCode(code);
+      else if(dict[code]!==undefined)entry=dict[code];
+      else if(code===next&&prev)entry=prev+prev.charAt(0);
+      else throw Error('Invalid compressed save code');
+      parts.push(entry);total+=entry.length;
+      if(total>100000000)throw Error('Compressed save exceeds supported size');
+      if(prev&&next<131071)dict[next++]=prev+entry.charAt(0);
+      prev=entry;
+    }
+    return parts.join('');
+  }
+
   function encodeSave(obj) {
     const raw = JSON.stringify(obj);
     if (raw.length < 400000) return raw;
@@ -4407,9 +4473,16 @@ var Engine = (function () {
     const packed = raw.replace(SAVE_PACK_KEYS, (match, key) =>
       Object.prototype.hasOwnProperty.call(lookup, key) ? '"' + lookup[key] + '":' : match);
     const encoded = SAVE_PACK_PREFIX + JSON.stringify(keys) + '\n' + packed;
-    return encoded.length < raw.length ? encoded : raw;
+    const candidate=encoded.length<raw.length?encoded:raw;
+    // Only long careers pay the extra compression cost. Start before quota risk.
+    if(candidate.length>3750000){
+      const v2=SAVE_PACK_PREFIX_V2+packSaveLzw17(candidate);
+      if(v2.length<candidate.length)return v2;
+    }
+    return candidate;
   }
   function decodeSave(raw) {
+    if(raw&&raw.startsWith(SAVE_PACK_PREFIX_V2))raw=unpackSaveLzw17(raw.slice(SAVE_PACK_PREFIX_V2.length));
     if (!raw || !raw.startsWith(SAVE_PACK_PREFIX)) return JSON.parse(raw);
     const sep = raw.indexOf('\n', SAVE_PACK_PREFIX.length);
     if (sep === -1) throw new Error('Invalid compact save header');

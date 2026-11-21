@@ -71,3 +71,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] Verify CI, record observed figures and prioritize only demonstrated imbalances.
 
 - [x] Follow-up sizing diagnostic: Report exact legacy FCP1 compact payload characters and UTF-8 bytes for each long career; distinguish a genuine 5MiB quota breach from other persistence failure. Next CI determines remedy.
+
+- [x] Added additive FCP2 second-stage synchronous LZW compression only for over-3.75m-character FCP1/plain saves; old v13 JSON and FCP1 remain fully readable. Added dedicated Unicode/quota/roundtrip regression. Pending actual GitHub Actions verification.

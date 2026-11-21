@@ -23,4 +23,5 @@ jobs:
           node --check engine.js
           node --check sim.js
           node --check tests/v14_balance_followup.js
+          node tests/v14_save_codec.js
           node tests/v14_balance_followup.js
