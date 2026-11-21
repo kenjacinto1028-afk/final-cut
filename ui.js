@@ -211,6 +211,11 @@ var UI = (function () {
   let viewTransitionPending = false;
   function go(v) {
     closeMobileNav();
+    // Filmography should always open on a complete, unfiltered studio catalog.
+    // Do not carry restrictive Industry Rankings/Archive filters across sections.
+    if (v === 'filmography' && view !== 'filmography') {
+      Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
+    }
     if (v !== view) {
       viewTransitionPending = true;
       if (hasMedia()) Media.uiSound('navigate');
@@ -1195,6 +1200,7 @@ var UI = (function () {
     });
     let h = '<div class="archive-search"><label>Find a film <input type="search" value="' + esc(filmBrowse.query) + '" onchange="UI.setFilmQuery(this.value)" placeholder="Title, studio, genre, topic"></label>' +
       '<span class="muted">' + rows.length + ' films · page ' + (filmBrowse.page+1) + ' of ' + (maxPage+1) + '</span></div>';
+    if(mine && rows.length===0)h += '<p class="muted">No films match these filters. <button type="button" onclick="UI.resetMyFilmographyFilters()">Show all my films</button></p>';
     const detailed=!ranked,ownDetails=mine&&!ranked;
     const heads=(ranked?'<th>'+(filmBrowse.region?'Market #':'Rank #')+'</th>'+(mine?'<th>Studio #</th>':''):'')+
       (ownDetails?'<th>Studio #</th><th>World #</th>':'')+
@@ -1257,6 +1263,10 @@ var UI = (function () {
     films.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
     return filmTable(films,false,my);
   }
+  function resetMyFilmographyFilters(){
+    Object.assign(filmBrowse,{tab:'all',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:'all',query:'',page:0});
+    render();
+  }
   function viewFilmography() {
     const mine=Engine.filmHistory().filter(f=>f.projectId!=null);
     const receipts=mine.reduce((n,f)=>n+(f.revenue||0),0),
@@ -1270,7 +1280,7 @@ var UI = (function () {
       '<div><small>Films released</small><strong>'+mine.length+'</strong><em>Across all formats</em></div></div>';
     return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+
 
-      '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'all\')">All My Films</button>' +
+      '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.resetMyFilmographyFilters()">All My Films</button>' +
       '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
       filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
@@ -3404,7 +3414,7 @@ var UI = (function () {
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     filmHubSelect:filmHubSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
-    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
+    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();
