@@ -1458,7 +1458,7 @@ var UI = (function () {
         { key: 'bar', label: '', value: g => g.demand, render: g => pctBar(g.demand, 1.8) }
       ]
     });
-    h += '<h2>Topic trends</h2><p class="muted">Topic interest shifts quarterly; era taste changes over the decades. Topic effects on demand are capped at ±15% so a good story can succeed in a cooler market.</p>' + tblHtml('topicmarket', {
+    h += '<details class="fc-disclosure"><summary>More data · Story topic trends</summary><p class="muted">Topic interest shifts quarterly; story quality still matters.</p>' + tblHtml('topicmarket', {
       rows: () => Engine.marketInfo().topics, rowId: t => t.id, sort: 'demand', dir: -1,
       columns: [
         { key: 'name', label: 'Topic', value: t => t.name },
@@ -1467,14 +1467,12 @@ var UI = (function () {
         { key: 'demand', label: 'Market effect', num: true, value: t => t.demand, render: t => '<strong>' + mult(t.demand) + '</strong>' }
       ]
     });
-    h += '<h2>Release calendar</h2><div class="tbl-wrap"><table><thead><tr><th>Week</th><th>Season</th><th class="num">Rival releases</th><th>Named rival films</th><th class="num">Season</th></tr></thead><tbody>' +
-      mk.slate.map(w => '<tr><td>' + dateLabel(w.week) + '</td><td>' + esc(w.season) + '</td><td class="num">' + w.competitors + '</td><td>' +
-        (w.rivals.length ? w.rivals.map(x => esc(x.studio) + ': “' + esc(x.title) + '” <span class="muted">(' + esc(nameOf(CONTENT.GENRES, x.genre)) + ', ' + money(x.budget) + ')</span>').join('<br>') : '<span class="muted">–</span>') +
-        '</td><td class="num">' + mult(w.seasonMult) + '</td></tr>').join('') +
-      '</tbody></table></div>';
+    h += '</details>';
+    h += '<p class="fc-compact-page-info">Release dates, competitor openings and conflict warnings now have their own focused calendar tab.</p>'+
+      '<button type="button" onclick="UI.go(\'calendar\')">Open Release Calendar</button>';
     const era = Engine.eraInfo();
-    h += '<h2>Era: ' + esc(era.name) + ' <span class="muted">' + era.start + (era.end ? '–' + era.end : ' onward') + '</span></h2><p class="muted">' + esc(era.blurb) + '</p>' +
-      '<ul class="plain">' + Engine.eraLines().map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
+    h += '<details class="fc-disclosure"><summary>Industry era details · '+esc(era.name)+'</summary><h2>Era: ' + esc(era.name) + ' <span class="muted">' + era.start + (era.end ? '–' + era.end : ' onward') + '</span></h2><p class="muted">' + esc(era.blurb) + '</p>' +
+      '<ul class="plain">' + Engine.eraLines().map(l => '<li>' + esc(l) + '</li>').join('') + '</ul></details>';
     return h;
   }
 
@@ -1607,7 +1605,7 @@ var UI = (function () {
     const sel = rivalSel != null && Engine.getRival(rivalSel) ? Engine.rivalInfo(rivalSel) : null;
     let h = '<h1>Rivals</h1><div class="strip">' + stat('Active studios', act.length) + stat('Your box office share this year', (me ? me.share : 0) + '%') +
       stat('Talent poached from you', poached) + '</div>';
-    h += v14Calendar();
+    h += '<p class="fc-compact-page-info"><button type="button" onclick="UI.go(\'calendar\')">See the release calendar</button> to compare premieres and competing genres.</p>';
     h += '<p class="muted">Rival films compete for your release weeks. A studio that keeps losing money chases trends; the weakest go bankrupt and upstarts replace them. Click a studio for its releases and poached talent.</p>';
     h += tblHtml('rivals', {
       rows: rivalInfos,
