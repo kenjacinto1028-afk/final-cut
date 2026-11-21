@@ -1,6 +1,6 @@
 # Final Cut — Studio Tycoon
 
-**Current release: FinalCut v14.5.** PR #16 delivered five-section navigation, premiere reports and market-aware Film Hub and rankings. All ten PR regression workflows passed, including 12×61-year career balance; the v14.5 code was merged as `3a72576` and GitHub Pages deployed successfully (#44901669778).
+**Current release: FinalCut v14.9.** Dedicated mobile navigation, readable start screen, compact phone dashboard and touch-friendly Project Monitor, with unchanged desktop UI and gameplay. See [v14.9 mobile release notes](docs/CHANGELOG_V14_9.md). Earlier v14.5 added navigation, premiere reports and market-aware Film Hub and rankings.
 
 
 ## v14.5 — Clearer navigation, premieres and rankings
