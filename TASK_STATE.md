@@ -64,7 +64,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] **v14g:** implement postrelease legacy and earned primary classification, descriptors and standing for player and rivals; test and merge to main.
 - [ ] **v14h:** integrate UI, tutorial and multiyear balance tests; test and merge to main.
 ### v14a atomic checkpoints
-- [ ] Inspect game project lifecycle, save/backup and existing reports; establish additive schema and tests.
+- [x] Inspected engine project creation, decisions, stages, releases, save/pack/migrations (v13), Filmography and drawer UI; v14a will add optional Film DNA fields without changing the save version.
 - [ ] Implement causal Film DNA creation and compact story history; preserve old saves.
 - [ ] Expose Film DNA in project detail and Studio filmography with restrained A+B design.
 - [ ] Add automated legacy/save/pilot/feature/short tests and browser regression workflow.
