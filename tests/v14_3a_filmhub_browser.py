@@ -47,6 +47,7 @@ try:
   film=page.evaluate("(id)=>Engine.filmHistory().find(f=>f.projectId===id)",result['id'])
   page.evaluate("(id)=>{UI.closeDrawer();UI.go('filmography');UI.openFilm(id)}",film['id'])
   assert page.locator('#drawer').get_by_role('button',name='Open Film Hub',exact=False).count()==1
+  page.evaluate('UI.closePremiereReport()')
   page.locator('#drawer').get_by_role('button',name='Open Film Hub',exact=False).click()
   assert page.locator('#drawer').get_by_text('What can I do next?').count()==1
   # The generated movie still must no longer replace a custom uploaded poster.
