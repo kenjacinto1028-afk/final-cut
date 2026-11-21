@@ -241,6 +241,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14.8 dashboard layout polish — compact identity + restore side Studio Wire (branch `fix/v14-8-compact-identity-side-wire`)
 - [x] Refactored Dashboard identity to a compact one-row classification and in-card Studio Profile button; retained original full details on Studio Profile (`ui.js`, 0f81a1d).
 - [x] Restored side-by-side Studio Wire at laptop/desktop widths with monitor-aware narrow fallbacks and aligned compact card styles (`design-v14_7.css`, fd361a7).
-- [ ] Add/extend browser responsive tests for button placement, card height, side-by-side placement, Studio Wire tabs, mobile overflow and palette support.
+- [x] Added dedicated Playwright layout checks at desktop/laptop/mobile widths for card height, in-card button position, side/stack logic, Studio Wire tabs, palette switching and horizontal overflow (`tests/v14_8a_layout_browser.py`); screenshot workflow `.github/workflows/v14_8a.yml`.
   - [x] Added `tests/v14_8a_layout_browser.py` for desktop/laptop/monitor/mobile placement and `.github/workflows/v14_8a.yml` CI gate.
 - [ ] Run existing regression workflows, fix failures, merge to main and verify GitHub Pages deployment.
