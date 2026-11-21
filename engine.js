@@ -2007,14 +2007,18 @@ var Engine = (function () {
     if((p.marketingSpend||0)+cost>p.budget*.55)
       return {ok:false,reason:'Existing marketing spending has already reached this film’s planned budget limit.'};
     if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for this campaign.',cost};
+    if(p.budgetPlan&&cost>v144Available(p,'marketing'))
+      return {ok:false,reason:'Not enough allocated marketing funds. This costs '+fmtMoney(cost)+'; remaining '+fmtMoney(v144Available(p,'marketing'))+'.',cost};
     return {ok:true,kind,name:plan.name,cost,hypeLift:plan.hype,
       description:plan.description+' Release hype varies with other cast, script, marketing and market factors.'};
   }
   function filmPromote(id,kind){
     const q=filmPromotionQuote(id,kind);if(!q.ok)return q;
     const p=getProject(Number(id));
-    state.cash-=q.cost;state.finance.q.production+=q.cost;
-    p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+    if(p.budgetPlan){if(!v144Pay(p,'marketing',q.cost))return {ok:false,reason:'Marketing allocation or cash changed.'};}
+    else{state.cash-=q.cost;p.spent+=q.cost;}
+    state.finance.q.production+=q.cost;
+    p.marketingSpend=(p.marketingSpend||0)+q.cost;
     p.hypeMod=clamp((p.hypeMod||0)+q.hypeLift,-80,80);
     p.promotionCampaign={kind:q.kind,week:state.week,cost:q.cost,hypeLift:q.hypeLift};
     recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
@@ -2127,6 +2131,14 @@ var Engine = (function () {
     if(p.dna&&p.format==='short'&&v14UseOffer('festival',p))
       p.v14FestivalConnection=2;
     p.quality = computeQuality(p);
+    // Marketing planned for shorts and pilots executes automatically at launch.
+    if(p.budgetPlan&&p.format!=='feature'){
+      const due=Math.min(state.cash,v144Available(p,'marketing'));
+      if(due&&v144Pay(p,'marketing',due)){
+        p.marketingSpend=(p.marketingSpend||0)+due;
+        p.hypeMod=clamp((p.hypeMod||0)+Math.min(10,Math.round(Math.sqrt(due/Math.max(1,p.budget))*20)),-80,80);
+      }
+    }
     p.hype = computeHype(p);
     p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
       (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10) -
@@ -2172,10 +2184,19 @@ var Engine = (function () {
     p.staffSnapshot = Object.keys(state.staff.depts).map(id => ({ department: id, heads: state.staff.depts[id].heads, skill: state.staff.depts[id].skill }));
     if (p.format === 'short') {
       const quoted = regionQuote(p, p.regions);
-      if (state.cash < quoted.cost) { p.regions = [homeRegion()]; addLog('Not enough cash for overseas screenings of "' + p.title + '"; using the home circuit.', 'finance'); }
+      if (state.cash < quoted.cost || (p.budgetPlan&&quoted.cost>v144Available(p,'distribution'))) {
+        p.regions = [homeRegion()]; addLog('Distribution allowance cannot cover overseas screenings of "' + p.title + '"; using the home circuit.', 'finance');
+      }
       const rollout = regionQuote(p, p.regions);
       p.regions = rollout.regions; p.distributionCost = rollout.cost;
-      p.spent += rollout.cost; state.cash -= rollout.cost;
+      if(p.budgetPlan)v144Pay(p,'distribution',rollout.cost);
+      else{p.spent += rollout.cost; state.cash -= rollout.cost;}
+      if(p.budgetPlan){
+        const local=Math.min(state.cash,v144Available(p,'distribution'));
+        if(local&&v144Pay(p,'distribution',local)){
+          p.distributionCost+=local;p.hype=clamp(p.hype+Math.min(4,Math.round(8*Math.sqrt(local/Math.max(1,p.budget)))),0,100);
+        }
+      }
       p.shortCircuitReach = Math.min(.3, Math.max(0, rollout.openingMult - 1) * .23);
       p.festivalPlan = festivalPlan(p);
       const f = festivalDefinition(p.festivalPlan[0]) || CONTENT.AWARDS.circuit[0];
@@ -2193,12 +2214,19 @@ var Engine = (function () {
     } else {
       p.festivalPlan = festivalPlan(p);
       const quote = regionQuote(p, p.regions);
-      if (state.cash < quote.cost) { p.regions = [homeRegion()]; addLog('Insufficient funds for overseas release of \"' + p.title + '\"; opening in the home market only.', 'finance'); }
-      const rollout = regionQuote(p, p.regions);
-      p.regions = rollout.regions;
-      p.distributionCost = rollout.cost;
-      p.spent += rollout.cost;
-      state.cash -= rollout.cost;
+      if (state.cash < quote.cost || (p.budgetPlan&&quote.cost>v144Available(p,'distribution'))) {
+        p.regions=[homeRegion()];
+        addLog('Distribution allowance cannot cover overseas release of "'+p.title+'"; opening at home.', 'finance');
+      }
+      const rollout=regionQuote(p,p.regions);
+      p.regions=rollout.regions;p.distributionCost=rollout.cost;
+      if(p.budgetPlan){
+        v144Pay(p,'distribution',rollout.cost);
+        const local=Math.min(state.cash,v144Available(p,'distribution'));
+        if(local&&v144Pay(p,'distribution',local)){
+          p.distributionCost+=local;p.hype=clamp(p.hype+Math.min(5,Math.round(9*Math.sqrt(local/Math.max(1,p.budget)))),0,100);
+        }
+      }else{p.spent+=rollout.cost;state.cash-=rollout.cost;}
       p.regionalGross = {}; p.regionalRevenue = {};
       const m = marketOutlook(p, 0);
       p.market = { genre: m.genre, taste: m.taste, topic: m.topic, season: m.season, cycle: m.cycle, competitors: m.competitors, pressure: m.pressure, mult: m.mult,
