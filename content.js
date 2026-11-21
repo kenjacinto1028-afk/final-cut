@@ -70,6 +70,67 @@ CONTENT.TOPICS = [
   { id: 'celebrity', name: 'Celebrity scandal', good: ['drama', 'comedy', 'documentary'], bad: ['western', 'scifi'], era: { digital: 1.12, streaming: 1.10 } }
 ];
 
+// ===== SECTION: FILM_DNA_V14 =====
+// v14a: authored, controlled story vocabulary. No prompt-generated premises.
+// v14b uses these exact IDs for acquired pitches and explicit creative choices.
+CONTENT.FILM_DNA = {
+  strengths: {
+    dialogue:'Sharp dialogue',visuals:'Visual storytelling',atmosphere:'Unsettling atmosphere',
+    twist:'Strong twist',heart:'Emotional resonance',research:'Authentic research',
+    action:'Physical spectacle',chemistry:'Character chemistry',world:'Immersive world',
+    humor:'Memorable humor',mystery:'Layered mystery',performance:'Breakout performances'
+  },
+  risks: {
+    narrow:'Narrow audience appeal',ambition:'Demanding production',
+    ending:'Divisive ending',cost:'Costly practical scenes',
+    obscure:'Difficult to market',casting:'Unproven creative team',
+    sensitive:'Sensitive subject matter',scope:'Story scope may exceed budget'
+  },
+  intents:{
+    prestige:'Prestige-first',mainstream:'Mainstream entertainment',
+    genre:'Bold genre filmmaking',star:'Star vehicle',festival:'Festival-first'
+  },
+  lanes:{
+    mainstream:'Broad audience',genre:'Genre fans',niche:'Arthouse & niche audiences'
+  },
+  genreStrengths:{
+    drama:['dialogue','heart'],comedy:['humor','chemistry'],horror:['atmosphere','twist'],
+    thriller:['mystery','twist'],scifi:['world','visuals'],western:['atmosphere','action'],
+    romance:['heart','chemistry'],action:['action','visuals'],documentary:['research','heart']
+  },
+  genreRisks:{
+    drama:'narrow',comedy:'obscure',horror:'narrow',thriller:'ending',
+    scifi:'scope',western:'obscure',romance:'ending',action:'cost',documentary:'sensitive'
+  },
+  topicHooks:{
+    smalltown:'A close-knit community confronts a change that threatens the lives its people know.',
+    heist:'An unlikely team attempts a daring theft as private loyalties begin to fray.',
+    haunted:'Inside an isolated house, an ordinary arrival becomes an unsettling investigation.',
+    roadtrip:'A journey across unfamiliar places forces companions to reconsider their destination.',
+    familysecret:'An old family secret brings a difficult choice to the surface.',
+    spacecolony:'Life on a distant outpost grows uncertain when the community faces a new threat.',
+    boxing:'A fighter must choose what is worth sacrificing beyond the ring.',
+    rockband:'A band risks everything to stay together as success changes their relationships.',
+    corruptcop:'A compromised officer faces consequences when a hidden arrangement is exposed.',
+    invasion:'An unexpected arrival threatens the familiar order of a community.',
+    firstlove:'Two people discover what first love asks them to change.',
+    revenge:'A person seeking retribution faces the cost of settling an old injustice.',
+    cult:'A secretive group draws outsiders into a conflict of belief and belonging.',
+    frontier:'A remote settlement tests the ideals of those trying to build a future.',
+    robots:'A new machine challenges assumptions about its creators and their world.',
+    nightshift:'A small overnight crew encounters a problem no one else can see.',
+    organizedcrime:'A criminal organization is tested by divided loyalties and competing ambitions.',
+    conspiracy:'An investigation exposes a concealed struggle for public power.',
+    underdog:'An overlooked competitor gets a chance to prove everyone wrong.',
+    medical:'A medical emergency forces a difficult choice between duty and personal conviction.',
+    espionage:'A covert mission blurs the line between service and betrayal.',
+    comingofage:'A young person faces a choice that will shape the life ahead.',
+    supernatural:'Strange events suggest that a familiar place hides an extraordinary truth.',
+    timetravel:'An attempt to alter the past places the present in jeopardy.',
+    celebrity:'Public attention turns a private incident into a career-defining scandal.'
+  }
+};
+
 // ===== SECTION: TITLES =====
 CONTENT.TITLES = {
   patterns: ['The {adj} {noun}', '{noun} of the {noun2}', '{adj} {noun}', 'Last {noun} in {place}', 'Return to {place}', 'The {noun} Affair', '{place} After Dark'],
