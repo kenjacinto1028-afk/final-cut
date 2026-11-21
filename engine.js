@@ -402,7 +402,12 @@ var Engine = (function () {
     const unlocked=state.studio.tier>0&&state.studio.fame>=TUNING.formats.feature.unlockFame;
     v.pitches=offers.map((lane,i)=>{
       const templates=V14_PITCHES.filter(t=>i===1?t.vision==='prestige':i===2?t.vision==='bold':t.vision==='mainstream');
-      const d=templates[v14Hash(state.campaignId+':'+quarter+':'+i)%templates.length];
+      let d=templates[v14Hash(state.campaignId+':'+quarter+':'+i)%templates.length];
+      const identity=v14Identity('you');
+      if(i===2 && identity?.primary==='genre' && identity.topGenre){
+        const focused=V14_PITCHES.filter(t=>t.genre===identity.topGenre);
+        if(focused.length)d=focused[v14Hash(state.campaignId+':focus:'+quarter)%focused.length];
+      }
       const format=unlocked?(i===1?'short':'feature'):'short';
       const budget=TUNING.formats[format].tiers[0].budget;
       const fee=(!unlocked&&i===0)?0:round50(budget*(i===2?.12:i===1?.07:.045));
@@ -424,7 +429,9 @@ var Engine = (function () {
     if(o.format!==pitch.format||o.genre!==pitch.genre||o.topic!==pitch.topic)
       return {ok:false,reason:'The pitch format, genre and topic must match the original script.'};
     const approach=['standard','partner','buyout'].includes(o.pitchApproach)?o.pitchApproach:'standard';
-    const fee=Math.round(pitch.fee*(approach==='buyout'?1.5:approach==='partner'?.65:1));
+    const boon=v14State().offers.find(x=>!x.used&&x.expiresWeek>=state.week);
+    const discount=boon&&['newvoices','prestige','genre'].includes(boon.id)?.9:1;
+    const fee=Math.round(pitch.fee*(approach==='buyout'?1.5:approach==='partner'?.65:1)*discount);
     return {ok:true,fee,pitch,approach,contested:pitch.contested};
   }
   function v14MarketInfo(){return {quarter:Math.floor(state.week/13),pitches:v14Pitches().map(p=>Object.assign({},p)),nextRefreshWeek:(Math.floor(state.week/13)+1)*13};}
@@ -771,7 +778,10 @@ var Engine = (function () {
     const script = state.founder.stats.writing >= 65 ? 0.05 : 0;
     const payFit = budget && budget >= talentFee(t, format) * 8 ? 0.04 : 0;
     const rep = studio.fame * 0.001 + studio.criticsRep * 0.0011 + (studio.prestige || 0) * 0.0015;
-    const chance = elite ? clamp(0.78 + rep + (fit ? 0.12 : 0) + storyFit + script + payFit -
+    const industry=v14Identity('you');
+    const smallBenefit=(t.role==='director'||t.role==='writer')&&
+      ['prestige','incubator','indie'].includes(industry?.primary)?0.025:0;
+    const chance = elite ? clamp(0.78 + rep + smallBenefit + (fit ? 0.12 : 0) + storyFit + script + payFit -
       Math.max(0, t.skill - 55) * 0.009 - Math.max(0, t.fame - 45) * 0.0035, 0.25, 0.97) : 1;
     return { chance: Math.round(chance * 100) / 100, elite: elite, reason: fit ? 'Genre affinity' : 'Studio track record and creative fit' };
   }
@@ -1266,6 +1276,9 @@ var Engine = (function () {
     }
     if(pv.scriptPitch){
       pv.scriptPitch.claimedBy='you';p.spent+=pv.scriptFee;p.scriptFee=pv.scriptFee;
+      const boon=v14State().offers.find(x=>!x.used&&x.expiresWeek>=state.week);
+      if(boon&&['newvoices','prestige','genre'].includes(boon.id)){boon.used=true;
+        filmStory(p,'ambition','An earned studio introduction helped secure this screenplay.');}
       if(pv.scriptPitch.contested && pv.scriptPitch.rivalId){
         const rival=getRival(pv.scriptPitch.rivalId);
         if(rival)filmStory(p,'rival','Acquired a contested screenplay before '+rival.name+'.');
@@ -2249,7 +2262,7 @@ var Engine = (function () {
       credits: f.credits || {},creditIds:f.creditIds||record.creditIds||{}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
       regionalGross: f.regionalGross || {}, sequelOf:f.sequelOf||null, franchiseId:f.franchiseId||null, installment:f.installment||1, franchiseName:f.franchiseName||null,
       awards: record.awards || [], festResults: record.festResults || [],
-      legacy: !f.topic || f.critic == null
+      dna:f.dna||null, legacy: !f.topic || f.critic == null
     });
     return record;
   }
@@ -2272,7 +2285,9 @@ var Engine = (function () {
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
       creditIds:Object.assign({},p.cast,{supporting:p.supporting||[],specialists:p.specialists||[]}), staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
-      decisions: p.usedEvents || [], talentSnapshot: p.talentSnapshot || null, qualityBreakdown: p.qualityBreakdown || null, hypeBreakdown: p.hypeBreakdown || null,
+      decisions: p.usedEvents || [], dna:p.dna||null, story:v14Storyboard(p),
+      legacyKind:v14FilmLegacy(p)?.kind||null,
+      talentSnapshot: p.talentSnapshot || null, qualityBreakdown: p.qualityBreakdown || null, hypeBreakdown: p.hypeBreakdown || null,
       legacy: p.releaseWeek != null && !p.regions
     };
   }
@@ -2715,7 +2730,6 @@ var Engine = (function () {
       totals.prestige+=w*((critic>=73?1:0)+(awards>0?.8:0)+(vision==='prestige'?.35:0));
       totals.commercial+=w*((fmt==='feature'&&positive?.85:0)+(audience>=70?.65:0)+(f.gross>budget*1.5?.35:0));
       totals.star+=w*(fameSafe(f)>=60?.75:0);
-      totals.incubator+=w*(breakouts>0?.2:0); // confirmed from actual early-career credits below
       totals.tv+=w*(fmt==='pilot'?1.45:0);
     });
     const genres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]);
@@ -2758,7 +2772,8 @@ var Engine = (function () {
         genre:f.genre,critics:f.critic||null,profit:(f.revenue||0)-(f.spent!=null?f.spent:f.budget||0),
         awards:(f.awards||[]).filter(x=>x.won).length}))};
   }
-  function fameSafe(f){const x=f.talentSnapshot?.lead?.fame;return Number.isFinite(x)?x:0;}
+  function fameSafe(f){const x=f.talentSnapshot?.lead?.fame??getTalent(Number(f.creditIds?.lead))?.fame;
+    return Number.isFinite(x)?x:0;}
   function v14Identity(who){
     if(!state)return null;
     const id=who==null||who==='you'?'you':String(who);
