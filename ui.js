@@ -171,7 +171,7 @@ var UI = (function () {
 // ===== SECTION: NAV =====
   // [id, label, soon?]  soon = tab shown but disabled until that view exists.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log']]],
+    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
     ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
     ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
     ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
@@ -226,10 +226,10 @@ var UI = (function () {
           : '<button data-view="' + v[0] + '" class="navbtn' + (view === v[0] ? ' active' : '') + '" onclick="UI.go(\'' + v[0] + '\')">' + esc(v[1]) +
             (v[0] === 'roster' && expiring ? '<span class="badge">' + expiring + '</span>' : '') + '</button>'
         ).join('') + '</div>').join('') +
-      '<div class="nav-foot">' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
+      '<div class="nav-foot"><button class="navbtn" onclick="UI.saveNow()">Save now</button>' + soundControls() + '<button class="navbtn" onclick="UI.exportBackup()">Export save + posters</button>' +
       '<label class="navbtn backup-upload">Import backup<input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '<button class="navbtn" onclick="UI.openTutorial()">? Tutorial</button>' +
-      '<button class="navbtn danger-nav" onclick="UI.quit()">New game</button></div>';
+      '<button class="navbtn danger-nav" onclick="UI.quit()">Return to title</button></div>';
   }
   // 8.1 music toggle and volume, 8.4 sound effects toggle, 8.5 reduce-motion toggle (Media keeps the settings; display only here).
   function soundControls() {
@@ -267,14 +267,17 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_START =====
   function viewStart() {
-    return '<h1>Final Cut</h1><p>1970. You have a camera, some savings and an idea.</p>' +
+    const saves=typeof SaveSlots!=='undefined'?SaveSlots.list():null;
+    const active=saves&&saves.slots.find(s=>s.active);
+    return '<h1>Final Cut</h1><p>1970. You have a camera, some savings and an idea.</p><p class="muted">Your campaigns are saved separately on this device. Export backups to keep copies outside the browser.</p>' +
       '<div class="form">' +
       '<label>Studio name <input id="f_studio" placeholder="Untitled Pictures"></label>' +
       '<label>Founder name <input id="f_founder" placeholder="Random if empty"></label>' +
       '<label>Home region <select id="f_region">' + CONTENT.REGIONS.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('') + '</select></label>' +
       '<button class="primary" onclick="UI.startGame()">Start new game</button>' +
       ' <button onclick="UI.openTutorial()">How to play</button>' +
-      (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue saved game</button>' : '') +
+      (Engine.hasSave() ? ' <button onclick="UI.loadGame()">Continue ' + esc(active?active.name:'saved game') + '</button>' : '') +
+      (saves ? ' <button onclick="UI.go(&quot;saves&quot;)">Manage saved games' + (saves.slots.length?' ('+saves.slots.length+')':'') + '</button>' : '') +
       ' <label class="poster-upload">Import save + posters <input type="file" accept="application/json,.json" onchange="UI.importBackup(this)"></label>' +
       '</div><div class="start-sound">' + soundControls() + '</div>';
   }
@@ -1561,6 +1564,7 @@ var UI = (function () {
 // ===== SECTION: RENDER =====
   // A+B editorial screen navigation: concise context, no new game state.
   const PAGE_CONTEXT = {
+    saves:['CAMPAIGN LIBRARY','Manage independent studio careers and local save slots'],
     newproject:['GREENLIGHT DESK','Plan cast, budget, creative direction and distribution'],
     filmography:['YOUR CATALOG','Released pictures, awards and permanent studio history'],
     talent:['CASTING OFFICE','Scout talent by skill, recognition, reliability and fee'],
@@ -1589,7 +1593,9 @@ var UI = (function () {
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
     let h;
-    if (!s) h = viewStart();
+    if (!s && view === 'saves') h = viewSaveLibrary();
+    else if (!s) h = viewStart();
+    else if (view === 'saves') h = viewSaveLibrary();
     else if (view === 'newproject') h = viewNewProject();
     else if (view === 'projects') h = viewProjects();
     else if (view === 'filmography') h = viewFilmography();
