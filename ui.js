@@ -1480,12 +1480,20 @@ var UI = (function () {
     });
     const live=Engine.series().filter(x=>x.flexibleSeries&&x.status!=='ended').slice(-5).reverse();
     h+='<h2>Series production & renewals</h2><p class="muted">Plan the next season without weekly chores. Higher ratings can attract sponsorships and make returning stars much more expensive. Established contracts are honored until renewal.</p>';
-    h+=live.map(x=>
-      '<article class="fc-series-card"><h3>'+esc(x.title)+' · Season '+x.season+
+    h+=live.map(x=>{
+      const feasibility=Engine.seriesFeasibility(x);
+      return '<article class="fc-series-card"><h3>'+esc(x.title)+' · Season '+x.season+
       '</h3><p>Episode budget '+money(x.episodeBudget||x.epCost)+' · Current cost '+money(x.epCost)+
       '/episode · Contracted fee '+money(x.fee)+'/episode · Season production need '+money(x.epCost*x.episodes)+
       ' · Sponsor receipts to date '+money(x.sponsorRevenue||0)+'</p>'+
       '<p>Star-demand quote '+(x.starDemand||1).toFixed(2)+'× · Sponsor '+(x.sponsor?esc(x.sponsor.name):'none signed')+'</p>'+
+      (feasibility?'<p class="fc-budget-ledger"><strong>Season Feasibility: '+esc(feasibility.status)+
+        '</strong> · Remaining production '+money(feasibility.productionNeed)+
+        ' · Contracted episode receipts '+money(feasibility.contractedRevenue)+
+        ' · Confirmed sponsor receipts '+money(feasibility.guaranteedSponsorship)+
+        ' · Direct margin '+money(feasibility.projectedDirectMargin)+
+        ' · First-week cash requirement '+money(feasibility.firstWeekCashNeed)+
+        '<small> '+esc(feasibility.note)+'</small></p>':'')+
       '<div class="fc-series-controls"><label>Next season cast <select onchange="UI.seriesPlan('+x.id+',this.value)">'+
         [['retain','Keep returning stars'],['lean','Lean production'],['recast','Recast lead / local talent']].map(v=>
         '<option value="'+v[0]+'"'+(v[0]===(x.talentStrategy||'retain')?' selected':'')+'>'+v[1]+'</option>').join('')+
@@ -1498,7 +1506,8 @@ var UI = (function () {
         money(x.sponsorOffer.perEpisode)+'/episode for the remaining season. Expires after episode '+
         x.sponsorOffer.expiresEpisode+'.</p><div class="fc-actions"><button class="primary" onclick="UI.seriesSponsor('+x.id+',true)">Accept sponsorship</button>'+
         '<button onclick="UI.seriesSponsor('+x.id+',false)">Decline</button></div>':'')+
-      '</article>').join('');
+      '</article>';
+    }).join('');
     return h;
   }
 
