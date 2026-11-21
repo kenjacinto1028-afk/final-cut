@@ -1,6 +1,11 @@
 # Final Cut — Studio Tycoon
 
-**Current release: FinalCut v14.4a.** PR #14 delivered flexible production; PR #15 merged the finance and series balance patch as `d0e8cb7`. All nine PR regression gates and the v14.4a Pages deployment passed.
+**Current release: FinalCut v14.5.** PR #16 delivered five-section navigation, premiere reports and market-aware Film Hub and rankings. All ten PR regression workflows passed, including 12×61-year career balance; the v14.5 code was merged as `3a72576` and GitHub Pages deployed successfully (#44901669778).
+
+
+## v14.5 — Clearer navigation, premieres and rankings
+
+Explore five compact sections with contextual subtabs and a unified six-tab Film Hub. New premieres report poster, numeric ratings, individual critic quotes, release reach and expected distribution; reports queue, save and replay. Local/Regional/National/International critic names replace numeric tiers. Industry rankings now filter by format, market, release reach and time, using actual recorded broad-region receipts. Paid scripts receive a small +1/+2 craft-readiness advantage; originals stay free. **City/country theatrical charts are not simulated** and have not been invented. [Full release details](docs/CHANGELOG_V14_5.md).
 
 ## v14.4 — Flexible production and living franchises
 

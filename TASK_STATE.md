@@ -151,5 +151,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Premiere report and critic classifications, sequential dismissal and saved replay. — engine.js a7ba9a5; ui.js ebc82be; index.html a418da6; style.css 72b3363; engine/UI QA pending.
 - [x] Add grounded broad-market release reach and region/reach/period/media ranking filters. — engine.js d2f220b, ui.js bb878f4; exact city/country charts remain unsupported until real submarket modeling.
 - [x] Strengthen marketplace script vs original screenplay differentiation. — engine.js 059a3b0/75e9569, ui.js 95ff6bd; paid scripts gain 1–2 craft readiness, originals retain free rights and flexibility.
-- [ ] Add QA coverage, run workflows, fix regressions and review UI on mobile. — new tests/v14_5_regression.js, tests/v14_5_browser.py and workflow v14_5.yml; browser test migration underway; CI pending.
-- [ ] Update release documentation and merge validated branch.
+- [x] QA gates passed: 10/10 on final feature head f244d37. New tests/v14_5_regression.js and tests/v14_5_browser.py, v14_5.yml, v13/v14 save/tutorial/mobile/long-career regressions (12×61-year) green. Physical phone testing outstanding.
+- [x] Merged PR #16 (3a72576) after all ten CI workflows passed; Pages deployment #44901669778 succeeded; README, HANDOFF, changelog and TASK_STATE marked v14.5 released in follow-up main documentation checkpoint.

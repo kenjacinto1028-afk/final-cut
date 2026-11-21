@@ -1,4 +1,4 @@
-# Final Cut — Current Handoff (v14.2)
+# Final Cut — Current Handoff (v14.5)
 
 Release: 2026-11-20; target repository `kenjacinto1028-afk/final-cut`, branch `main`.
 
@@ -119,3 +119,12 @@ PRs #10 (Film Hub) and #11 (promotion/sponsors/critics), and #12 (calendar/chart
 - Coverage: `tests/v14_4a_balance.js` and existing v14.4/v13/v14 Chromium, save and long-horizon balance checks. See `docs/CHANGELOG_V14_4A.md` for measured outcomes and residual economy risks.
 
 - Final PR #15 acceptance: nine passing workflows, including v14.4a engine/browser, v13/v14 saves, mobile and 12×61-year normal-start balance. Published Pages run #44887771506 passed. No save version bump; physical phone checks outstanding.
+
+## v14.5 released (PR #16, merge 3a72576)
+- Navigation uses five primary group buttons in `ui.js` (`GROUPS`) with `sectionTabs()`, retaining legacy `UI.go(viewID)` routes for saves/tutorials. `calendar` is a dedicated Industry view; rival pages no longer duplicate it.
+- Released player films use `v145FilmHub()` and six tab choices; active projects still use the original Production Center and project drawer. Poster uploads continue in existing campaign-scoped IndexedDB; new hub references existing poster records.
+- `premierePresented` stores dismissed release IDs in v13 save schema. `currentPremiereReport()` queues new releases, shows actual scored one-sentence critic reviews and reach, and defers to tutorial/decision/year-end overlays. Migration seeds IDs for old released films, preventing flood on old save load. Replay is a presentation action, never a second gameplay outcome.
+- Critic tiers remain an internal gameplay weighting, but public labels are City/Local, Regional, National, International. Historical film records lacking individual reviews remain intact.
+- Chart market filter uses `regionalGross` recorded separately for real player and rival films, not global gross. Ranking supports audience/reach and broad geographic, year and format filters. *Five broad regions only:* no city/country earnings or weekly national chart snapshots, no fabricated figures. TV/web charts use non-theatrical reach.
+- Paid scripts add up to +2 screenplay readiness to `computeQuality` while free original writing remains competitive; check `qualityBreakdown.scriptReadiness`. Existing old productions are not retroactively modified.
+- Acceptance: ten green PR #16 workflows at head f244d37, including v14.5 engine/browser, nine legacy suites, Chromium phone-sized screens and 12 full 61-year career simulations. Merged to main 3a72576, Pages run #44901669778 succeeded. Physical Android/iPhone testing still not done.

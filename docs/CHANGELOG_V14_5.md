@@ -1,6 +1,6 @@
 # FinalCut v14.5 — Focused UI, premiere reports and market-aware film careers
 
-**Status:** Candidate on PR #16; not released until all PR checks pass and `main` is deployed.
+**Status:** Released on `main` as PR #16, merge commit `3a72576`, on 2026-11-21. All 10 PR workflows at `f244d37` passed (including full-career balance); GitHub Pages deployment #44901669778 succeeded.
 
 ## Navigation and discoverability
 - Five primary sections: Overview, Productions, People, Industry and History.
