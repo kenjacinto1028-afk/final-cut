@@ -285,9 +285,10 @@ var UI = (function () {
     $('nav').innerHTML = '<div class="brand">Final Cut<small>STUDIO TYCOON</small></div>' +
       '<div class="fc-primary-nav">'+GROUPS.map((g,idx)=>'<button type="button" data-section="'+esc(g[0].toLowerCase())+
         '" data-view="'+g[1][0][0]+'" class="navbtn fc-main-nav'+(active===g?' active':'')+
-        '" onclick="UI.go(\''+g[1][0][0]+'\')"><span>'+String(idx+1).padStart(2,'0')+' · '+esc(g[0])+
+        '" aria-current="'+(active===g?'page':'false')+'" onclick="UI.go(\''+g[1][0][0]+'\')"><span>'+String(idx+1).padStart(2,'0')+' · '+esc(g[0])+
         '</span><span aria-hidden="true">›</span></button>').join('')+'</div>'+
       '<button type="button" class="navbtn fc-nav-create" data-view="newproject" onclick="UI.go(\'newproject\')">+ New Project</button>'+
+      (typeof DesignTheme !== 'undefined' ? DesignTheme.picker() : '')+
       '<div class="nav-foot"><details class="fc-nav-tools"><summary>Settings & saves</summary><div class="fc-nav-tool-content">'+
       '<button class="navbtn" data-view="saves" onclick="UI.go(\'saves\')">Saved Games</button>'+
       '<button class="navbtn" onclick="UI.saveNow()">Save now</button>'+
@@ -397,6 +398,21 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_DASHBOARD =====
   // 8.3: era backdrop banner on top. 8.5: gross of films in theaters counts up (cu).
+  let wireFilter='all';
+  function wireNews(items) {
+    if(wireFilter==='all')return items;
+    const matches={
+      release:/release|screen|premier|festival|award|film|short|production/i,
+      economy:/finance|cash|cost|profit|debt|econom|loan|payroll|overhead|tax/i,
+      market:/rival|market|demand|trend|industry|region|genre|studio/i
+    }[wireFilter];
+    return items.filter(n=>matches.test(String(n.type||'')+' '+String(n.label||'')+' '+String(n.text||'')));
+  }
+  function setWireFilter(next) {
+    if(!['all','release','economy','market'].includes(next))return;
+    wireFilter=next;
+    if(view==='dashboard')render();
+  }
   function viewDashboard() {
     const s = Engine.state;
     const d = Engine.dateOf();
@@ -418,7 +434,8 @@ var UI = (function () {
     }
     const profit = Engine.weeklyProfit();
     const rep=Engine.reputationInfo(),legacy=Engine.legacyInfo();
-    h += '<div class="strip">' + stat('Cash', money(s.cash)) + stat('Weekly burn', money(Engine.weeklyBurn())) +
+    const runway=Math.max(0,Math.floor(s.cash/Math.max(1,Engine.weeklyBurn())));
+    h += '<div class="strip">' + stat('Cash runway', '~'+runway.toLocaleString('en-US')+' wks') + stat('Weekly burn', money(Engine.weeklyBurn())) +
       stat('Weekly profit', '<span class="' + (profit < 0 ? 'neg' : '') + '">' + money(profit) + '</span>') + stat('Debt', money(s.debt)) + '</div>';
     h += '<div class="strip reputation-strip">'+stat('Lifetime fame',rep.fame+'/100')+stat('Current buzz',rep.buzz+'/100')+
       stat('Current prestige',rep.currentPrestige+'/100')+stat('Lifetime legacy',rep.lifetimeLegacy+' pts')+'</div>';
@@ -452,7 +469,12 @@ var UI = (function () {
         '<button onclick="UI.go(\'filmography\')">Browse film history</button></div>';
     }
     h += viewLegacyActions(legacy);
-    h += '</section><aside class="studio-wire"><h2>The Studio Wire</h2><p><a href="#" onclick="UI.go(\'news\');return false">All news</a></p>' + newsList(Engine.news(null, Engine.TUNING.news.headlines)) + '</aside></div>';
+    h += '</section><aside class="studio-wire"><div class="fc-wire-header"><h2>The Studio Wire</h2>'+
+      '<div class="fc-wire-filters" role="group" aria-label="Filter studio news">'+
+      [['all','All'],['release','Release'],['economy','Economy'],['market','Market']].map(([id,label])=>
+      '<button type="button" class="'+(wireFilter===id?'is-active':'')+'" aria-pressed="'+(wireFilter===id)+'" onclick="UI.setWireFilter(&quot;'+id+'&quot;)">'+label+'</button>').join('')+
+      '</div></div>'+newsList(wireNews(Engine.news(null, Engine.TUNING.news.headlines)))+
+      '<div class="fc-wire-more"><button type="button" onclick="UI.go(&quot;news&quot;)">Browse all studio news</button></div></aside></div>';
     return h;
   }
   function viewLegacyActions(l) {
@@ -3087,6 +3109,7 @@ var UI = (function () {
   function render() {
     renderTop();
     renderNav();
+    if(typeof DesignTheme !== 'undefined')DesignTheme.apply();
     const s = Engine.state;
     $('app').classList.toggle('start', !s);
     $('app').classList.toggle('save-manager', view==='saves');
@@ -3497,7 +3520,7 @@ var UI = (function () {
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
-    toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
+    toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,

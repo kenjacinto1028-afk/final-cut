@@ -203,3 +203,16 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
   - [x] Browser tutorial regression showed premiere card blocking Next Week in topbar; docked in-tutorial report bottom-right instead of top-right (`theme-ab.css`, 32995c0).
   - [x] Tutorial regression now explicitly acknowledges premiere before Next Week; game correctly pauses progression until the premiere is dismissed (`tests/v14_2_tutorial_browser.py`, efbf5ce).
   - [x] Aligned end-to-end tutorial expected step labels with renamed My Releases / Film Archive (`tests/v14_2_tutorial_browser.py`, a71d834).
+
+## v14.7: adapt six-palette studio design prototype (branch `feature/v14-7-prototype-design-system`)
+- [x] Audited current shell, cards, live studio wire, responsive monitor and attached prototype; documented production-safe design requirements in `docs/DESIGN_V14_7_PROTOTYPE_ADAPTATION.md`.
+- [x] Implemented six persisted accessible palette swatches in `design-theme-v14_7.js`, loaded in `index.html`, displayed on the left rail via `ui.js`.
+- [x] Added `design-v14_7.css` with compact four-zone slate shell, palette-aware surfaces, typography, buttons, navigation tabs and responsive monitor.
+- [x] Adjusted dashboard to show runway instead of repeating cash, added interactive Studio Wire category filters, restyled film monitor and retained all gameplay/data bindings (`ui.js`).
+- [x] Added dedicated Chromium visual tests and screenshots; all 12 GitHub Actions workflows passed for v14.7 code commit ee9ada8, including mobile, saves, tutorial, filmmaking, film monitor, new palette design QA and twelve full-career balance checks.
+  - [x] Added `tests/v14_7_design_browser.py` covering live palette persistence, cash runway, filtered feed, monitor and 320/390px mobile layouts; added `.github/workflows/v14_7.yml` with Node and Chromium checks plus screenshots.
+- [ ] Merge verified update to main and confirm GitHub Pages deployment.
+  - [x] Fixed legacy headless tests that instantiate `ui.js` without browser-only palette module (`ui.js`, f4a9f78); relaxed visual test cash-runway label to respect uppercase styling (`tests/v14_7_design_browser.py`, 8455990).
+  - [x] Fixed desktop Project Monitor overlap by reserving matching 310px content gutter (`design-v14_7.css`, 0a9fb54); new mobile QA now starts a playable campaign after reload before opening the menu (`tests/v14_7_design_browser.py`, edd2805).
+  - [x] Browser QA identified visible mobile Menu behind optional fixed monitor; elevated mobile menu/nav stacking above monitor (`design-v14_7.css`, ee9ada8).
+  - [x] Dedicated v14.7 Chromium design QA passed on commit `ee9ada8` (all six palettes/persistence, live wire, mobile 320/390px, monitor and screenshots).
