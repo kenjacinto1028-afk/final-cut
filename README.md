@@ -1,5 +1,8 @@
 # Final Cut — Studio Tycoon
 
+## v13.6 — Sitewide Cinematic A+B interface
+The entire game now uses the same restrained charcoal, muted teal and brass visual language as the Production Center. The dashboard has a clearer executive layout; all management pages, tables, controls, film/talent drawers, decision dialogs, tutorial and Year-End Honors share the design. Awards reference lists are collapsed by default. Existing game logic and save version 13 are unchanged. See `docs/CHANGELOG_V13_6.md` and `tests/v13_6_sitewide_browser.py`.
+
 ## v13.5 — Production Center (correct FinalCut project)
 The Projects page now opens a cinematic Production Center with an automatically updating film slate, stages, budget/spend, tentative quality range and theater receipts. The existing detailed project table remains in an expandable archive. Features now have longer, bounded theatrical runs, applied equally to the player and rival studios. v13.4 interactive tutorial, year-end awards and sound remain intact. Saved-game format remains v13. See `docs/CHANGELOG_V13_5.md`.
 
