@@ -106,6 +106,10 @@ try:
   assert page.locator('#drawer .fc-performance-board').count()>=1
   next_step();step(14,'Advance another screening week')
   page.evaluate('UI.closeDrawer()')
+  # The premiere is an opening report that must be acknowledged before time advances.
+  if page.locator('#premiere-report').is_visible():
+   assert 'PREMIERE REPORT' in page.locator('#premiere-report').inner_text()
+   page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
   if page.evaluate('(id)=>Engine.getProject(id).stage!=="done"',new['id']):
    if page.evaluate('!!Engine.state.pending'):page.locator('#modal .choice').first.click()
    page.locator('#topbar [data-guide="week"]').click()
