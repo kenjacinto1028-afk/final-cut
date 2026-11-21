@@ -45,8 +45,10 @@ const p=made.project;assert.equal(p.budgetPlan.cap,1500);
 const startCash=E.state.cash;
 E.nextTurn();
 assert(p.budgetPlan.spent.prep>0);
-assert.equal(startCash-E.state.cash-E.state.lastWeek.costs+p.budgetPlan.spent.prep,0,
-  'preparation spend should be inside lastWeek costs without double-charging'); 
+assert.equal(startCash-E.state.cash,E.state.lastWeek.costs-E.state.lastWeek.income,
+  'cash changes must match the income/expense ledger exactly');
+assert.equal(E.state.lastWeek.production,p.budgetPlan.spent.prep,
+  'preparation spending is included in weekly production expense once'); 
 const originalSpent=p.spent;
 advance(E,110,()=>p.stage==='done');
 assert(p.spent>=originalSpent);
@@ -75,6 +77,7 @@ assert(f.project.budgetPlan!=null);
 assert(E.state.series.length>=1,'pilot should be picked up with seeded chance');
 const series=E.state.series.at(-1);
 assert(series.flexibleSeries);
+series.quality=95;series.hype=90;
 assert.equal(series.episodes,6);
 assert.equal(series.firstEpCost,Math.round(f.project.budget*.73));
 const pre=series.revenue;
