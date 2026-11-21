@@ -95,4 +95,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Merged PR #7 to `final-cut/main` (`4782808e`); revised parameters were selected using three tested 12-career runs, rejecting over-corrected rival dominance rather than shipping it.
 - [x] Accepted 12×61-year standard-start CI #44866770309 (all save roundtrips); averages: blockbuster $745.3m/99 flops, prestige $222.8m/69, careful $221.9m/5, cheap $29.8m/72; three regions, four strategies.
 - [x] Mobile Chrome/390px performance and full archive/worker ordering QA passed; existing v14 and v13.5–v13.9 compatibility/browser tests green on PR #7.
-- [ ] Confirm final documentation-only main commit Pages build/deployment and main v14 CI, after this documentation checkpoint.
+- [x] Final documentation checkpoint `af1b09ff` verified: GitHub Pages deployment #44867237569 and integrated v14 + legacy/Chromium CI #44867238195 both succeeded. Remaining physical-device validation is explicitly tracked above.
