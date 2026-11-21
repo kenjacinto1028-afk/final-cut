@@ -115,7 +115,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14.3 — Approved implementation (2026-11-21)
 - [x] Reviewed live screenshots and existing film decisions, short afterlife, festival kit, poster/still, rival calendar, financial graphs, critic score and archive UI.
 - [x] Created `docs/NEXT_UPDATE_V14_3_PLAN.md` covering all 12 requests, proposed gameplay consequences, release dependencies, regression gates and task/model effort.
-- [ ] Implement v14.3a: film action discovery, post-release eligibility explanations and poster/film still cleanup. In progress on feature/v14-3a-film-hub-20261121.
+- [x] Implemented stage A film hub guide: persistent Story/Release/Short festival/Feature catalog eligibility with quote reasons; live Filmography-to-Project Film Hub CTA and custom-poster-specific removal of unrelated generated still. Branch stage QA pending.
 - [ ] Implement v14.3b: promotion, tiered sponsors and critics — only after user authorizes implementation.
 - [ ] Implement v14.3c: release calendar, in-game festival confirmation, graphs, tooltips and World Archive — only after user authorizes implementation.
 - [ ] Implement v14.3d: state-aware first-film tutorial; playthrough/balance/compat QA, stage merges and live deploy — only after user authorizes implementation.
