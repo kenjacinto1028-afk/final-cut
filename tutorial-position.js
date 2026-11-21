@@ -58,7 +58,7 @@
       const maxX = Math.max(margin, innerWidth - width - margin);
       const maxY = Math.max(margin, innerHeight - height - margin);
       const candidates = [[margin,maxY],[margin,margin],[maxX,margin],[maxX,maxY]];
-      const important = [...document.querySelectorAll('#main button.primary, #drawer button.primary, #main .tutorial-target, #drawer .tutorial-target')]
+      const important = [...document.querySelectorAll('#main button.primary, #drawer button.primary, .tutorial-target, #mobile-nav-toggle')]
         .filter(el => el.getClientRects().length && !el.closest('#tutorial'))
         .map(el => el.getBoundingClientRect())
         .filter(r => r.width < innerWidth * .75 && r.height < innerHeight * .55);
