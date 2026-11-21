@@ -35,8 +35,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v13.8 — Film performance, Filmography finances, persistent project monitor
 - [x] Checked FinalCut main and preserved the v13.7 multiple-save baseline; confirmed user examples of zero-gross Filmography and Software Inc monitoring reference.
-- [ ] Diagnose gross=$0 by format and postrelease revenue, profit/loss and audience units in simulation; design truthful attribution.
-- [ ] Extend engine weekly revenue/reach ledgers and full lifecycle history without breaking v13 saves or legacy projects.
+- [x] Verified shorts/pilots have revenue without theatrical gross; Filmography listed box office only. Feature admissions will be explicitly labeled modeled estimates from booked gross; shorts/pilots never get invented counts.
+- [x] Added bounded 32-week `performanceHistory`, per-project revenue/cost/gross deltas, optional publicity push and modeled admissions in `engine.js`; v13 format preserved.
 - [ ] Add Filmography gross / net income / profit-loss per film, distinct for shorts, pilots and feature films.
 - [ ] Implement fixed-width collapsible project-performance dock on the right, with film stages, weekly audience and income, plus recent trends; responsive.
 - [ ] Enrich production detail and postrelease dashboard with film performance timeline, audience reach and finances.
