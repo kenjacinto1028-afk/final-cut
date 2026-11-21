@@ -25,7 +25,8 @@ for(const [idx,spec] of strategies.entries()){
  s.cash=40_000_000;s.studio.tier=3;s.studio.fame=70;
  E.v14SetDelegation(spec.policy);
  A(E.setFastSimulationTesting(true),'Fast career QA must be Node-only');
- let started=0,dilemmas=0,profitable=0,flops=0,pressured=0,lastLaunchWeek=-1;
+ let started=0,dilemmas=0,profitable=0,flops=0,pressured=0,lastLaunchWeek=-1,attemptedLaunches=0;
+ const rejected={};
  let attempts=0;
  while(s.week<52*horizonYears&&attempts++<52*horizonYears*4&&!s.gameOver){
    if(s.pending){
@@ -42,7 +43,8 @@ for(const [idx,spec] of strategies.entries()){
      const opts={title,format:fmt,tier:0,genre,topic,
        vision:spec.vision,releasePosition:idx===0?'prestige':idx===1?'wide':'targeted',
        cast:{director:'founder',writer:'founder',lead:'',crew:''}};
-     const r=E.startProject(opts);if(r.ok)started++;
+     attemptedLaunches++;
+     const r=E.startProject(opts);if(r.ok)started++;else rejected[r.reason||'unknown']=(rejected[r.reason||'unknown']||0)+1;
    }
    E.nextTurn();
  }
@@ -61,7 +63,10 @@ for(const [idx,spec] of strategies.entries()){
  const years=Math.floor(s.week/52);
  A(!s.gameOver,'funded multi-decade stress game ended prematurely');
  A(s.week>=52*horizonYears,'simulation ended before '+horizonYears+' years');
- A(done.length>=(horizonYears===61?75:20),'too few complete films');
+ console.log('CAREER DEBUG',JSON.stringify({studio:spec.name,years:horizonYears,week:s.week,attemptedLaunches,
+    started,completed:done.length,active:E.activeProjects().length,rejected,cash:s.cash,fame:s.studio.fame}));
+ A(done.length>=(horizonYears===61?75:20),
+   'too few complete films; '+JSON.stringify({started,done:done.length,rejected}));
  A(s.version===13);
  A(Number.isFinite(s.cash)&&Number.isFinite(s.debt));
  A(s.v14.rivalry.length<=24);
