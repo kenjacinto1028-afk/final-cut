@@ -171,7 +171,7 @@ var UI = (function () {
 // ===== SECTION: NAV =====
   // [id, label, soon?]  soon = tab shown but disabled until that view exists.
   const GROUPS = [
-    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
+    ['Studio', [['dashboard', 'Dashboard'], ['newproject', 'New project'], ['studio_profile', 'Studio Profile'], ['projects', 'Projects'], ['filmography', 'My Filmography'], ['tv', 'TV'], ['founder', 'Founder'], ['log', 'Log'], ['saves', 'Saved Games']]],
     ['People', [['talent', 'Talent'], ['roster', 'Roster'], ['staff', 'Staff & HR']]],
     ['Business', [['finance', 'Finance'], ['market', 'Market'], ['rivals', 'Rivals']]],
     ['World', [['news', 'News'], ['archive', 'World Film Archive'], ['rankings', 'Film Rankings'], ['awards', 'Awards'], ['score', 'Score']]]
@@ -357,6 +357,8 @@ var UI = (function () {
     h += '<div class="strip reputation-strip">'+stat('Lifetime fame',rep.fame+'/100')+stat('Current buzz',rep.buzz+'/100')+
       stat('Current prestige',rep.currentPrestige+'/100')+stat('Lifetime legacy',rep.lifetimeLegacy+' pts')+'</div>';
     h += '<p class="muted">Fame is your long-term public recognition; buzz reflects recent attention. Prestige follows the last five years. Lifetime legacy never decays.</p>';
+    h += '<div class="fc-v14-dashboard-identity">'+v14IdentityCard('you')+
+      '<button onclick="UI.go(&quot;studio_profile&quot;)">Studio identity & ambitions</button></div>';
     if(legacy.industryShift) h += '<div class="market-shift"><strong>Industry shift: '+esc(legacy.industryShift.name)+'</strong><p>Temporary audience interest in '+legacy.industryShift.genres.map(id=>esc(nameOf(CONTENT.GENRES,id))).join(' and ')+'. Ends '+dateLabel(legacy.industryShift.endWeek)+'.</p></div>';
     if (!s.studio.releases && s.week < 53) h += '<div class="onboarding"><strong>Getting started</strong><p>Start with a small project. Craft improves the finished film; fame attracts attention. Keep enough cash for production weeks, then choose how widely to screen your film.</p><div class="actions"><button class="primary" onclick="UI.go(&quot;newproject&quot;)">Plan your first film</button><button onclick="UI.go(&quot;market&quot;)">View market demand</button></div></div>';
     else if (s.studio.releases && s.studio.tier === 0 && s.studio.fame < 15) h += '<div class="onboarding"><strong>Grow your studio</strong><p>Film releases and festival recognition build fame. Keep an eye on profits and the Founder page for your next studio upgrade.</p></div>';
@@ -409,9 +411,11 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_NEW_PROJECT =====
   const draft = { title: '', format: 'short', genre: 'drama', topic: 'smalltown', tier: 0,
-    cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0 };
+    cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0,
+    pitchId:null,pitchApproach:'standard',vision:'mainstream',releasePosition:'wide' };
   function setDraft(key, val) {
     if (key === 'tier') val = Number(val);
+    if(['title','format','genre','topic'].includes(key))draft.pitchId=null;
     draft[key] = val;
     if (key === 'format') { draft.tier = 0;draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;if(val!=='feature') delete draft.sequelOf; }
     if (key === 'tier') { const caps=Engine.ensembleCaps(draft.format,val);draft.supporting=draft.supporting.slice(0,caps.supporting);draft.specialists=draft.specialists.slice(0,caps.specialists);draft.backgroundCrew=Math.min(draft.backgroundCrew,caps.backgroundCrew); }
@@ -436,7 +440,7 @@ var UI = (function () {
       return '<option value="'+val+'"'+(selected===val?' selected':'')+(disabled?' disabled':'')+'>'+esc(x.name)+' · skill '+x.skill+' · fame '+x.fame+' · '+(x.roster?'roster':money(x.fee))+'</option>';
       }).join('')+'</select></label>';
   }
-  function randomizeTitle() { draft.title = Engine.randomTitle(); render(); }
+  function randomizeTitle() { draft.pitchId=null;draft.title = Engine.randomTitle(); render(); }
   function castPicker(slot) {
     const ti = Engine.formats().find(f => f.id === draft.format).tiers[draft.tier];
     const opts = Engine.slotOptions(slot, draft.format, draft.genre, draft.topic, ti.budget);
@@ -453,6 +457,89 @@ var UI = (function () {
     });
     return '<label>' + esc(CONTENT.SLOT_LABELS[slot]) + ' <select onchange="UI.setCast(\'' + slot + '\', this.value)">' + o.join('') + '</select></label>';
   }
+
+  function v14SelectScript(id){
+    const p=Engine.v14MarketInfo().pitches.find(x=>x.id===id&&!x.claimedBy);
+    if(!p)return;
+    const was=draft.format;
+    draft.pitchId=p.id;draft.pitchApproach='standard';
+    draft.format=p.format;draft.genre=p.genre;draft.topic=p.topic;draft.title=p.title;draft.vision=p.vision;
+    draft.releasePosition=p.vision==='prestige'?'prestige':p.vision==='bold'?'targeted':'wide';
+    draft.tier=0;delete draft.sequelOf;
+    if(was!==p.format){draft.cast={director:'founder',writer:'founder',lead:'',crew:''};
+      draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;}
+    render();
+  }
+  function v14CustomScript(){
+    draft.pitchId=null;draft.pitchApproach='standard';draft.title=Engine.randomTitle();render();
+  }
+  function v14ScriptCards(){
+    const pitch=Engine.v14MarketInfo(),v=Engine.v14Strengths(),risks=Engine.v14Risks();
+    const cards=pitch.pitches.map(x=>{
+      const claimed=!!x.claimedBy,selected=draft.pitchId===x.id;
+      return '<article class="fc-v14-script'+(selected?' is-selected':'')+'"><div class="fc-v14-script-head"><small>'+
+        esc(x.lane==='safe'?'ACCESSIBLE PITCH':x.lane==='prestige'?'CRITICAL PROSPECT':'HIGH-RISK PROJECT')+
+        '</small>'+(x.contested?'<span class="fc-v14-warning">Rival interest</span>':'')+'</div>'+
+        '<h3>'+esc(x.title)+'</h3><p>'+esc(x.hook)+'</p>'+
+        '<div class="fc-v14-meta"><span>'+esc(nameOf(Engine.formats(),x.format))+'</span>'+
+        '<span>'+esc(nameOf(CONTENT.GENRES,x.genre))+'</span></div>'+
+        '<p class="fc-v14-script-qualities">+'+x.strengths.map(i=>esc(v[i])).join(' · +')+
+        '<br><span class="fc-v14-risk">Risk: '+esc(risks[x.risk]||x.risk)+'</span></p>'+
+        '<div class="fc-v14-script-foot"><strong>'+money(x.fee)+' script fee</strong>'+
+        '<button'+(claimed?' disabled':'')+' onclick="UI.v14SelectScript(&quot;'+esc(x.id)+'&quot;)">'+
+        (claimed?'Rights taken':selected?'Selected':'Develop this script')+'</button></div></article>';
+    }).join('');
+    const next='The next three pitches arrive '+dateLabel(pitch.nextRefreshWeek)+
+      '. Custom originals and sequels remain available.';
+    return '<section class="fc-v14-pitches"><div class="fc-v14-section-heading"><div>'+
+      '<small>THE SCRIPT MARKETPLACE / QUARTERLY SLATE</small><h2>Choose a story worth telling</h2>'+
+      '<p>'+esc(next)+'</p></div><button onclick="UI.v14CustomScript()">Create an original</button></div>'+
+      '<div class="fc-v14-script-grid">'+cards+'</div></section>';
+  }
+
+
+  function v14IdentityCard(who){
+    const c=Engine.v14Identity(who);if(!c)return '';
+    return '<section class="fc-v14-identity"><div class="fc-v14-section-heading"><div><small>EARNED STUDIO CLASSIFICATION</small>'+
+      '<h2>'+esc(c.label)+'</h2><p>'+esc(c.standing)+' · '+esc(c.trajectory)+' · '+c.count+' recent films</p></div></div>'+
+      '<div class="fc-v14-tags">'+c.descriptors.map(d=>'<span>'+esc(d)+'</span>').join('')+'</div>'+
+      '<p class="muted">This identity reflects real films, awards, genre/story focus, and the talent you work with. It can evolve.</p>'+
+      '<details><summary>What earned this classification?</summary><div class="fc-v14-evidence">'+
+      (c.evidence.length?c.evidence.map(x=>'<div><strong>'+esc(x.title)+'</strong><small>'+esc(nameOf(CONTENT.GENRES,x.genre))+
+        ' · critics '+(x.critics==null?'—':x.critics)+' · P/L '+money(x.profit)+'</small></div>').join(''):
+        '<p>Release more films to establish an identity.</p>')+'</div></details></section>';
+  }
+  function viewStudioProfile(){
+    const a=Engine.v14Ambitions(),policy=Engine.v14State().delegation;
+    const active=a.active&&!a.active.completed&&a.active.expiresWeek>=Engine.state.week;
+    let h='<h1>Studio Profile</h1><p class="muted">Your studio is classified by the films it actually makes, not by a permanent starting choice.</p>'+
+      v14IdentityCard('you')+
+      '<section class="fc-v14-profile-section"><h2>Creative delegation</h2>'+
+      '<p>Routine work is automatic. Decide whether major creative dilemmas interrupt you.</p>'+
+      '<div class="fc-v14-seg">'+[
+      ['ask','Ask me','Choose the creative tradeoff'],['director','Trust the director','Prioritize the original vision'],
+      ['commercial','Trust the business team','Prioritize mainstream appeal']].map(([id,name,desc])=>
+        '<button class="'+(policy===id?'is-selected':'')+'" onclick="UI.v14Delegation(&quot;'+id+'&quot;)"><strong>'+
+        esc(name)+'</strong><small>'+esc(desc)+'</small></button>').join('')+'</div></section>'+
+      '<section class="fc-v14-profile-section"><h2>Studio ambitions</h2>'+
+      '<p>Optional multi-year targets unlock small, conditional industry opportunities—not free profits.</p>'+
+      (a.active?'<div class="fc-v14-ambition-current"><strong>'+esc(a.active.name)+'</strong> · '+
+        (a.active.completed?'Completed':active?'Until '+dateLabel(a.active.expiresWeek):'Expired')+
+        '<p>'+esc(a.active.reward)+'</p></div>':'')+
+      (!active?'<div class="fc-v14-ambitions">'+a.options.map(x=>'<article><strong>'+esc(x.name)+'</strong><p>'+
+        esc(x.desc)+'</p><small>'+x.years+' years · '+esc(x.reward)+'</small>'+
+        '<button onclick="UI.v14Ambition(&quot;'+x.id+'&quot;)">Choose ambition</button></article>').join('')+'</div>':'')+
+      (a.recent.length?'<h3>Earned opportunities</h3>'+a.recent.map(x=>
+        '<p>'+esc(x.reward)+' · '+(x.used?'Used':x.expiresWeek<Engine.state.week?'Expired':'Available')+'</p>').join(''):'')+
+      '</section>';
+    const changes=Engine.v14State().classChanges||[];
+    if(changes.length)h+='<section class="fc-v14-profile-section"><h2>Studio identity changes</h2>'+
+      changes.slice(-8).reverse().map(x=>'<p>'+dateLabel(x.week)+' · '+esc(x.from)+' → '+esc(x.to)+'</p>').join('')+'</section>';
+    return h;
+  }
+  function v14Delegation(id){const r=Engine.v14SetDelegation(id);setFlash(r.ok?'Delegation preference updated.':r.reason);render();}
+  function v14Ambition(id){const r=Engine.v14PickAmbition(id);setFlash(r.ok?'Ambition started.':r.reason);render();}
+
   function viewNewProject() {
     if (!draft.title) draft.title = Engine.randomTitle();
     if (Engine.founderRole() === 'executive') ['director', 'writer'].forEach(s => { if (draft.cast[s] === 'founder') draft.cast[s] = ''; });
@@ -460,7 +547,7 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1>' + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
+    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ? '<p class="franchise-card">Sequel to '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+'. Starting hype benefits from the original; repeated sequels face higher audience expectations. <button onclick="UI.cancelSequel()">Cancel sequel link</button></p>' : '') + '<p class="muted">Productions ' + Engine.activeProjects().length + ' of ' + Engine.capacity() + '</p><div class="form">';
     h += '<label>Title <input value="' + esc(draft.title) + '" oninput="UI.setDraft(\'title\', this.value)"> <button onclick="UI.randomizeTitle()">Random</button></label>';
     h += '<label>Format <select onchange="UI.setDraft(\'format\', this.value)">' +
       fmts.map(f => opt(f.id, f.name + (f.unlocked ? '' : ' (needs ' + (Engine.state.studio.tier < f.minTier ? tierName(f.minTier) : 'fame ' + f.unlockFame) + ')'), f.id === draft.format, !f.unlocked)).join('') + '</select></label>';
@@ -472,6 +559,19 @@ var UI = (function () {
       fmt.tiers.map((t, i) => opt(i, t.name + ' (' + money(t.budget) + ')' + (t.locked ? ' – needs ' + tierName(t.minTier) : ''), i === draft.tier, t.locked)).join('') + '</select></label>';
     if (pv.continuity && pv.continuity.notes.length) h += '<section class="franchise-card"><strong>Original cast continuity</strong><p>Estimated hype ' + (pv.continuity.hype >= 0 ? '+' : '') + pv.continuity.hype + ' from returning or recast creative leads. Replacement skills still determine quality.</p>' +
       pv.continuity.notes.map(n => '<p>' + esc(CONTENT.SLOT_LABELS[n.slot]) + ': ' + esc(n.originalName) + ' — ' + esc(n.status) + ' (' + (n.delta >= 0 ? '+' : '') + n.delta + ' hype)</p>').join('') + '</section>';
+    h += '<div class="fc-v14-creative"><h2>Creative direction</h2>'+
+      '<p class="muted">Every film has a creative promise. This guides both production dilemmas and audience expectations, without guaranteeing quality.</p>'+
+      '<label>Creative vision <select onchange="UI.setDraft(\'vision\',this.value)">'+
+      Object.entries(Engine.v14Visions()).map(([id,v])=>opt(id,v.name,id===draft.vision)).join('')+'</select></label>'+
+      '<label>Release positioning <select onchange="UI.setDraft(\'releasePosition\',this.value)">'+
+      Object.entries(Engine.v14ReleasePlans()).map(([id,v])=>opt(id,v.name,id===draft.releasePosition)).join('')+'</select></label>'+
+      (draft.pitchId?'<label>Script acquisition <select onchange="UI.setDraft(\'pitchApproach\',this.value)">'+
+        opt('standard','Standard offer',draft.pitchApproach==='standard')+
+        opt('partner','Writer partnership (lower fee; limited bidding protection)',draft.pitchApproach==='partner')+
+        opt('buyout','Secure rights outright (higher fee; no contested bid)',draft.pitchApproach==='buyout')+
+        '</select></label><p>Script rights cost: '+money(pv.scriptFee||0)+'. Included in cash requirements.</p>':
+        '<p>Original commission: no external script rights fee. Genre/topic and talent will still determine craft and appeal.</p>')+
+      '</div>';
     h += '</div><h2>Cast and crew</h2><p class="muted">★ = genre fit. Fees come out of the budget; roster talent costs no fee. Fame drives initial buzz; skill drives filmmaking quality. Recognition is never a hiring gate. Elite artists may decline offers; studio reputation and creative fit help. A declined offer costs nothing.</p><div class="form cast">' +
       Engine.SLOTS.map(castPicker).join('') + '</div>';
     const caps=Engine.ensembleCaps(draft.format,draft.tier);
@@ -792,7 +892,7 @@ var UI = (function () {
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE & SCREENINGS</small><h2>Now releasing</h2>'+
       '<p>Features show theatrical gross; shorts show weekly screening receipts. Stronger shorts have longer circuits.</p></div>'+
       '<div class="fc-pulse-list">'+(recent||'<p>No active releases. Completed films may still earn rights revenue and festival recognition.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(nameOf(Engine.formats(),chosen.format))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
@@ -1252,6 +1352,7 @@ var UI = (function () {
     const sel = rivalSel != null && Engine.getRival(rivalSel) ? Engine.rivalInfo(rivalSel) : null;
     let h = '<h1>Rivals</h1><div class="strip">' + stat('Active studios', act.length) + stat('Your box office share this year', (me ? me.share : 0) + '%') +
       stat('Talent poached from you', poached) + '</div>';
+    h += v14Calendar();
     h += '<p class="muted">Rival films compete for your release weeks. A studio that keeps losing money chases trends; the weakest go bankrupt and upstarts replace them. Click a studio for its releases and poached talent.</p>';
     h += tblHtml('rivals', {
       rows: rivalInfos,
@@ -1275,7 +1376,7 @@ var UI = (function () {
         { key: 'poached', label: 'Poached from you', num: true, value: r => r.talent.length }
       ]
     });
-    if (sel) h += rivalDetail(sel);
+    if (sel) h += v14IdentityCard(String(sel.id))+rivalDetail(sel);
     const news = Engine.state.log.filter(l => l.type === 'rival').slice(-6).reverse();
     if (news.length) h += '<h2>Rival news</h2>' + logList(news);
     const standings=(years)=>{
@@ -1408,6 +1509,7 @@ var UI = (function () {
     h += '<div class="poster film-detail-poster">' + posterFor(f) + '</div>';
     if(hasMedia() && f.genre) h += '<div class="film-still">' + Media.filmStillSVG(f) + '</div>';
     if(f.projectId != null) h += posterActions(Engine.getProject(f.projectId));
+    if(f.projectId!=null)h+=v14StoryPanel(Engine.getProject(f.projectId),false);
     if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
       '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
     if (f.projectId != null && Engine.sequelEligibility(f.projectId).ok) h += '<button class="primary" onclick="UI.beginSequel('+f.projectId+')">Develop a sequel</button>';
@@ -1484,6 +1586,81 @@ var UI = (function () {
       '<button onclick="UI.closeDrawer()" aria-label="Close">✕</button></div>' + (drawerMsg ? '<div class="alert">' + esc(drawerMsg) + '</div>' : '');
   }
   // 8.3: trophies and festival badges under the poster, portrait and trophies in the talent drawer. 8.5: gross and revenue count up (cu).
+
+  function v14StoryPanel(p,mini){
+    if(!p||!p.dna)return '';
+    const d=p.dna,visions=Engine.v14Visions(),strengths=Engine.v14Strengths(),risks=Engine.v14Risks();
+    const items=Engine.v14Storyboard(p).slice(mini?-3:-10).reverse();
+    return '<section class="fc-v14-film-story"><div class="fc-v14-section-heading"><div><small>THE FILM AS A STORY</small>'+
+      '<h2>'+esc(d.hook||p.title)+'</h2></div></div>'+
+      '<div class="fc-v14-tags">'+[visions[d.vision]?.name||d.vision,
+        ...(d.strengths||[]).map(id=>strengths[id]||id),
+        'Risk: '+(risks[d.risk]||d.risk)].map(n=>'<span>'+esc(n)+'</span>').join('')+'</div>'+
+      (items.length?'<div class="fc-v14-story-list">'+items.map(x=>
+        '<div><small>'+dateLabel(x.week)+' · '+esc(x.kind)+'</small><p>'+esc(x.text)+'</p></div>').join('')+'</div>':
+        '<p class="muted">The next production decisions will shape this film’s history.</p>')+
+      '</section>';
+  }
+  function v14ReleaseControls(p){
+    if(!p||!p.dna||p.format!=='feature')return '';
+    let h='';
+    if(p.releaseWeek==null&&p.stage!=='done'){
+      h+='<section class="fc-v14-film-actions"><h3>Release strategy</h3><p>Position the film against the upcoming market; each approach trades initial reach for something else.</p>'+
+        '<div class="fc-v14-release-options">'+Object.entries(Engine.v14ReleasePlans()).map(([id,o])=>
+          '<button class="'+((p.releasePosition||'wide')===id?'is-selected':'')+
+          '" onclick="UI.v14Position('+p.id+',&quot;'+id+'&quot;)"><strong>'+esc(o.name)+'</strong><small>'+
+          esc(o.desc)+'</small></button>').join('')+'</div></section>';
+    }
+    if(p.stage==='release'&&p.weeksInRelease>=1){
+      const opts=['expand','focus','hold','pull'].map(id=>Engine.v14ReleaseResponseQuote(p.id,id)).filter(x=>x.ok);
+      if(opts.length)h+='<section class="fc-v14-film-actions"><h3>Respond to opening week</h3>'+
+        '<p>One optional mid-run decision. Costs are real and increased sales are not guaranteed.</p>'+
+        '<div class="fc-v14-release-options">'+opts.map(o=>
+          '<button onclick="UI.v14Respond('+p.id+',&quot;'+o.kind+'&quot;)"><strong>'+esc(o.name)+
+          (o.cost?' · '+money(o.cost):'')+'</strong><small>'+esc(o.description)+'</small></button>').join('')+'</div></section>';
+      else if(p.releaseResponse)h+='<p class="fc-v14-action-history">Release response: '+
+        esc(p.releaseResponse.kind)+' ('+dateLabel(p.releaseResponse.week)+')</p>';
+    }
+    return h;
+  }
+  function v14AfterlifeControls(p){
+    if(!p||p.stage!=='done'||p.format!=='feature'||!p.dna)return '';
+    const legacy=Engine.v14FilmLegacy(p),options=['license','retrospective','cult']
+      .map(kind=>Engine.v14AfterlifeQuote(p.id,kind)).filter(x=>x.ok);
+    return '<section class="fc-v14-film-actions"><h3>A film’s second life</h3><p class="muted">'+
+      esc(legacy.kind)+' · historical releases and awards remain recorded independently.</p>'+
+      (options.length?'<div class="fc-v14-release-options">'+options.map(x=>
+        '<button onclick="UI.v14Afterlife('+p.id+',&quot;'+x.kind+'&quot;)"><strong>'+esc(x.name)+
+          (x.cost?' · '+money(x.cost):'')+'</strong><small>'+esc(x.description)+'</small></button>').join('')+'</div>':
+        '<p class="muted">No new catalog decisions available. Rights and existing licensing windows continue automatically.</p>')+
+      '</section>';
+  }
+  function v14Position(id,kind){
+    const r=Engine.v14SetReleasePlan(id,kind);setFlash(r.ok?'Film release positioning updated.':r.reason);render();
+  }
+  function v14Respond(id,kind){
+    const q=Engine.v14ReleaseResponseQuote(id,kind);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm(q.name+'. '+q.description+' '+(q.cost?'Cash cost: '+money(q.cost)+'.':'No new cash cost.')+' Continue?'))return;
+    const r=Engine.v14ReleaseResponse(id,kind);setFlash(r.ok?'Release strategy response recorded.':r.reason);render();
+  }
+  function v14Afterlife(id,kind){
+    const q=Engine.v14AfterlifeQuote(id,kind);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!confirm(q.name+'. '+q.description+(q.cost?' Cost: '+money(q.cost)+'.':'')+' Continue?'))return;
+    const r=Engine.v14AfterlifeAction(id,kind);setFlash(r.ok?'Catalog decision recorded.':r.reason);render();
+  }
+  function v14Calendar(){
+    const weeks=Engine.v14ReleaseCalendar();
+    return '<section class="fc-v14-profile-section"><div class="fc-v14-section-heading"><div><small>COMPETITIVE RELEASE PLANNING</small>'+
+      '<h2>Upcoming 12 weeks</h2><p>Real rival film dates and existing market pressure—not fabricated availability.</p></div></div>'+
+      '<div class="fc-v14-calendar">'+weeks.map(w=>
+        '<div><strong>'+esc(dateLabel(w.week))+'</strong><small>'+esc(w.season)+' · pressure '+w.pressure.toFixed(1)+'</small>'+
+        (w.rivals.length?w.rivals.map(f=>'<p>'+esc(f.studio)+' · '+esc(f.title)+'</p>').join(''):'<p class="muted">No announced rival opening</p>')+
+        (w.mine.length?'<p class="fc-v14-own">'+w.mine.map(f=>esc(f.title)).join(', ')+' · your studio</p>':'')+
+        '</div>').join('')+'</div></section>';
+  }
+
   function projectDrawer(p) {
     const profit = profitOf(p);
     const pct = p.budget ? Math.min(100, Math.round(p.spent / p.budget * 100)) : 0;
@@ -1492,6 +1669,7 @@ var UI = (function () {
     if(p.franchiseId) h += '<p class="franchise-card">'+esc(p.franchiseName||p.title)+' · Franchise installment '+(p.installment||1)+'</p>';
     if(p.format==='feature' && Engine.sequelEligibility(p.id).ok) h += '<button class="primary" onclick="UI.beginSequel('+p.id+')">Develop a sequel</button>';
     h += awardIcons(p);   // 8.3
+    h += v14StoryPanel(p,false)+v14ReleaseControls(p)+v14AfterlifeControls(p);
     h += '<dl>';
     h += dl('Stage', esc(CONTENT.STAGE_LABELS[p.stage]) + (p.stageWeeksLeft > 0 && p.stage !== 'release' && p.stage !== 'done' ? ' · ' + p.stageWeeksLeft + ' wk left' : ''));
     h += dl('Budget', money(p.budget));
@@ -1779,14 +1957,18 @@ var UI = (function () {
     { title: 'Welcome to Final Cut', view: 'dashboard', visit: 'dashboard', target: '#nav [data-view="dashboard"]', location: 'Dashboard', text: 'Your studio begins in 1970. You can click anything while this guide is open. First, click Dashboard in the sidebar (or use Open Dashboard below).' },
     { title: 'Read your dashboard', view: 'dashboard', target: '#main .strip', location: 'Studio → Dashboard · Cash & Weekly burn', text: 'Watch Cash, Weekly burn and profit. Fame is long-term recognition, Current Buzz is recent attention, and Current Prestige reflects recent achievements. Try keeping enough money for payroll.' },
     { title: 'Open New Project', view: 'newproject', visit: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project', text: 'Click New project in the sidebar to design your first film. Shorts are the most affordable way to learn, but you can try other unlocked formats.' },
-    { title: 'Plan your film', view: 'newproject', target: '#main .form', location: 'New project → Title / Format / Genre / Topic / Budget', text: 'Choose a title, format, genre, topic and budget. These affect audience demand, production costs, and potential results. Try a different format or budget to preview the costs.' },
+    { title: 'Pick a story', view: 'newproject', target: '#main .fc-v14-script-grid', location: 'New project → Script marketplace', text: 'Three quarterly script pitches offer different artistic strengths, risks and fees. Select one, or Create an original for your own genre and topic. The starting pitch is free. Some sought-after scripts have rival studio interest.' },
+    { title: 'Choose a creative vision', view: 'newproject', target: '#main .fc-v14-creative', location: 'New project → Creative direction', text: 'Prestige-first, Accessible Entertainment, Bold Genre and Star Vehicle shape the promise of your film. Production challenges and release strategy can test that promise. This is a choice with tradeoffs, not a guaranteed rating.' },
+    { title: 'Plan your film', view: 'newproject', target: '#main .form', location: 'New project → Title / Format / Genre / Topic / Budget', text: 'Choose a script, title, budget and creative team. Genre and topic shape demand, while writer/director choices develop ongoing relationships. Film planning shows all upfront fees and the required cash cushion.' },
     { title: 'Choose talent and crew', view: 'newproject', target: '#main .form.cast', location: 'New project → Cast and crew', text: 'Skill helps film quality; fame boosts opening hype. A little-known actor can be excellent. Directors, writers, lead actors and optional supporting cast add different costs and benefits.' },
     { title: 'View your projects', view: 'projects', visit: 'projects', target: '#nav [data-view="projects"]', location: 'Studio → Projects', text: 'Click Projects to see films in production and films awaiting release. Projects appear here after you start them. You do not need to spend money or start a movie to finish this guide.' },
-    { title: 'Move production forward', view: 'projects', target: '#topbar [data-guide="advance"]', location: 'Top bar → Advance to next decision', text: 'Next week and Advance to next decision move time forward. Production events offer tradeoffs. Before a release, you can set distribution regions; shorts have affordable regional options. Advancing time is optional during this tutorial.' },
+    { title: 'Film stories and release tradeoffs', view: 'projects', target: '#main .fc-center', location: 'Studio → Projects / Production Center', text: 'Click a film to see its Film DNA, story so far, budget and earnings. Production runs automatically until a meaningful issue arises. For feature films, choose an opening approach and respond to early box office once. Catalog opportunities arrive only when eligible.' },
+    { title: 'Move production forward', view: 'projects', target: '#topbar [data-guide="advance"]', location: 'Top bar → Advance to next decision', text: 'Next week and Advance to next decision move time forward; routine work is automated. Important dilemmas test creative integrity, cost and industry reputation. Set delegation preferences in Studio Profile to minimize interruptions.' },
     { title: 'Open My Filmography', view: 'filmography', visit: 'filmography', target: '#nav [data-view="filmography"]', location: 'Studio → My Filmography', text: 'Click My Filmography. Every completed film is kept here, along with its poster, credits, finances and critical reception.' },
     { title: 'Learn from your film history', view: 'filmography', target: '#main', location: 'My Filmography → All Films / My Rankings', text: 'Compare your best films by overall score, genre, topic, box office, critics and awards. Click a finished film for its details. This list will be empty until you release one.' },
-    { title: 'Check studio finances', view: 'finance', visit: 'finance', target: '#nav [data-view="finance"]', location: 'Business → Finance', text: 'Click Finance to review income, spending, cash and debt. Big films bring bigger opportunities and higher risks; avoid overspending on star salaries and extra crew.' },
-    { title: 'Study rival studios', view: 'rivals', visit: 'rivals', target: '#nav [data-view="rivals"]', location: 'Business → Rivals', text: 'Click Rivals to see competing studios. Their favorite genres, successes and franchises shape world competition. You can check Market too for shifts in audience demand.' },
+    { title: 'Find your studio identity', view: 'studio_profile', visit: 'studio_profile', target: '#nav [data-view="studio_profile"]', location: 'Studio → Studio Profile', text: 'Your classification emerges from completed films, performance, genres, story preferences, awards and talent relationships. You can pursue optional multi-year ambitions, and delegate creative dilemmas to directors or business staff.' },
+    { title: 'Check studio finances', view: 'finance', visit: 'finance', target: '#nav [data-view="finance"]', location: 'Business → Finance', text: 'Click Finance to review income, spending, cash and debt. Budget constraints also apply to scripts, production delays, marketing and catalog revivals. More expensive choices never guarantee higher earnings.' },
+    { title: 'Study rival studios', view: 'rivals', visit: 'rivals', target: '#nav [data-view="rivals"]', location: 'Business → Rivals', text: 'Rivals pursue scripts, compete for opening weeks and grow their own earned identities. Review the real 12-week release calendar before positioning a feature against a competitor. The studio wire reports consequences of real bids and releases.' },
     { title: 'Watch festivals and awards', view: 'awards', visit: 'awards', target: '#nav [data-view="awards"]', location: 'World → Awards', text: 'Click Awards to review nominations and winners. Prestigious recognition is rare; quality and critical praise matter. Smaller studios can still earn major honors with an exceptional movie.' },
     { title: 'Your next move', view: 'newproject', target: '#nav [data-view="newproject"]', location: 'Studio → New project / Founder / World', text: 'You are ready to run your studio. Use Founder to grow your business, World Film Archive to study historic films, and New project to make your first release. Reopen this guide anytime with ? Tutorial.' }
   ];
@@ -1896,6 +2078,7 @@ var UI = (function () {
   // A+B editorial screen navigation: concise context, no new game state.
   const PAGE_CONTEXT = {
     saves:['CAMPAIGN LIBRARY','Manage independent studio careers and local save slots'],
+    studio_profile:['INDUSTRY REPUTATION','Earned classification, studio ambitions and delegation'],
     newproject:['GREENLIGHT DESK','Plan cast, budget, creative direction and distribution'],
     filmography:['YOUR CATALOG','Released pictures, awards and permanent studio history'],
     talent:['CASTING OFFICE','Scout talent by skill, recognition, reliability and fee'],
@@ -1929,6 +2112,7 @@ var UI = (function () {
     else if (!s) h = viewStart();
     else if (view === 'saves') h = viewSaveLibrary();
     else if (view === 'newproject') h = viewNewProject();
+    else if (view === 'studio_profile') h = viewStudioProfile();
     else if (view === 'projects') h = viewProjects();
     else if (view === 'filmography') h = viewFilmography();
     else if (view === 'archive') h = viewArchive();
@@ -2072,7 +2256,8 @@ var UI = (function () {
     const p=q.parent;
     draft.format='feature';draft.title=(p.franchiseName||p.title)+(p.installment>1?' '+(p.installment+1):' II');
     draft.genre=p.genre;draft.topic=p.topic;draft.tier=p.tier;
-    draft.sequelOf=p.id;
+    draft.sequelOf=p.id;draft.pitchId=null;draft.pitchApproach='standard';
+    draft.vision=p.dna?.vision||'mainstream';draft.releasePosition='wide';
     const suggested=Engine.sequelCastSuggestion(p);
     draft.cast={director:suggested.director,writer:suggested.writer,lead:suggested.lead,crew:suggested.crew};
     draft.supporting=(suggested.supporting||[]).slice(0,Engine.ensembleCaps('feature',draft.tier).supporting);
@@ -2082,7 +2267,7 @@ var UI = (function () {
   function cancelSequel(){delete draft.sequelOf;draft.supporting=[];render();}
   function startProject() {
     const r = Engine.startProject(draft);
-    if (r.ok) { draft.title = ''; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+    if (r.ok) { draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function loan(take) { const r = take ? Engine.takeLoan() : Engine.repayLoan(); setFlash(r.ok ? '' : r.reason); render(); }
   function awardCampaign(id, level) { const r = Engine.awardCampaign(id, level); setFlash(r.ok ? '' : r.reason); render(); }
@@ -2248,7 +2433,10 @@ var UI = (function () {
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+  return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
+    v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
+    v14Delegation:v14Delegation, v14Ambition:v14Ambition,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     shortReleaseAction:shortReleaseAction,

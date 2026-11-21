@@ -52,3 +52,15 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Styled compact A+B quality/hype and festival engagement panels responsively in `theme-ab.css`; updated `docs/CHANGELOG_V13_9.md`, README and HANDOFF. Save v13 preserved and old completed shorts are not repaid.
 - [x] Passed 2 independent 10-year world simulations (72 shorts, exact screening-revenue reconciliation), engine, festivals, encore, simulated households and legacy v13 tests; full v13.5/13.6/13.7/13.8 regression suites and Chromium/mobile UI checks all green (PR Actions #44853961546/#44853961453/#44853961451/#44853961483/#44853961498). Real screenshots artifact #14686218189.
 - [x] PR #5 merged to `main` (`bd4275830c430c640456b7c8a990ee2f5cfcf702`); all five FinalCut regressions succeeded on PR #5 (#44853961546/#44853961453/#44853961451/#44853961483/#44853961498); GitHub Pages #44854123420 built and deployed successfully. Original save format remains v13.
+
+## v14 — Integrated filmmaking overhaul (2026-11-21)
+- [x] Read approved `FinalCut_V14_Gameplay_Design_Proposal.md` and existing FinalCut v13.9 checkpoints; branch from correct `final-cut/main`.
+- [x] v14a foundation: `engine.js` adds compact Film DNA, creative vision, ordered causal film story, additive `state.v14` hydration; existing save version 13 unchanged (commit 92b60bf). Partnership mechanics follow in v14d.
+- [x] v14b engine: three authored quarterly pitches, safe early short, risk/fee, conditional rival interest and acquisition on greenlight; no infinite reroll, separate script cost, retained custom/sequels (`engine.js`, commit 2e0804b). UI selection and real AI bidding continue in v14f/h.
+- [x] v14c engine: one Film DNA-specific production dilemma, three distinct choices, persistent consequences and one-at-a-time queue, simple ask/director/commercial delegation; existing cut decision retained.
+- [x] v14d engine: bounded (36 pairs) director/writer relationship histories, creative-trust consequences, modest capped craft effect, sequel/return continuity still intact; no actor career profile.
+- [x] v14e: `engine.js` provides 12-week rival calendar, four pre-release strategies with opening/legs/critic tradeoffs, one early theatrical response (expand/focus/hold/pull) with actual direct expenses and non-guaranteed returns (commit 442b5a).
+- [x] v14f: budget-limited rivals may acquire contested quarterly scripts; causal rivalry memory and real release-date responses feed news, with no scripted guaranteed rival victories.
+- [x] v14g engine: bounded film afterlife offers (license/retrospective/fan tour), 1–3-year studio ambitions and earned conditional script access, shared evidence-based player/rival classifications with quarterly hysteresis, two descriptors and standing/trajectory. UI integration follows v14h.
+- [ ] v14h: Integrate A+B UI, docs, short/tutorial changes, real-browser tests, save regression and multi-world tuning.
+- [ ] Merge only cohesive validated integration to main and verify deployment.

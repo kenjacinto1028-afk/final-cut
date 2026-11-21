@@ -1,0 +1,52 @@
+name: FinalCut v14 integrated filmmaking QA
+on:
+  push:
+    branches: [feature/v14-filmmaking-overhaul]
+  pull_request:
+    branches: [main]
+jobs:
+  integrated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify scripts and integrated film simulation
+        run: |
+          node --check content.js
+          node --check engine.js
+          node --check ui.js
+          node tests/v14_gameplay.js
+          node tests/v14_fullcareer.js
+      - name: Preserve original economics and saved games
+        run: |
+          node tests/v13_smoke.js
+          node tests/v13_compat_regression.js
+          node tests/v13_4_honors.js
+          node tests/v13_5_production_center.js
+          node tests/v13_8_film_finance.js
+          node tests/v13_9_short_engagement.js
+          node tests/v13_9_short_ten_year_balance.js
+          node tests/v13_1_balance.js
+      - name: Install Chromium and dependencies
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Real browser interactions and mobile responsiveness
+        run: |
+          python tests/v14_browser.py
+          python tests/v13_6_sitewide_browser.py
+          python tests/v13_7_multi_save_browser.py
+          python tests/v13_8_film_monitor_browser.py
+          python tests/v13_9_short_browser.py
+      - name: Upload real screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalcut-v14-actual-ui
+          path: /tmp/finalcut-v14-*.png
+          if-no-files-found: ignore

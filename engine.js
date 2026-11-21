@@ -315,6 +315,187 @@ var Engine = (function () {
 
 // ===== SECTION: STATE =====
   let state = null;
+  let fastSimulationTesting=false; // Node-only QA acceleration; never skips browser autosaves
+  function setFastSimulationTesting(enabled){
+    if(typeof document!=='undefined')return false;
+    fastSimulationTesting=!!enabled;return true;
+  }
+
+
+  // v14: compact, additive Film DNA; historical releases are never rewritten.
+  const V14_TAGS={dialogue:'Sharp dialogue',atmosphere:'Distinctive atmosphere',spectacle:'Visual spectacle',
+    emotion:'Emotional resonance',twist:'Memorable twist',research:'Authentic detail',ensemble:'Strong ensemble',
+    humor:'Character humor',craft:'Inventive filmmaking',mystery:'Narrative mystery',
+    heart:'Broad human appeal',originality:'Unusual premise'};
+  const V14_RISKS={narrow:'Niche appeal',difficult:'Difficult shoot',controversial:'Divisive subject',
+    untested:'Unproven approach',expensive:'Cost pressure',marketing:'Hard to market'};
+  const V14_VISIONS={
+    prestige:{name:'Prestige-first',quality:2,hype:-2,critics:2,viewer:-2,festival:3},
+    mainstream:{name:'Accessible entertainment',quality:-1,hype:3,critics:-1,viewer:3,festival:-1},
+    bold:{name:'Bold genre vision',quality:1,hype:1,critics:0,viewer:1,festival:1},
+    star:{name:'Star vehicle',quality:0,hype:3,critics:-1,viewer:2,festival:0}
+  };
+  function v14State(){
+    if(!state)return null;
+    if(!state.v14||typeof state.v14!=='object')state.v14={};
+    const v=state.v14;
+    if(!Array.isArray(v.pitches))v.pitches=[];
+    if(!Array.isArray(v.pitchHistory))v.pitchHistory=[];
+    if(!v.partnerships||typeof v.partnerships!=='object')v.partnerships={};
+    if(!Array.isArray(v.rivalry))v.rivalry=[];
+    if(!Array.isArray(v.classChanges))v.classChanges=[];
+    if(!v.classifications||typeof v.classifications!=='object')v.classifications={};
+    if(!Array.isArray(v.offers))v.offers=[];
+    if(!v.delegation)v.delegation='ask';
+    if(!v.ambition)v.ambition=null;
+    return v;
+  }
+  function filmStory(p,kind,text){
+    if(!p)return;
+    if(!Array.isArray(p.story))p.story=[];
+    if(p.story.some(x=>x.week===state.week&&x.kind===kind&&x.text===text))return;
+    p.story.push({week:state.week,kind,text:String(text).slice(0,170)});
+    if(p.story.length>14)p.story.splice(0,p.story.length-14);
+  }
+  function dnaFor(o){
+    const pitch=o.pitchId!=null?v14PitchById(o.pitchId):null;
+    const key=o.format+':'+o.genre+':'+o.topic+':'+(o.title||'');
+    let hash=0;for(let i=0;i<key.length;i++)hash=(hash*31+key.charCodeAt(i))>>>0;
+    const tags=Object.keys(V14_TAGS),risks=Object.keys(V14_RISKS);
+    const strengths=pitch?pitch.strengths.slice(0,2):[tags[hash%tags.length],tags[(hash+5)%tags.length]];
+    const risk=pitch?pitch.risk:risks[Math.floor(hash/17)%risks.length];
+    const vision=V14_VISIONS[o.vision]?o.vision:(pitch?pitch.vision:'mainstream');
+    return {pitchId:pitch?pitch.id:null,hook:pitch?pitch.hook:('An original '+o.genre+' story about '+o.topic+'.'),
+      strengths,risk,vision,lane:vision==='prestige'?'arthouse':vision==='bold'?'genre':'mainstream',
+      origin:pitch?'marketplace':o.sequelOf!=null?'sequel':'original',choiceFlags:[]};
+  }
+  function v14PitchById(id){return v14State().pitches.find(p=>p.id===String(id))||null;}
+  // Authored combinations, not incoherent free-text procedural descriptions.
+  const V14_PITCHES=[
+    {title:'The Closing Picture House',genre:'drama',topic:'smalltown',hook:'Two sisters have one summer to save their hometown cinema.',
+      strengths:['emotion','dialogue'],risk:'narrow',vision:'prestige'},
+    {title:'Three Days of Trouble',genre:'comedy',topic:'roadtrip',hook:'A reluctant driver must escort an estranged family across the country.',
+      strengths:['humor','heart'],risk:'untested',vision:'mainstream'},
+    {title:'Under the Floorboards',genre:'horror',topic:'haunted',hook:'A house renovation uncovers a voice everyone swears belongs to the missing owner.',
+      strengths:['atmosphere','mystery'],risk:'marketing',vision:'bold'},
+    {title:'The Witness Route',genre:'thriller',topic:'corruptcop',hook:'A junior clerk discovers one witness can unravel the entire city machine.',
+      strengths:['twist','dialogue'],risk:'controversial',vision:'prestige'},
+    {title:'Signal from Home',genre:'scifi',topic:'spacecolony',hook:'A remote settlement receives a distress call from its own future.',
+      strengths:['spectacle','originality'],risk:'expensive',vision:'bold'},
+    {title:'Champion of Nowhere',genre:'drama',topic:'boxing',hook:'An aging trainer backs a fighter everyone else has already forgotten.',
+      strengths:['emotion','research'],risk:'narrow',vision:'prestige'},
+    {title:'The Night Shift',genre:'comedy',topic:'nightshift',hook:'Hospital night workers cover for one another during a very long shift.',
+      strengths:['ensemble','humor'],risk:'difficult',vision:'mainstream'},
+    {title:'After the Broadcast',genre:'thriller',topic:'conspiracy',hook:'A local radio host reveals a secret live, with no way to undo it.',
+      strengths:['twist','originality'],risk:'controversial',vision:'bold'},
+    {title:'A Family of Strangers',genre:'romance',topic:'firstlove',hook:'Two strangers discover an unexpected connection in a handwritten will.',
+      strengths:['heart','dialogue'],risk:'narrow',vision:'mainstream'},
+    {title:'The Great Divide',genre:'western',topic:'frontier',hook:'A border town must decide which side of a new railway it belongs to.',
+      strengths:['atmosphere','research'],risk:'difficult',vision:'prestige'},
+    {title:'The Invisible Encore',genre:'documentary',topic:'rockband',hook:'A forgotten touring band reunites to confront its lost recording.',
+      strengths:['research','emotion'],risk:'marketing',vision:'prestige'},
+    {title:'The Machine Next Door',genre:'scifi',topic:'robots',hook:'An ordinary family discovers the neighbor has built a curious machine.',
+      strengths:['spectacle','heart'],risk:'expensive',vision:'mainstream'},
+    {title:'The Last Postmark',genre:'drama',topic:'familysecret',hook:'A rural postmaster must decide whether to deliver a letter held for thirty years.',
+      strengths:['dialogue','emotion'],risk:'narrow',vision:'prestige'},
+    {title:'Second Bell',genre:'drama',topic:'comingofage',hook:'A young teacher protects a troubled class while confronting the school board.',
+      strengths:['heart','ensemble'],risk:'controversial',vision:'prestige'},
+    {title:'A Place in the Crowd',genre:'documentary',topic:'underdog',hook:'An overlooked amateur team risks everything to preserve its community.',
+      strengths:['research','emotion'],risk:'marketing',vision:'prestige'},
+    {title:'When the Wires Went Quiet',genre:'thriller',topic:'medical',hook:'A hospital loses contact with the outside world during a dangerous night.',
+      strengths:['atmosphere','research'],risk:'difficult',vision:'prestige'},
+    {title:'End of a Summer',genre:'romance',topic:'comingofage',hook:'Two childhood friends spend their last summer together before leaving home.',
+      strengths:['heart','dialogue'],risk:'narrow',vision:'prestige'},
+    {title:'Mercy Beyond the Valley',genre:'western',topic:'frontier',hook:'An isolated frontier doctor must decide whom the town will protect.',
+      strengths:['research','emotion'],risk:'difficult',vision:'prestige'},
+    {title:'The Apprentice',genre:'drama',topic:'organizedcrime',hook:'An unwilling apprentice inherits a family debt and an impossible moral choice.',
+      strengths:['dialogue','twist'],risk:'controversial',vision:'prestige'},
+    {title:'The Last Picture',genre:'documentary',topic:'celebrity',hook:'A photographer catalogues the forgotten people behind a famous screen star.',
+      strengths:['research','originality'],risk:'narrow',vision:'prestige'},
+    {title:'Midnight Exchange',genre:'action',topic:'heist',hook:'A routine courier delivery becomes an impossible overnight escape.',
+      strengths:['spectacle','twist'],risk:'expensive',vision:'mainstream'},
+    {title:'The Return Trip',genre:'comedy',topic:'roadtrip',hook:'A family chooses the wrong bus and finds a reason to stay together.',
+      strengths:['humor','heart'],risk:'untested',vision:'mainstream'},
+    {title:'Saturday Heroes',genre:'drama',topic:'underdog',hook:'A fading local team receives one final chance to save its season.',
+      strengths:['ensemble','emotion'],risk:'difficult',vision:'mainstream'},
+    {title:'A Good Wrong Turn',genre:'romance',topic:'firstlove',hook:'A missed appointment sends two rivals on the same unexpected journey.',
+      strengths:['dialogue','heart'],risk:'narrow',vision:'mainstream'},
+    {title:'The Very Unusual Guest',genre:'comedy',topic:'supernatural',hook:'An eccentric houseguest exposes a family secret in the most inconvenient way.',
+      strengths:['humor','mystery'],risk:'marketing',vision:'mainstream'},
+    {title:'The Rockwell Mystery',genre:'thriller',topic:'familysecret',hook:'A family searching for an heir discovers that the estate was never abandoned.',
+      strengths:['twist','atmosphere'],risk:'untested',vision:'mainstream'},
+    {title:'The Neighborhood Watch',genre:'comedy',topic:'smalltown',hook:'Three suspicious neighbors mistakenly recruit an entire town into their investigation.',
+      strengths:['ensemble','humor'],risk:'narrow',vision:'mainstream'},
+    {title:'Three Minutes to Midnight',genre:'action',topic:'espionage',hook:'An exhausted courier holds the only evidence of a capital-city conspiracy.',
+      strengths:['spectacle','twist'],risk:'expensive',vision:'mainstream'},
+    {title:'The Wrong Orbit',genre:'scifi',topic:'spacecolony',hook:'An orbital miner receives a map to a planet that no one believes exists.',
+      strengths:['originality','spectacle'],risk:'expensive',vision:'bold'},
+    {title:'The Last Transmission',genre:'horror',topic:'supernatural',hook:'An abandoned communications station begins broadcasting tomorrow’s voices.',
+      strengths:['atmosphere','mystery'],risk:'marketing',vision:'bold'},
+    {title:'No Name on the Door',genre:'thriller',topic:'espionage',hook:'A secret agent learns that the enemy headquarters has been moved into her apartment.',
+      strengths:['twist','originality'],risk:'untested',vision:'bold'},
+    {title:'Signal Seven',genre:'scifi',topic:'timetravel',hook:'A scientist receives seven messages from possible versions of herself.',
+      strengths:['mystery','originality'],risk:'difficult',vision:'bold'},
+    {title:'The Green Room',genre:'horror',topic:'rockband',hook:'A touring band hears an unknown instrument playing behind a locked venue door.',
+      strengths:['atmosphere','ensemble'],risk:'marketing',vision:'bold'},
+    {title:'Children of the House',genre:'horror',topic:'haunted',hook:'A new caretaker uncovers a family that was never listed in the old records.',
+      strengths:['atmosphere','emotion'],risk:'controversial',vision:'bold'},
+    {title:'The City Beneath',genre:'scifi',topic:'robots',hook:'Maintenance workers discover their city is being quietly rebuilt from below.',
+      strengths:['spectacle','originality'],risk:'expensive',vision:'bold'},
+    {title:'The Unseen Rival',genre:'thriller',topic:'revenge',hook:'A quiet investigator follows a rival who seems to anticipate every move.',
+      strengths:['twist','craft'],risk:'difficult',vision:'bold'}
+  ];
+  function v14Hash(key){
+    let x=2166136261;for(const c of String(key)){x=Math.imul(x^c.charCodeAt(0),16777619)>>>0;}
+    return x>>>0;
+  }
+  function v14Pitches(){
+    const v=v14State(),quarter=Math.floor(state.week/13);
+    if(v.pitchQuarter===quarter&&v.pitches.length===3)return v.pitches;
+    const offers=['safe','prestige','risk'],history=v.pitchHistory;
+    const unlocked=state.studio.tier>0&&state.studio.fame>=TUNING.formats.feature.unlockFame;
+    v.pitches=offers.map((lane,i)=>{
+      const templates=V14_PITCHES.filter(t=>i===1?t.vision==='prestige':i===2?t.vision==='bold':t.vision==='mainstream');
+      const fresh=templates.filter(t=>!history.includes(t.title));
+      let catalog=fresh.length?fresh:templates;
+      let d=catalog[v14Hash(state.campaignId+':'+quarter+':'+i)%catalog.length];
+      history.push(d.title);
+      if(history.length>18)history.splice(0,history.length-18);
+      const identity=v14Identity('you');
+      if(i===2 && identity?.primary==='genre' && identity.topGenre){
+        const focused=V14_PITCHES.filter(t=>t.genre===identity.topGenre);
+        if(focused.length)d=focused[v14Hash(state.campaignId+':focus:'+quarter)%focused.length];
+      }
+      const format=unlocked?(i===1?'short':'feature'):'short';
+      const budget=TUNING.formats[format].tiers[0].budget;
+      const fee=(!unlocked&&i===0)?0:round50(budget*(i===2?.12:i===1?.07:.045));
+      const rival=activeRivals().filter(r=>r.status==='active'&&r.cash>=Math.max(300,fee*3))
+        .sort((a,b)=>v14Hash(a.id+':'+quarter+i)-v14Hash(b.id+':'+quarter+i))[0];
+      return {id:'q'+quarter+'-'+i,quarter,lane,format,title:d.title,genre:d.genre,topic:d.topic,
+        hook:d.hook,strengths:d.strengths.slice(),risk:d.risk,vision:d.vision,fee,
+        contested:i===2&&unlocked&&!!rival,rivalId:i===2&&unlocked&&rival?rival.id:null,
+        claimedBy:null, expiresWeek:(quarter+1)*13};
+    });
+    v.pitchQuarter=quarter;
+    return v.pitches;
+  }
+  function v14ScriptQuote(o){
+    if(o.pitchId==null)return {ok:true,fee:0,pitch:null};
+    const pitch=v14Pitches().find(p=>p.id===String(o.pitchId));
+    if(!pitch)return {ok:false,reason:'This script pitch is no longer available. A new slate arrives next quarter.'};
+    if(pitch.claimedBy)return {ok:false,reason:'This script has already been acquired.'};
+    if(o.format!==pitch.format||o.genre!==pitch.genre||o.topic!==pitch.topic)
+      return {ok:false,reason:'The pitch format, genre and topic must match the original script.'};
+    const approach=['standard','partner','buyout'].includes(o.pitchApproach)?o.pitchApproach:'standard';
+    const boon=v14State().offers.find(x=>!x.used&&x.expiresWeek>=state.week);
+    const discount=boon&&['newvoices','prestige','genre'].includes(boon.id)?.9:1;
+    const fee=Math.round(pitch.fee*(approach==='buyout'?1.5:approach==='partner'?.65:1)*discount);
+    return {ok:true,fee,pitch,approach,contested:pitch.contested};
+  }
+  function v14MarketInfo(){return {quarter:Math.floor(state.week/13),pitches:v14Pitches().map(p=>Object.assign({},p)),nextRefreshWeek:(Math.floor(state.week/13)+1)*13};}
+
+  function v14Dna(p){return p&&p.dna||null;}
+  function v14Storyboard(p){return p&&Array.isArray(p.story)?p.story.slice(-12):[];}
 
   function newGame(opts) {
     opts = opts || {};
@@ -356,12 +537,15 @@ var Engine = (function () {
       market: null,
       recruitment: { declined: {} },
       staff: null,
-      rivals: null
+      rivals: null,
+      v14:{pitches:[],partnerships:{},rivalry:[],offers:[],classChanges:[],delegation:'ask',ambition:null}
     };
     state.market = initMarket();
     state.staff = initStaff();
     seedTalent();
     initRivals();
+    v14State();
+    v14Pitches();
     addLog(state.founder.name + ' founds ' + state.studio.name + ' with ' + fmtMoney(state.cash) + '. Rivals: ' + activeRivals().map(r => r.name).join(', ') + '.', 'studio');
     save();
     emit('newgame');
@@ -652,7 +836,10 @@ var Engine = (function () {
     const script = state.founder.stats.writing >= 65 ? 0.05 : 0;
     const payFit = budget && budget >= talentFee(t, format) * 8 ? 0.04 : 0;
     const rep = studio.fame * 0.001 + studio.criticsRep * 0.0011 + (studio.prestige || 0) * 0.0015;
-    const chance = elite ? clamp(0.78 + rep + (fit ? 0.12 : 0) + storyFit + script + payFit -
+    const industry=v14Identity('you');
+    const smallBenefit=(t.role==='director'||t.role==='writer')&&
+      ['prestige','incubator','indie'].includes(industry?.primary)?0.025:0;
+    const chance = elite ? clamp(0.78 + rep + smallBenefit + (fit ? 0.12 : 0) + storyFit + script + payFit -
       Math.max(0, t.skill - 55) * 0.009 - Math.max(0, t.fame - 45) * 0.0035, 0.25, 0.97) : 1;
     return { chance: Math.round(chance * 100) / 100, elite: elite, reason: fit ? 'Genre affinity' : 'Studio track record and creative fit' };
   }
@@ -1053,6 +1240,7 @@ var Engine = (function () {
     const cast = normalizeCast(o.cast);
     const cc = castCheck(cast, o.format, o);
     const weeks = plannedWeeks(o.format);
+    const script=v14ScriptQuote(o);
     const backgroundCrew=Number(o.backgroundCrew)||0;
     const crewPackageCost=Math.round(tier.budget*TUNING.talent.backgroundCrewShare*backgroundCrew);
     const fees = cc.fees + crewPackageCost;
@@ -1069,11 +1257,13 @@ var Engine = (function () {
     else if (o.sequelOf != null && (o.format!=='feature' || !sequelEligibility(o.sequelOf).ok)) reason = 'This sequel needs a completed, profitable hit feature as its source.';
     else if (!byId(CONTENT.GENRES, o.genre)) reason = 'Pick a genre.';
     else if (!byId(CONTENT.TOPICS, o.topic)) reason = 'Pick a topic.';
+    else if (!script.ok) reason=script.reason;
     else if (cc.reason) reason = cc.reason;
     else if (fees > tier.budget * TUNING.talent.maxFeeShare) reason = 'Talent fees are over ' + Math.round(TUNING.talent.maxFeeShare * 100) + '% of the budget. Pick cheaper talent or a bigger tier.';
-    else if (state.cash < fees + weekly * 2) reason = 'Not enough cash for the fees plus the first two weeks.';
+    else if (state.cash < fees + weekly * 2 + script.fee) reason = 'Not enough cash for script, talent and the first two weeks.';
     return { ok: !reason, reason: reason, budget: tier.budget, fees: fees, prodBudget: prodBudget, weeks: weeks, weekly: weekly,
-      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget,
+      prodQuality: prodQualityMult(tier.budget, fees), cashAfter: state.cash - tier.budget - script.fee,
+      scriptFee:script.fee||0,scriptPitch:script.pitch||null,
       continuity: o.sequelOf == null ? null : sequelContinuity(getProject(o.sequelOf),cast,o.supporting),
       extraFees:cc.fees, crewPackageCost };
   }
@@ -1081,6 +1271,20 @@ var Engine = (function () {
     if (!state || state.gameOver) return { ok: false, reason: 'No game running.' };
     const pv = previewProject(o);
     if (!pv.ok) return pv;
+    if(pv.scriptPitch?.contested&&pv.scriptPitch.rivalId&&o.pitchApproach!=='buyout'){
+      const chance=o.pitchApproach==='partner'?.08:.20;
+      if(Math.random()<chance){
+        const rival=getRival(pv.scriptPitch.rivalId);
+        if(rival&&rival.cash>=pv.scriptPitch.fee){
+          rival.cash-=pv.scriptPitch.fee;
+          pv.scriptPitch.claimedBy='rival:'+rival.id;
+          v14RivalIncident('script',rival,null,'Outbid the player for "'+pv.scriptPitch.title+'".');
+          addLog(rival.name+' outbid your offer for "'+pv.scriptPitch.title+
+            '". The studio paid '+fmtMoney(pv.scriptPitch.fee)+' for the rights.','rival');
+          save();return {ok:false,reason:rival.name+' secured the contested screenplay. No player cash was charged.'};
+        }
+      }
+    }
     const f = TUNING.formats[o.format];
     const cast = normalizeCast(o.cast);
     const supporting=extraIds(o,'supporting'), specialists=extraIds(o,'specialists');
@@ -1113,8 +1317,10 @@ var Engine = (function () {
       quality: null, hype: null, critic: null, releaseWeek: null, weeksInRelease: 0,
       opening: 0, gross: 0, revenue: 0, festival: null, result: null,
       estimatedAdmissions: 0, estimatedScreeningViewers:null, estimatedHouseholdImpressions:null,
-      performanceHistory: [], lastWeekRevenue: 0
+      performanceHistory: [], lastWeekRevenue: 0,
+      dna:dnaFor(o),story:[],storyChoices:0,releasePosition:V14_RELEASE_PLANS[o.releasePosition]?o.releasePosition:'wide'
     };
+    filmStory(p,'greenlight','Committed to '+V14_VISIONS[p.dna.vision].name.toLowerCase()+' filmmaking, emphasizing '+p.dna.strengths.map(id=>V14_TAGS[id]).join(' and ')+'.');
     if (parent) {
       // Put the originating film into the same permanent franchise history.
       if (!parent.franchiseId) { parent.franchiseId = seriesId; parent.franchiseName = parent.title; parent.installment = 1; }
@@ -1126,7 +1332,19 @@ var Engine = (function () {
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
     }
-    state.cash -= pv.fees;
+    if(pv.scriptPitch){
+      pv.scriptPitch.claimedBy='you';p.spent+=pv.scriptFee;p.scriptFee=pv.scriptFee;
+      const boon=v14State().offers.find(x=>!x.used&&x.expiresWeek>=state.week);
+      if(boon&&['newvoices','prestige','genre'].includes(boon.id)){boon.used=true;
+        filmStory(p,'ambition','An earned studio introduction helped secure this screenplay.');}
+      if(pv.scriptPitch.contested && pv.scriptPitch.rivalId){
+        const rival=getRival(pv.scriptPitch.rivalId);
+        if(rival)filmStory(p,'rival','Acquired a contested screenplay before '+rival.name+'.');
+      }
+      filmStory(p,'script','Acquired '+pv.scriptPitch.title+' for '+fmtMoney(pv.scriptFee)+'; story: '+pv.scriptPitch.hook);
+    }
+    state.cash -= pv.fees + (pv.scriptFee||0);
+    if(pv.scriptFee)state.finance.q.production+=pv.scriptFee; // report actual screenplay rights expense
     castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
     state.projects.push(p);
     const hires = castTalent(p).map(t => t.name);
@@ -1226,7 +1444,8 @@ var Engine = (function () {
     const production = tier.quality * prodQualityMult(p.budget, p.fees || 0);
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
-    const staff = deptBonus('development'), era = eraQuality(p.genre), decisions = p.qualityMod || 0, variance = rnd(-8, 8);
+    const staff = deptBonus('development'), era = eraQuality(p.genre),
+      decisions = (p.qualityMod||0)+(p.dna?(V14_VISIONS[p.dna.vision]?.quality||0):0)+clamp(v14Chemistry(p)*.6,-2.4,2.4), variance = rnd(-8, 8);
     const raw = T.baseQuality + Object.values(roles).reduce((a,v)=>a+v,0) + production + story + creative + ensemble.quality + staff + era + decisions + variance;
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.quality)), 1, 100);
     p.qualityBreakdown = { base:T.baseQuality, roles, ensemble:ensemble.quality, production:Math.round(production*10)/10, story, creative, staff:Math.round(staff*10)/10, era, decisions, variance:Math.round(variance*10)/10, raw:Math.round(raw*10)/10, result };
@@ -1244,7 +1463,8 @@ var Engine = (function () {
     const studio = state.studio.fame * T.hypeStudioFame + founderHype() + (state.reputation?state.reputation.buzz*TUNING.reputation.buzzHype:0);
     const publicity = talentBonus(p, 'hype') + crewEffect(p, 'hype') + deptBonus('marketing') + (state.studio.prestige || 0) * TUNING.awards.prestigeHype;
     const ensemble=entourageContribution(p);
-    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod + rnd(-5, 5);
+    const raw = studio + Object.values(credits).reduce((a,b)=>a+b,0) + publicity + ensemble.hype + p.hypeMod +
+      (p.dna?(V14_VISIONS[p.dna.vision]?.hype||0):0) + rnd(-5, 5);
     const result = clamp(Math.round(softCap(raw, TUNING.softCap.hype)), 0, 100);
     p.hypeBreakdown = { studio: Math.round(studio), roles: Object.fromEntries(Object.entries(credits).map(([k,v])=>[k,Math.round(v*10)/10])), publicity:Math.round(publicity), ensemble:ensemble.hype, decisions:p.hypeMod, result };
     return result;
@@ -1255,7 +1475,7 @@ var Engine = (function () {
     const pend = {
       projectId: p.id, id: def.id, talentId: t ? t.id : null, text: fill(def.text, p, t),
       category: def.category || null, disaster: !!def.disaster,
-      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, result: c.result ? fill(c.result, p, t) : null }))
+      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, trust:c.trust||0, flag:c.flag||null, result: c.result ? fill(c.result, p, t) : null }))
     };
     p.lastEventWeek = state.week;
     state.stopFlag = true;
@@ -1266,8 +1486,98 @@ var Engine = (function () {
     state.pending = pend;
     emit('decision_pending', state.pending);
   }
+
+  // A sparse shared-history record; actors keep existing credits only.
+  function v14PairKey(p){
+    if(!p||!p.cast)return null;
+    const d=p.cast.director,w=p.cast.writer;
+    if(d==null||w==null||d===''||w===''||(d==='founder'&&w==='founder'))return null;
+    return [String(d),String(w)].join(':');
+  }
+  function v14Chemistry(p){
+    const key=v14PairKey(p),t=key&&v14State().partnerships[key];
+    return t?clamp(Number(t.trust)||0,-4,4):0;
+  }
+  function v14PartnershipOutcome(p){
+    const key=v14PairKey(p);if(!key||p.partnershipCommitted)return;
+    const partners=v14State().partnerships,old=partners[key]||{count:0,trust:0,week:0};
+    const delta=Number(p.v14TrustDelta)||0;
+    const next={count:old.count+1,trust:clamp(old.trust+delta+(p.quality>=73?1:0),-4,4),week:state.week};
+    partners[key]=next;p.partnershipCommitted=true;
+    // Preserve only the most recently active partnership records.
+    const keys=Object.keys(partners);if(keys.length>36)keys.sort((a,b)=>partners[a].week-partners[b].week)
+      .slice(0,keys.length-36).forEach(id=>delete partners[id]);
+    if(next.count>1)filmStory(p,'partnership','Returning writer/director partnership '+(next.trust>=0?'builds':'strains')+
+      ' trust ('+next.count+' films together).');
+  }
+  const V14_STORY_ISSUES={
+    narrow:['The intended audience looks smaller than expected. The team wants to reconsider the central scene.',
+      ['Protect the distinctive story','Try a measured rewrite','Make a commercial compromise']],
+    difficult:['A location problem threatens the shoot and the director disagrees with the producer.',
+      ['Rework the scene creatively','Add a week for the original plan','Simplify the set']],
+    controversial:['The leading players disagree about whether a risky scene should stay.',
+      ['Protect the writer’s intent','Hold a mediated rehearsal','Soften the confrontation']],
+    untested:['Early footage suggests the unusual approach may divide viewers.',
+      ['Trust the experiment','Arrange a careful reshoot','Favor accessible storytelling']],
+    expensive:['An ambitious sequence is consuming more of the budget than planned.',
+      ['Solve it with a practical effect','Fund a careful extension','Scale back the sequence']],
+    marketing:['The trailer team cannot explain why the film is worth watching.',
+      ['Lead with its unusual premise','Work with the writer on a new hook','Promote the star instead']]
+  };
+  function v14IssueDefinition(p){
+    const risk=p.dna&&p.dna.risk||'untested',row=V14_STORY_ISSUES[risk]||V14_STORY_ISSUES.untested;
+    const pct=p.format==='short'?.015:.025;
+    return {id:'v14_issue_'+risk,stage:'shoot',category:'production',text:row[0]+' ("{title}")',
+      choices:[
+        {label:row[1][0],effects:{quality:2,hype:-1},trust:1,flag:'authentic',result:'The creative team keeps its promise but accepts narrower initial appeal.'},
+        {label:row[1][1],effects:{quality:2,weeks:1,costPct:pct},trust:1,flag:'supported',result:'A careful compromise improves the craft while adding real cost and time.'},
+        {label:row[1][2],effects:{quality:-1,hype:3},trust:-1,flag:'accessible',result:'The project moves faster toward mass appeal, but a creative disagreement lingers.'}
+      ]};
+  }
+  function v14Choice(p,pd,c){
+    if(!p||!p.dna)return;
+    if(pd.id&&pd.id.startsWith('v14_issue_')){
+      p.dna.choiceFlags=p.dna.choiceFlags||[];
+      if(c.flag&&!p.dna.choiceFlags.includes(c.flag))p.dna.choiceFlags.push(c.flag);
+      p.v14TrustDelta=clamp((p.v14TrustDelta||0)+(c.trust||0),-4,4);
+      filmStory(p,'production',c.result||c.label);
+    }else if(pd.id==='cut'){
+      filmStory(p,'post','The creative team settled the final cut: '+c.label+'.');
+    }else if(pd.id==='release_date'){
+      filmStory(p,'release','Positioned the release date against the current rival slate.');
+    }else if(pd.category==='production'){
+      filmStory(p,'production',c.result||c.label);
+    }
+    if(pd.category==='production'||(pd.id&&pd.id.startsWith('v14_issue_')))
+      p.storyChoices=Math.min(5,(p.storyChoices||0)+1);
+  }
+  function v14MaybeIssue(p){
+    if(!p.dna||p.flags.v14Issue||p.stage!=='shoot'||(p.storyChoices||0)>0)return false;
+    p.flags.v14Issue=true;
+    const def=v14IssueDefinition(p),policy=v14State().delegation;
+    if(policy==='director'||policy==='commercial'){
+      const selection=policy==='director'?0:2,choice=def.choices[selection];
+      applyEffects(p,choice.effects);v14Choice(p,def,choice);
+      p.usedEvents.push(def.id);
+      addLog('Delegated "'+p.title+'" decision to '+policy+' policy: '+choice.result,'production');
+      return true;
+    }
+    // raise preserves the existing one-decision-at-a-time queue and UI.
+    raise(p,def);
+    return true;
+  }
+  function v14SetDelegation(policy){
+    if(!['ask','director','commercial'].includes(policy))return {ok:false,reason:'Invalid delegation setting.'};
+    v14State().delegation=policy;save();emit('policy',{policy});return {ok:true};
+  }
+
   function maybeEvent(p) {
     if (state.pending) return;
+    if(p.dna){
+      if(p.stage==='development')return; // the creative pitch is already the opening commitment
+      if(v14MaybeIssue(p))return;
+      if((p.storyChoices||0)>=(p.format==='feature'?2:1))return;
+    }
     if (state.week - p.lastEventWeek <= TUNING.eventCooldownWeeks) return;
     if (p.stage === 'development' && p.flags.devEvent) return;
     const chance = p.stage === 'shoot' ? TUNING.eventChanceShoot : (p.stage === 'development' ? TUNING.eventChanceDev : 0);
@@ -1405,6 +1715,7 @@ var Engine = (function () {
       addLog(c.result || c.label, 'event', pd.category);
     } else if (p) {
       applyEffects(p, c.effects);
+      v14Choice(p,pd,c);
       if(pd.talentId!=null) {
         const participant=getTalent(pd.talentId);
         if(participant)careerEvent(participant,pd.disaster?'controversy':'production',c.result||c.label,'player:'+p.id);
@@ -1556,18 +1867,87 @@ var Engine = (function () {
   }
 
 // ===== SECTION: RELEASE =====
+
+  const V14_RELEASE_PLANS={
+    wide:{name:'Wide commercial',opening:1.06,legs:0,critic:0,audience:0,festival:0,desc:'Stronger opening; expensive visibility is already handled by marketing and regions.'},
+    targeted:{name:'Targeted audience',opening:.84,legs:.045,critic:0,audience:1,festival:0,desc:'Lower opening reach, improved retention among the intended audience.'},
+    prestige:{name:'Awards-first',opening:.78,legs:.025,critic:2,audience:-1,festival:2,desc:'Reviews/festivals are prioritized over early ticket volume.'},
+    regional:{name:'Cautious rollout',opening:.89,legs:.035,critic:0,audience:0,festival:0,desc:'Less opening reach, with modest word-of-mouth staying power.'}
+  };
+  function v14ReleasePlan(p){
+    return V14_RELEASE_PLANS[p.releasePosition]||V14_RELEASE_PLANS.wide;
+  }
+  function v14SetReleasePlan(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.releaseWeek!=null||p.stage==='done')return {ok:false,reason:'Release positioning can only change before release.'};
+    if(!V14_RELEASE_PLANS[kind])return {ok:false,reason:'Unknown release strategy.'};
+    if(p.format==='pilot'&&kind==='wide')return {ok:false,reason:'Pilot premieres use targeted or network-specific positioning.'};
+    p.releasePosition=kind;
+    filmStory(p,'strategy','Committed to a '+V14_RELEASE_PLANS[kind].name.toLowerCase()+' release.');
+    save();emit('release_plan',p);return {ok:true};
+  }
+  function v14ReleaseCalendar(){
+    if(!state)return [];
+    return Array.from({length:12},(_,offset)=>{
+      const week=state.week+offset;
+      const rivals=activeRivals().flatMap(r=>(r.films||[]).filter(f=>f.week===week&&f.stage!=='done')
+        .map(f=>({studio:r.name,title:f.title,genre:f.genre,rivalId:r.id}))).slice(0,5);
+      const mine=state.projects.filter(p=>p.format==='feature'&&(
+        p.stage==='release'&&p.releaseWeek===week||plannedRelease(p)===week))
+        .map(p=>({id:p.id,title:p.title,genre:p.genre}));
+      return {week,season:seasonOf(week).name,rivals,mine,
+        pressure:Math.round((rivalPressure(week,'drama').weight+(state.market.slate[offset]||0))*10)/10,
+        seasonDemand:Math.round(seasonMult(week)*100)/100};
+    });
+  }
+  function v14ReleaseResponseQuote(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.format!=='feature'||p.stage!=='release'||p.weeksInRelease<1||p.weeksInRelease>6)
+      return {ok:false,reason:'Only features during their early theatrical run qualify.'};
+    if(p.releaseResponse||p.releasePush)return {ok:false,reason:'The theatrical response has already been chosen.'};
+    const price=kind==='expand'?.055:kind==='focus'?.027:0,cost=Math.max(0,Math.round(p.budget*price/50)*50);
+    const names={expand:'Expand theatrical marketing',focus:'Target receptive audiences',
+      hold:'Keep the original release plan',pull:'End theaters early'};
+    if(!names[kind])return {ok:false,reason:'Invalid release response.'};
+    if(cost>state.cash)return {ok:false,reason:'Insufficient studio cash.',cost};
+    return {ok:true,kind,name:names[kind],cost,
+      description:kind==='expand'?'Spend more to increase demand over four weeks, with no guarantee of recouping it.':
+        kind==='focus'?'Smaller focused campaign, helping word-of-mouth for four weeks.':
+        kind==='hold'?'No new costs. Trust the film’s existing reviews and audience.':
+        'Stop further theatrical sales and begin existing post-theatrical rights windows.'};
+  }
+  function v14ReleaseResponse(id,kind){
+    const q=v14ReleaseResponseQuote(id,kind);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    if(q.cost){state.cash-=q.cost;p.spent+=q.cost;p.marketingSpend=(p.marketingSpend||0)+q.cost;
+      recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);}
+    p.releaseResponse={kind,week:state.week,cost:q.cost};
+    filmStory(p,'release','After the opening results, the studio chose to '+q.name.toLowerCase()+
+      (q.cost?' at a cost of '+fmtMoney(q.cost):'')+'.');
+    if(kind==='pull')finishFeature(p);
+    addLog('Release decision for "'+p.title+'": '+q.name+(q.cost?' ('+fmtMoney(q.cost)+')':'')+'.','release');
+    save();emit('release_response',p);return {ok:true,cost:q.cost};
+  }
+
   function release(p) {
     const g = byId(CONTENT.GENRES, p.genre) || { audience: 1, critics: 0 };
     const st = state.studio;
     applyInitiative(p);
+    if(p.dna&&p.format==='feature'&&(p.regions||[]).length>=3&&v14UseOffer('global',p))
+      p.hypeMod+=3;
+    if(p.dna&&p.format==='short'&&v14UseOffer('festival',p))
+      p.v14FestivalConnection=2;
     p.quality = computeQuality(p);
     p.hype = computeHype(p);
-    p.critic = clamp(Math.round(p.quality + g.critics + rnd(-10, 10)), 1, 100);
+    p.critic = clamp(Math.round(p.quality + g.critics + (p.dna?(V14_VISIONS[p.dna.vision]?.critics||0):0)+
+      (p.dna?v14ReleasePlan(p).critic:0) + rnd(-10, 10)), 1, 100);
     p.audience = audienceScore(p, p.format === 'feature' ? genreDemand(p.genre) : 1);
     if (p.sequelOf != null) {
       p.audience = clamp(Math.round(p.audience - (p.franchiseExpectation||0) + (p.quality>=78 ? 5 : 0)),1,100);
     }
     p.review = receptionText(p);
+    if(p.dna){p.audience=clamp(p.audience+(V14_VISIONS[p.dna.vision]?.viewer||0)+v14ReleasePlan(p).audience,1,100);
+      filmStory(p,'premiere','Critics rated the '+p.dna.vision+' film '+p.critic+'/100; viewers rated it '+p.audience+'/100.');}
     p.stage = 'release';
     p.releaseWeek = state.week;
     p.weeksInRelease = 0;
@@ -1588,6 +1968,7 @@ var Engine = (function () {
       const t = typeof p.cast[slot] === 'number' ? getTalent(p.cast[slot]) : null;
       if (t) p.talentSnapshot[slot] = { id:t.id, name:t.name, skill:t.skill, fame:t.fame, recognition:recognition(t).name, homeRegion:t.homeRegion };
     });
+    v14PartnershipOutcome(p);
     castTalent(p).forEach(t => {
       if (t.contract && t.contract.type === 'project' && t.contract.projectId === p.id) t.contract = null;
       if (!t.credits.includes(p.id)) t.credits.push(p.id);
@@ -1635,7 +2016,7 @@ var Engine = (function () {
       // automatic profitability; their higher budgets and marketing costs remain.
       const budgetMultiple=Math.max(0,Math.log2(Math.max(1,p.budget)/TUNING.boxOfficeRefBudget));
       const cap=audienceCap()*(1+Math.min(.28,budgetMultiple*TUNING.bigFilmAudienceCapPerDoubling));
-      p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)));
+      p.opening = Math.round(cap * (1 - Math.exp(-raw / cap)) * (p.dna?v14ReleasePlan(p).opening:1));
       addLog('"' + p.title + '" opens in theaters. Critics: ' + p.critic + '/100. Market outlook ×' + m.mult.toFixed(2) + ' (' + m.competitors + ' rival releases' +
         (m.rivals.length ? ', incl. ' + m.rivals.map(r => r.studio + '\'s "' + r.title + '"').join(', ') : '') + ').', 'release');
     }
@@ -1780,11 +2161,16 @@ var Engine = (function () {
     // poorly received microbudget productions get no subsidy.
     const indieBonus=p.budget<=120000 && p.audience!=null ?
       Math.max(0,Math.min(TUNING.smallFilmAudienceLegsBonus,(p.audience-68)*.0018)) : 0;
-    const decay = legsDecay(p.quality)+indieBonus;
+    const decay = clamp(legsDecay(p.quality)+indieBonus+(p.dna?v14ReleasePlan(p).legs:0),.5,.91);
     let gross = p.opening * Math.pow(decay, p.weeksInRelease - 1);
     if (p.weeksInRelease > 1) gross /= 1 + TUNING.rivals.holdPenalty * rivalPressure(state.week, p.genre, null, true).weight;
     if(p.releasePush && state.week>p.releasePush.week && state.week-p.releasePush.week<=4)
       gross*=1+(0.12*(1-(state.week-p.releasePush.week-1)*.18));
+    if(p.releaseResponse && state.week>p.releaseResponse.week && state.week-p.releaseResponse.week<=4){
+      const age=state.week-p.releaseResponse.week-1,scale=(1-age*.2);
+      if(p.releaseResponse.kind==='expand')gross*=1+.14*scale;
+      if(p.releaseResponse.kind==='focus')gross*=1+.075*scale;
+    }
     gross = Math.round(gross);
     // Reconcile local and international receipts to total theatrical gross every week.
     const quote = regionQuote(p, p.regions || [homeRegion()]);
@@ -1939,7 +2325,7 @@ var Engine = (function () {
       credits: f.credits || {},creditIds:f.creditIds||record.creditIds||{}, studioReleasesAtRelease: f.studioReleasesAtRelease == null ? null : f.studioReleasesAtRelease, region: f.region || r.region || null, regions: f.regions || [],
       regionalGross: f.regionalGross || {}, sequelOf:f.sequelOf||null, franchiseId:f.franchiseId||null, installment:f.installment||1, franchiseName:f.franchiseName||null,
       awards: record.awards || [], festResults: record.festResults || [],
-      legacy: !f.topic || f.critic == null
+      dna:f.dna||null, legacy: !f.topic || f.critic == null
     });
     return record;
   }
@@ -1962,7 +2348,9 @@ var Engine = (function () {
       regions: p.regions || [], regionalGross: p.regionalGross || {},
       credits: Object.assign(names,{supporting:(p.talentSnapshot&&p.talentSnapshot.supporting||[]).map(t=>t.name),specialists:(p.talentSnapshot&&p.talentSnapshot.specialists||[]).map(t=>t.name)}),
       creditIds:Object.assign({},p.cast,{supporting:p.supporting||[],specialists:p.specialists||[]}), staff: p.staffSnapshot || [], studioReleasesAtRelease: p.studioReleasesAtRelease, awards: p.awards || [], festResults: p.festResults || [],
-      decisions: p.usedEvents || [], talentSnapshot: p.talentSnapshot || null, qualityBreakdown: p.qualityBreakdown || null, hypeBreakdown: p.hypeBreakdown || null,
+      decisions: p.usedEvents || [], dna:p.dna||null, story:v14Storyboard(p),
+      legacyKind:v14FilmLegacy(p)?.kind||null,
+      talentSnapshot: p.talentSnapshot || null, qualityBreakdown: p.qualityBreakdown || null, hypeBreakdown: p.hypeBreakdown || null,
       legacy: p.releaseWeek != null && !p.regions
     };
   }
@@ -2353,7 +2741,166 @@ var Engine = (function () {
     genres.sort((a,b)=>(genreDemand(b)+(r.marketMemory[b]||0)*0.06)-(genreDemand(a)+(r.marketMemory[a]||0)*0.06));
     return Math.random()<0.45 ? pick(genres.slice(0,Math.min(3,genres.length))) : pick(genres);
   }
-  function greenlight(r, lead) {
+  const V14_IDENTITY_NAMES={
+    developing:'Developing identity',indie:'Independent Storytelling House',prestige:'Prestige Film Studio',
+    commercial:'Commercial Entertainment Studio',genre:'Genre / Cult Studio',
+    star:'Star-Driven Studio',incubator:'Talent Incubator',
+    tv:'Television & Rights Studio',versatile:'Versatile / Generalist Studio'
+  };
+  function v14StudioFilms(who){
+    const list=who==='you'?state.projects.filter(p=>p.stage==='done'&&p.releaseWeek!=null):
+      (state.filmArchive?.rivals||[]).filter(f=>String(f.rivalId)===String(who)&&f.stage==='done');
+    list.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
+    const recent=list.filter(x=>state.week-(x.releaseWeek||0)<=5*TUNING.weeksPerYear);
+    return (recent.length>=4?recent:list).slice(0,12);
+  }
+  function v14IdentityEvidence(who){
+    const all=v14StudioFilms(who),count=all.length;
+    const totals={indie:0,prestige:0,commercial:0,genre:0,star:0,incubator:0,tv:0,versatile:1};
+    let weight=0,profitable=0,popular=0,acclaimed=0,recognitions=0,lowBudget=0;
+    const genreCounts={},topicCounts={},talentCounts={};let scene=0,stars=0,breakouts=0,repeatWriters=0;
+    const normYear=(f)=>Math.max(0,Math.floor((f.releaseWeek||0)/52));
+    all.forEach((f,i)=>{
+      const w=Math.pow(.91,i),fmt=f.format||'feature',year=normYear(f);
+      const roi=(f.revenue||0)-(f.spent!=null?f.spent:f.budget||0);
+      const positive=roi>0,critic=Number(f.critic||0),audience=Number(f.audience||0);
+      const budget=(f.budget||0),affordable=budget<=(fmt==='short'?10000:150000)*Math.pow(1.05,year);
+      const awards=(f.awards||[]).filter(a=>a.won).length+
+        (f.festResults||[]).filter(a=>a.kind==='winner'||/won|prize/i.test(a.result||'')).length;
+      const festivals=(f.festResults||[]).filter(x=>x.kind==='selection'||x.kind==='mention'||x.kind==='winner').length;
+      const dna=f.dna||{},vision=dna.vision||'';
+      weight+=w;profitable+=w*(positive?1:0);popular+=w*(audience>=70?1:0);
+      acclaimed+=w*(critic>=73?1:0);recognitions+=w*(awards>0?1:.1*festivals);
+      lowBudget+=w*(affordable?1:0);scene+=w*(vision==='bold'||vision==='prestige'?1:0);
+      if(f.genre)genreCounts[f.genre]=(genreCounts[f.genre]||0)+w;
+      if(f.topic)topicCounts[f.topic]=(topicCounts[f.topic]||0)+w;
+      const cast=f.creditIds||f.cast||{};
+      const lead=cast.lead??f.talentSnapshot?.lead?.id;
+      if(lead!=null){
+        const t=getTalent(Number(lead)),fame=f.talentSnapshot?.lead?.fame??t?.fame??0;
+        if(fame>=60)stars+=w;
+        const key='lead:'+lead;talentCounts[key]=(talentCounts[key]||0)+1;
+      }
+      for(const role of ['director','writer']){
+        const person=cast[role]??f.talentSnapshot?.[role]?.id;
+        if(person!=null){
+          const key=role+':'+person;talentCounts[key]=(talentCounts[key]||0)+1;
+          const t=getTalent(Number(person)),fame=f.talentSnapshot?.[role]?.fame??t?.fame??100;
+          if(fame<32&&critic>=65)breakouts+=w*.5;
+        }
+      }
+      totals.indie+=w*((fmt==='short'||affordable)?1:0)*(critic>=56?1:.65);
+      totals.prestige+=w*((critic>=73?1:0)+(awards>0?.8:0)+(vision==='prestige'?.35:0));
+      totals.commercial+=w*((fmt==='feature'&&positive?.85:0)+(audience>=70?.65:0)+(f.gross>budget*1.5?.35:0));
+      totals.star+=w*(fameSafe(f)>=60?.75:0);
+      totals.tv+=w*(fmt==='pilot'?1.45:0);
+    });
+    const genres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]);
+    const topGenre=genres[0]?.[0]||null,share=(genres[0]?.[1]||0)/Math.max(1,weight);
+    // Repeated genre alone is not a cult reputation. Earlier, any single
+    // genre (including drama and comedy) multiplied by 2.9 and overwhelmed
+    // actual prestige/commercial performance, misclassifying whole careers.
+    // Only durable specialist lanes earn this score; profitable mainstream
+    // comedy and acclaimed drama remain free to establish their real identity.
+    const specialistGenre=['horror','thriller','scifi','western','action'].includes(topGenre);
+    totals.genre+=specialistGenre&&share>=.55?
+      (share-.35)*weight*1.9+(popular>=weight*.3?.15*weight:0):0;
+    totals.incubator+=breakouts*1.6;
+    const repeat=Object.values(talentCounts).filter(n=>n>=2).length;
+    totals.star+=stars*.65+(repeat>=2?weight*.22:0);
+    if(share<.48)totals.versatile=weight*.58;
+    const entries=Object.entries(totals).filter(([id])=>id!=='developing'&&id!=='versatile').sort((a,b)=>b[1]-a[1]);
+    const winner=entries[0]||['versatile',0],runner=entries[1]?.[1]||0;
+    let candidate=count<3?'developing':count<4?'versatile':
+      winner[1]>=weight*.67&&winner[1]>=runner+weight*.06?winner[0]:'versatile';
+    const descriptors=[];
+    if(topGenre&&share>=.50&&count>=3){
+      const names={horror:'Horror & Mystery',drama:'Character Drama',comedy:'Comedy Stories',
+        scifi:'Science Fiction',action:'Action Cinema',thriller:'Thrillers',documentary:'Documentary Work',
+        romance:'Romantic Stories',western:'Frontier Stories'};
+      descriptors.push(names[topGenre]||'Genre Specialist');
+    }
+    if(repeat>=2)descriptors.push('Returning Collaborators');
+    if(acclaimed>=weight*.6&&count>=4)descriptors.push('Critical Favorite');
+    if(recognitions>=1.5&&count>=4)descriptors.push('Festival Regular');
+    if(profitable>=weight*.65&&count>=4)descriptors.push('Consistent Earners');
+    if(scene>=weight*.55&&count>=4)descriptors.push('Creator-Led');
+    if(breakouts>=1.7&&count>=4)descriptors.push('Emerging Talent');
+    if(popular>=weight*.65&&count>=4)descriptors.push('Audience Favorite');
+    if(descriptors.length===0&&count>0)descriptors.push(all[0].format==='short'?'Short Filmmaking':'Developing Portfolio');
+    const wins=all.reduce((n,f)=>n+(f.awards||[]).filter(a=>a.won).length+
+      (f.festResults||[]).filter(a=>a.kind==='winner').length,0);
+    const standing=count>=18&&wins>=5?'Iconic':count>=12&&wins>=2?'Established':
+      count>=6&&acclaimed>=weight*.40?'Recognized':count>=3?'Emerging':'Newcomer';
+    const last=all.slice(0,Math.min(3,count)),past=all.slice(3,6);
+    const reception=x=>x.reduce((n,f)=>n+Number(f.critic||f.quality||50),0)/Math.max(1,x.length);
+    const trajectory=count<6?'Stable':reception(last)>reception(past)+6?'Rising':
+      reception(last)<reception(past)-7?'Cooling':'Stable';
+    return {candidate,label:V14_IDENTITY_NAMES[candidate],descriptors:descriptors.slice(0,2),
+      standing,trajectory,count,topGenre,lead:Math.round(winner[1]*10)/10,
+      evidence:all.slice(0,4).map(f=>({id:who==='you'?f.id:f.id,title:f.title,
+        genre:f.genre,critics:f.critic||null,profit:(f.revenue||0)-(f.spent!=null?f.spent:f.budget||0),
+        awards:(f.awards||[]).filter(x=>x.won).length}))};
+  }
+  function fameSafe(f){const x=f.talentSnapshot?.lead?.fame??getTalent(Number(f.creditIds?.lead))?.fame;
+    return Number.isFinite(x)?x:0;}
+  function v14Identity(who){
+    if(!state)return null;
+    const id=who==null||who==='you'?'you':String(who);
+    const computed=v14IdentityEvidence(id);
+    const stable=v14State().classifications?.[id];
+    return Object.assign({},computed,{primary:stable?.primary||computed.candidate,
+      label:V14_IDENTITY_NAMES[stable?.primary||computed.candidate],
+      standing:stable?.standing||computed.standing});
+  }
+  function v14ClassificationTick(){
+    const v=v14State(),index=v.classifications||(v.classifications={});
+    for(const id of ['you',...activeRivals().map(r=>String(r.id))]){
+      const data=v14IdentityEvidence(id),old=index[id]||
+        {primary:'developing',candidate:'developing',streak:0,standing:'Newcomer'};
+      if(data.candidate===old.candidate)old.streak++;
+      else {old.candidate=data.candidate;old.streak=1;}
+      const previous=old.primary,valid=data.count>=4||data.candidate==='developing';
+      if(valid&&old.streak>=2&&data.candidate!==old.primary){
+        old.primary=data.candidate;
+        if(id==='you'){
+          v.classChanges.push({week:state.week,from:previous,to:old.primary});
+          if(v.classChanges.length>12)v.classChanges.shift();
+          addLog('The industry now recognizes '+state.studio.name+' as a '+
+            V14_IDENTITY_NAMES[old.primary]+', based on its recent releases.','studio');
+        }
+      }
+      const ladder=['Newcomer','Emerging','Recognized','Established','Iconic'];
+      if(ladder.indexOf(data.standing)>ladder.indexOf(old.standing))old.standing=data.standing;
+      index[id]=old;
+    }
+  }
+
+  function v14RivalIncident(kind,r,projectId,detail){
+    const v=v14State();
+    v.rivalry.push({week:state.week,kind,rivalId:r.id,rival:r.name,projectId:projectId||null,
+      detail:String(detail).slice(0,135)});
+    if(v.rivalry.length>24)v.rivalry.splice(0,v.rivalry.length-24);
+  }
+  function v14RivalScriptTick(){
+    const v=v14State(),quarter=Math.floor(state.week/13);
+    const scripts=v14Pitches();
+    if(v.auctionQuarter===quarter || state.week%13<6)return;
+    v.auctionQuarter=quarter;
+    const script=scripts.find(p=>p.contested&&!p.claimedBy);
+    if(!script)return;
+    const r=getRival(script.rivalId);
+    if(!r||r.status!=='active'||r.cash<script.fee+Math.max(20000,rivalBudget(r))||
+      r.films.filter(f=>f.stage==='planned').length>=TUNING.rivals.maxPlanned)return;
+    const movie=greenlight(r,rint(12,22),script);
+    if(movie){
+      script.claimedBy='rival:'+r.id;
+      v14RivalIncident('script',r,null,r.name+' secured screenplay "'+script.title+'" over the open market.');
+      addLog(r.name+' acquires "'+script.title+'" for '+fmtMoney(script.fee)+
+        ' and prepares an upcoming film.','rival');
+    }
+  }
+  function greenlight(r, lead, pitch) {
     const R = TUNING.rivals, S = stratDef(r.strategy);
     let budget = rivalBudget(r) * rnd(0.7, 1.3);
     if (r.cash < budget) budget *= 0.5;
@@ -2364,10 +2911,10 @@ var Engine = (function () {
     const craft = role => { const arr=rivalTalent(r).filter(t=>t.role===role); return arr.length?Math.max(...arr.map(t=>t.skill||50)):50; };
     const skillCraft=(craft('director')-50)*.12+(craft('writer')-50)*.09+(craft('actor')-50)*.06;
     const hits=(state.filmArchive&&state.filmArchive.rivals||[]).filter(x=>x.rivalId===r.id && x.result==='Hit' && x.stage==='done' && !x.sequelOf && x.releaseWeek!=null && state.week-x.releaseWeek<52*8 && !r.films.some(y=>y.sequelOf===x.id));
-    const sequelSource=hits.length && Math.random()<.07 ? pick(hits) : null;
-    const genre = sequelSource ? sequelSource.genre : rivalGenre(r);
+    const sequelSource=!pitch&&hits.length && Math.random()<.07 ? pick(hits) : null;
+    const genre = pitch?pitch.genre:sequelSource ? sequelSource.genre : rivalGenre(r);
       const topics = CONTENT.TOPICS.filter(t => t.good.includes(genre));
-      const subject = sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
+      const subject = pitch?{id:pitch.topic}:sequelSource && sequelSource.topic ? {id:sequelSource.topic} : (topics.length ? pick(topics) : pick(CONTENT.TOPICS));
       const owned = rivalTalent(r);
       const credits = {}, creditIds={};
       [['director', 'director'], ['writer', 'writer'], ['lead', 'actor'], ['crew', 'crew']].forEach(pair => {
@@ -2381,7 +2928,8 @@ var Engine = (function () {
     const supporting=support.length?pick(support):null;
     credits.supporting=supporting?[supporting.name]:[pick(CONTENT.FIRST_NAMES)+' '+pick(CONTENT.LAST_NAMES)];
     creditIds.supporting=supporting?[supporting.id]:[];
-    const f = { id: r.nextFilmId++, title: sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
+    const f = { id: r.nextFilmId++, title: pitch?pitch.title:sequelSource ? (sequelSource.title + ' II').slice(0,60) : randomTitle(), genre: genre, topic: subject.id,
+      dna:pitch?{hook:pitch.hook,strengths:pitch.strengths.slice(),risk:pitch.risk,vision:pitch.vision,lane:pitch.vision==='bold'?'genre':'arthouse',origin:'marketplace'}:null,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
       quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
@@ -2389,7 +2937,7 @@ var Engine = (function () {
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);
     f.week = bestWeek(r, f, state.week + lead - 2, state.week + lead + 3);
-    r.cash -= budget;
+    r.cash -= budget+(pitch?pitch.fee:0);
     r.films.push(f);
     return f;
   }
@@ -2521,13 +3069,18 @@ var Engine = (function () {
         f.week = bestWeek(r, f, myWeek + 2, myWeek + 2 + R.rescheduleRange);
         f.moved = true;
         addLog(rtx('moved', { rival: r.name, title: f.title, mine: p.title }), 'rival');
+        if(p.dna){filmStory(p,'rival',r.name+' moved "'+f.title+'" away from our release week.');
+          v14RivalIncident('release',r,p.id,'Shifted '+f.title+' to avoid '+p.title+'.');}
       } else if (f.genre === p.genre) {
         addLog(rtx('holds', { rival: r.name, title: f.title, genre: genreName(f.genre), mine: p.title }), 'rival');
+        if(p.dna){filmStory(p,'rival',r.name+' kept "'+f.title+'" against our opening.');
+          v14RivalIncident('release',r,p.id,'Held an opening opposite '+p.title+'.');}
       }
     }));
   }
   function rivalTick() {
     const R = TUNING.rivals;
+    v14RivalScriptTick();
     activeRivals().forEach(r => {
       const oh = rivalOverhead(r);
       r.cash -= oh;
@@ -2748,7 +3301,8 @@ var Engine = (function () {
     const T = TUNING.tv, em = eraMods();
     const score = pilotScore(p);
     const topicLift = (topicMarket(p.topic).demand - 1) * 0.22;
-    const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift, T.pickupFloor, T.pickupCeil);
+    const bonus=p.dna&&v14UseOffer('tv',p)?0.035:0;
+    const chance = clamp((score - T.pickupMin) / T.pickupRange + em.pickup + topicLift + bonus, T.pickupFloor, T.pickupCeil);
     p.stage = 'done';
     if (Math.random() < chance) {
       p.estimatedHouseholdImpressions=0;
@@ -3005,7 +3559,8 @@ var Engine = (function () {
   function festivalMerit(p) {
     return (p.quality || 0) * 0.52 + (p.critic == null ? p.quality || 0 : p.critic) * 0.48 +
       Math.min(3, (state.studio.prestige || 0) * 0.04) +
-      (p.format==='short'&&p.shortFestivalPressKit?TUNING.shortScreening.festivalPressScore:0);
+      (p.format==='short'&&p.shortFestivalPressKit?TUNING.shortScreening.festivalPressScore:0)+
+      (p.v14FestivalConnection||0);
   }
   function festivalFocus(f, p) {
     if (!f.focus) return 0;
@@ -3408,6 +3963,166 @@ var Engine = (function () {
     addLog('Classic reissue: "'+p.title+'" returns to screens for '+fmtMoney(received)+' nostalgia revenue on '+fmtMoney(q.cost)+' spend.','release');
     save();emit('reissue',p);return {ok:true,cost:q.cost,revenue:received};
   }
+
+  function v14FilmLegacy(p){
+    if(!p||p.releaseWeek==null)return null;
+    const profit=(p.revenue||0)-(p.spent||0),critic=p.critic||0,audience=p.audience||0;
+    const ratio=(p.gross||0)/Math.max(1,p.budget||1);
+    let kind='Completed film';
+    if(p.format==='short')kind=(p.festResults||[]).some(x=>x.kind==='winner')?'Festival favorite':'Festival circuit film';
+    else if(p.format==='pilot')kind=p.result==='Picked up'?'Television launch':'Unpicked pilot';
+    else if(ratio>=2.5&&profit>0)kind='Franchise foundation';
+    else if(critic>=75&&ratio<1.5&&audience>=65)kind='Cult critical favorite';
+    else if(critic>=77)kind='Critical standout';
+    else if(audience>=72&&profit>=0)kind='Audience favorite';
+    else if(profit<0)kind='Commercial disappointment';
+    return {kind,profit,critics:critic,audience,decisions:v14Storyboard(p),
+      awards:(p.awards||[]).filter(a=>a.won).length,
+      festivalWins:(p.festResults||[]).filter(a=>a.kind==='winner').length,
+      afterlife:p.afterlifeChoices||[]};
+  }
+  function v14AfterlifeQuote(id,kind){
+    const p=getProject(Number(id));
+    if(!p||!p.dna||p.format!=='feature'||p.stage!=='done'||p.releaseWeek==null)
+      return {ok:false,reason:'An eligible completed feature is required.'};
+    const age=state.week-p.releaseWeek,prev=p.afterlifeChoices||[];
+    if(age<4||age>52*9)return {ok:false,reason:'The catalog opportunity is not currently active.'};
+    if(prev.length>=2||prev.some(x=>state.week-x.week<52))
+      return {ok:false,reason:'This film has already had a recent catalog opportunity.'};
+    if(kind==='license'){
+      if(prev.some(x=>x.kind==='license'))return {ok:false,reason:'Rights already licensed.'};
+      const future=(p.windows||[]).reduce((a,w)=>a+Math.max(0,w.total-w.paid),0);
+      if(future<Math.max(300,p.budget*.015))return {ok:false,reason:'Too little remaining unsold rights value.'};
+      const upfront=Math.round(future*.27),futureLoss=Math.round(future*.34);
+      return {ok:true,kind,name:'Early catalog license',cost:0,upfront,futureLoss,
+        description:'Receive '+fmtMoney(upfront)+' now, forfeiting approximately '+fmtMoney(futureLoss)+
+          ' in projected future rights payouts. Existing windows keep their original dates.'};
+    }
+    if(kind==='retrospective'){
+      if((p.critic||0)<68)return {ok:false,reason:'Requires proven critical recognition (critics 68+).'};
+      const cost=Math.max(400,Math.round(p.budget*.018/100)*100);
+      if(state.cash<cost)return {ok:false,reason:'Not enough cash for the retrospective.',cost};
+      return {ok:true,kind,name:'Curated retrospective',cost,
+        forecast:Math.min(p.budget*.055,(p.gross||0)*.045),
+        description:'Fund a small archival screening and critical retrospective. Limited attendance and recognition are uncertain.'};
+    }
+    if(kind==='cult'){
+      if((p.audience||0)<68||!['bold','prestige'].includes(p.dna.vision))
+        return {ok:false,reason:'This film has not established the audience or cult credentials.'};
+      const cost=Math.max(300,Math.round(p.budget*.012/100)*100);
+      if(state.cash<cost)return {ok:false,reason:'Not enough cash for the fan screenings.',cost};
+      return {ok:true,kind,name:'Fan-led screening tour',cost,
+        forecast:Math.round(Math.min(p.budget*.09,(p.gross||0)*.065)),
+        description:'Book a three-week fan tour. Costs are certain, attendance and added receipts are not.'};
+    }
+    return {ok:false,reason:'Unknown catalog opportunity.'};
+  }
+  function v14AfterlifeAction(id,kind){
+    const q=v14AfterlifeQuote(id,kind);if(!q.ok)return q;
+    const p=getProject(Number(id));
+    p.afterlifeChoices=p.afterlifeChoices||[];
+    if(q.cost){state.cash-=q.cost;state.finance.q.production+=q.cost;p.spent+=q.cost;
+      recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);}
+    let outcome='';
+    if(kind==='license'){
+      // Trade off the exact booked rights liability; no new recurring stream.
+      (p.windows||[]).forEach(w=>{
+        const future=Math.max(0,w.total-w.paid);
+        w.total=w.paid+Math.round(future*.66);
+      });
+      earn(q.upfront);p.revenue+=q.upfront;outcome='Received upfront rights payment '+fmtMoney(q.upfront)+
+        ' in exchange for future royalties.';
+      recordProjectPulse(p,state.week,0,q.upfront,0,p.stage,0);
+    }else {
+      p.v14AfterlifeRun={kind,from:state.week+1,weeks:kind==='cult'?3:2,
+        estimated:q.forecast||0,received:0};
+      outcome='Booked '+q.name.toLowerCase()+'; upcoming returns are uncertain.';
+    }
+    p.afterlifeChoices.push({week:state.week,kind,cost:q.cost,upfront:q.upfront||0});
+    filmStory(p,'afterlife',outcome);
+    addLog('Catalog decision for "'+p.title+'": '+outcome,'release');
+    save();emit('film_afterlife',p);return {ok:true};
+  }
+  function v14AfterlifeTick(){
+    let sum=0;
+    state.projects.forEach(p=>{
+      const run=p.v14AfterlifeRun;if(!run||state.week<run.from||run.completed)return;
+      const elapsed=state.week-run.from+1;
+      const total=Math.max(0,Math.round(run.estimated*(
+        .58+(p.audience||50)/175)*(.86+rnd(-.15,.19))));
+      const pay=elapsed>=run.weeks?Math.max(0,total-run.received):
+        Math.max(0,Math.round(total/run.weeks));
+      run.received+=pay;sum+=pay;p.revenue+=pay;
+      if(elapsed>=run.weeks){
+        run.completed=true;
+        filmStory(p,'legacy',run.kind==='cult'?'A small fan community returned for '+fmtMoney(run.received)+' in screenings.':
+          'The retrospective ended with '+fmtMoney(run.received)+' in new interest and receipts.');
+        addLog('Afterlife report for "'+p.title+'": '+fmtMoney(run.received)+
+          ' receipts against direct campaign expenses.','release');
+      }
+    });
+    return sum;
+  }
+  const V14_AMBITIONS=[
+    {id:'newvoices',name:'Launch a new voice',desc:'Release a film with a developing writer and earn critics 67+.',years:2,
+      reward:'Early access to a trusted writer’s next script'},
+    {id:'prestige',name:'Acclaimed and solvent',desc:'Make a feature with critics 75+ and positive direct film P/L.',years:2,
+      reward:'An industry introduction to prestige scripts'},
+    {id:'genre',name:'Build a genre following',desc:'Release two profitable films in the same genre.',years:3,
+      reward:'A specialist writer brings a new idea'},
+    {id:'global',name:'Reach new regions',desc:'Release a feature in three or more regions.',years:2,
+      reward:'Foreign distributors invite future pitches'},
+    {id:'festival',name:'Festival reputation',desc:'Earn two official festival selections or prizes.',years:3,
+      reward:'A modest festival relationship opens'},
+    {id:'tv',name:'Build a television foothold',desc:'Get a pilot picked up by a network.',years:2,
+      reward:'A meeting with a network commissioning team'}
+  ];
+  function v14Ambitions(){
+    const v=v14State(),year=dateOf().year;
+    const slots=[V14_AMBITIONS[(year*5)%V14_AMBITIONS.length],
+      V14_AMBITIONS[(year*5+2)%V14_AMBITIONS.length],
+      V14_AMBITIONS[(year*5+4)%V14_AMBITIONS.length]];
+    return {active:v.ambition||null,options:slots.map(x=>({...x})),
+      recent:(v.offers||[]).slice(-5)};
+  }
+  function v14PickAmbition(id){
+    const options=v14Ambitions(),def=options.options.find(x=>x.id===id);
+    if(!def)return {ok:false,reason:'Choose one of the currently available ambitions.'};
+    if(options.active&&options.active.expiresWeek>state.week&&!options.active.completed)
+      return {ok:false,reason:'Your studio already has an active ambition.'};
+    v14State().ambition={id:def.id,name:def.name,startWeek:state.week,
+      expiresWeek:state.week+def.years*52,completed:false,reward:def.reward};
+    save();emit('ambition',v14State().ambition);return {ok:true};
+  }
+  function v14UseOffer(kind,p){
+    const offer=v14State().offers.find(x=>x.id===kind&&!x.used&&x.expiresWeek>=state.week);
+    if(!offer)return false;
+    offer.used=true;offer.usedWeek=state.week;
+    if(p)filmStory(p,'ambition','The studio’s earlier ambition created a modest new industry opportunity.');
+    return true;
+  }
+
+  function v14AmbitionTick(){
+    const a=v14State().ambition;if(!a||a.completed||a.expiresWeek<state.week)return;
+    const films=state.projects.filter(p=>p.releaseWeek!=null&&p.releaseWeek>=a.startWeek);
+    const complete=(id)=>{
+      if(id==='newvoices')return films.some(f=>f.critic>=67&&f.cast.writer!=='founder'&&
+        (f.talentSnapshot?.writer?.fame||100)<35);
+      if(id==='prestige')return films.some(f=>f.format==='feature'&&f.critic>=75&&f.revenue>f.spent);
+      if(id==='global')return films.some(f=>f.format==='feature'&&(f.regions||[]).length>=3);
+      if(id==='tv')return films.some(f=>f.format==='pilot'&&f.result==='Picked up');
+      if(id==='festival')return films.reduce((n,f)=>n+(f.festResults||[]).filter(x=>x.kind==='selection'||x.kind==='winner').length,0)>=2;
+      if(id==='genre')return films.some(f=>films.filter(g=>g!==f&&g.genre===f.genre&&g.stage==='done'&&g.revenue>g.spent&&f.revenue>f.spent&&f.stage==='done').length>=1);
+      return false;
+    };
+    if(!complete(a.id))return;
+    a.completed=true;a.completedWeek=state.week;
+    const v=v14State();v.offers.push({id:a.id,week:state.week,expiresWeek:state.week+104,reward:a.reward,used:false});
+    if(v.offers.length>8)v.offers.shift();
+    addLog('Studio ambition achieved: '+a.name+'. '+a.reward+'.','studio');
+    state.stopFlag=true;emit('ambition_complete',a);
+  }
+
   const DECADE_SHIFTS=[
     {year:1980,name:'Home-video and genre boom',genres:['horror','comedy'],mult:1.15},
     {year:1990,name:'International multiplex expansion',genres:['action','scifi'],mult:1.16},
@@ -3613,6 +4328,7 @@ var Engine = (function () {
     state.projects.forEach(p => { if (p.stage === 'release') revenue += releaseIncome(p); });
     revenue += windowsTick();
     revenue += shortEncoreTick();
+    revenue += v14AfterlifeTick();
     const tv = tvTick();
     revenue += tv.revenue;
     production += tv.cost;
@@ -3638,6 +4354,8 @@ var Engine = (function () {
     shiftTick();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
+    if(state.week%13===0)v14ClassificationTick();
+    v14AmbitionTick();
     if (dateOf().week === TUNING.weeksPerYear) annualReview();
     checkBankruptcy();
     // Track actual booked project income, expenses, and release reach; keep
@@ -3704,6 +4422,7 @@ var Engine = (function () {
     return JSON.parse(json);
   }
   function save() {
+    if(fastSimulationTesting)return true; // test-only: persist a real full save at the end of a long simulated career
     const ls = storage();
     if (!ls || !state) return false;
     try { ls.setItem(SAVE_KEY, encodeSave(state)); return true; } catch (e) { return false; }
@@ -3782,6 +4501,7 @@ var Engine = (function () {
     state.studio.homeRegion = state.studio.homeRegion || 'northamerica';
     state.recruitment = state.recruitment || { declined: {} };
     state.events.recentProduction = state.events.recentProduction || [];
+    v14State();
     save();
     emit('load');
     return { ok: true };
@@ -3838,6 +4558,16 @@ var Engine = (function () {
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
     dateOf: dateOf, eraOf: eraOf, eraInfo: eraInfo, eraLines: eraLines,
     save: save, load: load, hasSave: hasSave, clearSave: clearSave,
-    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession
+    inspectSave: inspectSave, encodeSavePayload: encodeSave, closeSession: closeSession,
+    setFastSimulationTesting:setFastSimulationTesting,
+    v14State:v14State, v14Dna:v14Dna, v14Storyboard:v14Storyboard,
+    v14Visions:()=>V14_VISIONS, v14Strengths:()=>V14_TAGS, v14Risks:()=>V14_RISKS,
+    v14Chemistry:v14Chemistry, v14PairKey:v14PairKey, v14SetDelegation:v14SetDelegation,
+    v14ReleasePlans:()=>V14_RELEASE_PLANS, v14SetReleasePlan:v14SetReleasePlan, v14ReleaseCalendar:v14ReleaseCalendar,
+    v14ReleaseResponseQuote:v14ReleaseResponseQuote, v14ReleaseResponse:v14ReleaseResponse,
+    v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote,
+    v14Rivalry:()=>v14State().rivalry.slice(-15), v14Identity:v14Identity,
+    v14FilmLegacy:v14FilmLegacy, v14AfterlifeQuote:v14AfterlifeQuote,v14AfterlifeAction:v14AfterlifeAction,
+    v14Ambitions:v14Ambitions,v14PickAmbition:v14PickAmbition
   };
 })();
