@@ -338,6 +338,7 @@ var Engine = (function () {
     if(!v.partnerships||typeof v.partnerships!=='object')v.partnerships={};
     if(!Array.isArray(v.rivalry))v.rivalry=[];
     if(!Array.isArray(v.classChanges))v.classChanges=[];
+    if(!v.classifications||typeof v.classifications!=='object')v.classifications={};
     if(!Array.isArray(v.offers))v.offers=[];
     if(!v.delegation)v.delegation='ask';
     if(!v.ambition)v.ambition=null;
@@ -2662,6 +2663,134 @@ var Engine = (function () {
     genres.sort((a,b)=>(genreDemand(b)+(r.marketMemory[b]||0)*0.06)-(genreDemand(a)+(r.marketMemory[a]||0)*0.06));
     return Math.random()<0.45 ? pick(genres.slice(0,Math.min(3,genres.length))) : pick(genres);
   }
+  const V14_IDENTITY_NAMES={
+    developing:'Developing identity',indie:'Independent Storytelling House',prestige:'Prestige Film Studio',
+    commercial:'Commercial Entertainment Studio',genre:'Genre / Cult Studio',
+    star:'Star-Driven Studio',incubator:'Talent Incubator',
+    tv:'Television & Rights Studio',versatile:'Versatile / Generalist Studio'
+  };
+  function v14StudioFilms(who){
+    const list=who==='you'?state.projects.filter(p=>p.stage==='done'&&p.releaseWeek!=null):
+      (state.filmArchive?.rivals||[]).filter(f=>String(f.rivalId)===String(who)&&f.stage==='done');
+    list.sort((a,b)=>(b.releaseWeek||0)-(a.releaseWeek||0));
+    const recent=list.filter(x=>state.week-(x.releaseWeek||0)<=5*TUNING.weeksPerYear);
+    return (recent.length>=4?recent:list).slice(0,12);
+  }
+  function v14IdentityEvidence(who){
+    const all=v14StudioFilms(who),count=all.length;
+    const totals={indie:0,prestige:0,commercial:0,genre:0,star:0,incubator:0,tv:0,versatile:1};
+    let weight=0,profitable=0,popular=0,acclaimed=0,recognitions=0,lowBudget=0;
+    const genreCounts={},topicCounts={},talentCounts={};let scene=0,stars=0,breakouts=0,repeatWriters=0;
+    const normYear=(f)=>Math.max(0,Math.floor((f.releaseWeek||0)/52));
+    all.forEach((f,i)=>{
+      const w=Math.pow(.91,i),fmt=f.format||'feature',year=normYear(f);
+      const roi=(f.revenue||0)-(f.spent!=null?f.spent:f.budget||0);
+      const positive=roi>0,critic=Number(f.critic||0),audience=Number(f.audience||0);
+      const budget=(f.budget||0),affordable=budget<=(fmt==='short'?10000:150000)*Math.pow(1.05,year);
+      const awards=(f.awards||[]).filter(a=>a.won).length+
+        (f.festResults||[]).filter(a=>a.kind==='winner'||/won|prize/i.test(a.result||'')).length;
+      const festivals=(f.festResults||[]).filter(x=>x.kind==='selection'||x.kind==='mention'||x.kind==='winner').length;
+      const dna=f.dna||{},vision=dna.vision||'';
+      weight+=w;profitable+=w*(positive?1:0);popular+=w*(audience>=70?1:0);
+      acclaimed+=w*(critic>=73?1:0);recognitions+=w*(awards>0?1:.1*festivals);
+      lowBudget+=w*(affordable?1:0);scene+=w*(vision==='bold'||vision==='prestige'?1:0);
+      if(f.genre)genreCounts[f.genre]=(genreCounts[f.genre]||0)+w;
+      if(f.topic)topicCounts[f.topic]=(topicCounts[f.topic]||0)+w;
+      const cast=f.creditIds||f.cast||{};
+      const lead=cast.lead??f.talentSnapshot?.lead?.id;
+      if(lead!=null){
+        const t=getTalent(Number(lead)),fame=f.talentSnapshot?.lead?.fame??t?.fame??0;
+        if(fame>=60)stars+=w;
+        const key='lead:'+lead;talentCounts[key]=(talentCounts[key]||0)+1;
+      }
+      for(const role of ['director','writer']){
+        const person=cast[role]??f.talentSnapshot?.[role]?.id;
+        if(person!=null){
+          const key=role+':'+person;talentCounts[key]=(talentCounts[key]||0)+1;
+          const t=getTalent(Number(person)),fame=f.talentSnapshot?.[role]?.fame??t?.fame??100;
+          if(fame<32&&critic>=65)breakouts+=w*.5;
+        }
+      }
+      totals.indie+=w*((fmt==='short'||affordable)?1:0)*(critic>=56?1:.65);
+      totals.prestige+=w*((critic>=73?1:0)+(awards>0?.8:0)+(vision==='prestige'?.35:0));
+      totals.commercial+=w*((fmt==='feature'&&positive?.85:0)+(audience>=70?.65:0)+(f.gross>budget*1.5?.35:0));
+      totals.star+=w*(fameSafe(f)>=60?.75:0);
+      totals.incubator+=w*(breakouts>0?.2:0); // confirmed from actual early-career credits below
+      totals.tv+=w*(fmt==='pilot'?1.45:0);
+    });
+    const genres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]);
+    const topGenre=genres[0]?.[0]||null,share=(genres[0]?.[1]||0)/Math.max(1,weight);
+    totals.genre+=share>=.5?(share-.3)*weight*2.9+(popular>=weight*.3?.4*weight:0):0;
+    totals.incubator+=breakouts*1.6;
+    const repeat=Object.values(talentCounts).filter(n=>n>=2).length;
+    totals.star+=stars*.65+(repeat>=2?weight*.22:0);
+    if(share<.48)totals.versatile=weight*.58;
+    const entries=Object.entries(totals).filter(([id])=>id!=='developing'&&id!=='versatile').sort((a,b)=>b[1]-a[1]);
+    const winner=entries[0]||['versatile',0],runner=entries[1]?.[1]||0;
+    let candidate=count<3?'developing':count<4?'versatile':
+      winner[1]>=weight*.67&&winner[1]>=runner+weight*.06?winner[0]:'versatile';
+    const descriptors=[];
+    if(topGenre&&share>=.50&&count>=3){
+      const names={horror:'Horror & Mystery',drama:'Character Drama',comedy:'Comedy Stories',
+        scifi:'Science Fiction',action:'Action Cinema',thriller:'Thrillers',documentary:'Documentary Work',
+        romance:'Romantic Stories',western:'Frontier Stories'};
+      descriptors.push(names[topGenre]||'Genre Specialist');
+    }
+    if(repeat>=2)descriptors.push('Returning Collaborators');
+    if(acclaimed>=weight*.6&&count>=4)descriptors.push('Critical Favorite');
+    if(recognitions>=1.5&&count>=4)descriptors.push('Festival Regular');
+    if(profitable>=weight*.65&&count>=4)descriptors.push('Consistent Earners');
+    if(scene>=weight*.55&&count>=4)descriptors.push('Creator-Led');
+    if(breakouts>=1.7&&count>=4)descriptors.push('Emerging Talent');
+    if(popular>=weight*.65&&count>=4)descriptors.push('Audience Favorite');
+    if(descriptors.length===0&&count>0)descriptors.push(all[0].format==='short'?'Short Filmmaking':'Developing Portfolio');
+    const wins=all.reduce((n,f)=>n+(f.awards||[]).filter(a=>a.won).length+
+      (f.festResults||[]).filter(a=>a.kind==='winner').length,0);
+    const standing=count>=18&&wins>=5?'Iconic':count>=12&&wins>=2?'Established':
+      count>=6&&acclaimed>=weight*.40?'Recognized':count>=3?'Emerging':'Newcomer';
+    const last=all.slice(0,Math.min(3,count)),past=all.slice(3,6);
+    const reception=x=>x.reduce((n,f)=>n+Number(f.critic||f.quality||50),0)/Math.max(1,x.length);
+    const trajectory=count<6?'Stable':reception(last)>reception(past)+6?'Rising':
+      reception(last)<reception(past)-7?'Cooling':'Stable';
+    return {candidate,label:V14_IDENTITY_NAMES[candidate],descriptors:descriptors.slice(0,2),
+      standing,trajectory,count,topGenre,lead:Math.round(winner[1]*10)/10,
+      evidence:all.slice(0,4).map(f=>({id:who==='you'?f.id:f.id,title:f.title,
+        genre:f.genre,critics:f.critic||null,profit:(f.revenue||0)-(f.spent!=null?f.spent:f.budget||0),
+        awards:(f.awards||[]).filter(x=>x.won).length}))};
+  }
+  function fameSafe(f){const x=f.talentSnapshot?.lead?.fame;return Number.isFinite(x)?x:0;}
+  function v14Identity(who){
+    if(!state)return null;
+    const id=who==null||who==='you'?'you':String(who);
+    const computed=v14IdentityEvidence(id);
+    const stable=v14State().classifications?.[id];
+    return Object.assign({},computed,{primary:stable?.primary||computed.candidate,
+      label:V14_IDENTITY_NAMES[stable?.primary||computed.candidate],
+      standing:stable?.standing||computed.standing});
+  }
+  function v14ClassificationTick(){
+    const v=v14State(),index=v.classifications||(v.classifications={});
+    for(const id of ['you',...activeRivals().map(r=>String(r.id))]){
+      const data=v14IdentityEvidence(id),old=index[id]||
+        {primary:'developing',candidate:'developing',streak:0,standing:'Newcomer'};
+      if(data.candidate===old.candidate)old.streak++;
+      else {old.candidate=data.candidate;old.streak=1;}
+      const previous=old.primary,valid=data.count>=4||data.candidate==='developing';
+      if(valid&&old.streak>=2&&data.candidate!==old.primary){
+        old.primary=data.candidate;
+        if(id==='you'){
+          v.classChanges.push({week:state.week,from:previous,to:old.primary});
+          if(v.classChanges.length>12)v.classChanges.shift();
+          addLog('The industry now recognizes '+state.studio.name+' as a '+
+            V14_IDENTITY_NAMES[old.primary]+', based on its recent releases.','studio');
+        }
+      }
+      const ladder=['Newcomer','Emerging','Recognized','Established','Iconic'];
+      if(ladder.indexOf(data.standing)>ladder.indexOf(old.standing))old.standing=data.standing;
+      index[id]=old;
+    }
+  }
+
   function v14RivalIncident(kind,r,projectId,detail){
     const v=v14State();
     v.rivalry.push({week:state.week,kind,rivalId:r.id,rival:r.name,projectId:projectId||null,
@@ -4185,6 +4314,6 @@ var Engine = (function () {
     v14ReleasePlans:()=>V14_RELEASE_PLANS, v14SetReleasePlan:v14SetReleasePlan, v14ReleaseCalendar:v14ReleaseCalendar,
     v14ReleaseResponseQuote:v14ReleaseResponseQuote, v14ReleaseResponse:v14ReleaseResponse,
     v14MarketInfo:v14MarketInfo, v14ScriptQuote:v14ScriptQuote,
-    v14Rivalry:()=>v14State().rivalry.slice(-15)
+    v14Rivalry:()=>v14State().rivalry.slice(-15), v14Identity:v14Identity
   };
 })();
