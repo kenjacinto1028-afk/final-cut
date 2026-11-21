@@ -193,10 +193,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Phase 2: expanded 33 name patterns, word banks, genre-aware generation, and duplicate avoidance (content.js 3b35875; engine.js b42b9a7).
 - [x] Phase 3: added derived film following, natural decay, loyal survivors, earned cult status and bounded sequel awareness (engine.js 0624621, ui.js dc0bad7).
 - [x] Phase 3b: added separate studio active/loyal fans, overlap-aware aggregation, bounded opening-hype lift and Studio Profile card (engine.js 0624621, ui.js dc0bad7).
-- [ ] Phase 4: run regression tests, fix failures, merge and verify deployment.
+- [x] Phase 4: all 11 GitHub Actions workflows passed for the final code commit a71d834, including v14.6 Chromium/browser, tutorial, save compatibility, mobile and twelve long-career balance simulations; PR #18 merged to main (520a93d).
   - [x] Added tests/v14_6_regression.js for title variety, fan decay/loyalty, sequel bounds and save migration, plus .github/workflows/v14_6.yml (89664af, 0fb7dea).
   - [x] Added tests/v14_6_browser.py for premiere during tour, wrap-up, Filmography and follower UI; adapted native-dialog-era save and publicity tests to new in-game confirmations; premiere becomes nonblocking while tour is visible (tests and theme-ab.css).
-  - [ ] All GitHub Actions and desktop/mobile tests green; merge and verify Pages.
+  - [x] All GitHub Actions and desktop/mobile tests green; PR #18 merged into main.
+  - [ ] Confirm latest GitHub Pages deployment publicly serves the merged v14.6 scripts (web/public deployment check).
 
   - [x] Corrected v14.3b browser test to wait for asynchronous in-game marketing/sponsor confirmation effects (`tests/v14_3b_promotions_browser.py`, ba46ca7).
   - [x] Browser tutorial regression showed premiere card blocking Next Week in topbar; docked in-tutorial report bottom-right instead of top-right (`theme-ab.css`, 32995c0).
