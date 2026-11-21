@@ -260,6 +260,8 @@ var UI = (function () {
       '<span class="tb-date">' + dateLabel() + ' <span class="muted">· ' + esc(era.name) + ' · ' + esc(nameOf(CONTENT.REGIONS, Engine.homeRegion())) + '</span></span>' +
       '<span class="tb-cash ' + (s.cash < 0 ? 'neg' : '') + '"><small>Cash</small> ' + money(s.cash) + '</span>' +
       '<span class="tb-score"><a href="#" onclick="UI.go(\'score\');return false">Score ' + sc.value + '</a>' + (sc.locked ? ' <span class="muted">final</span>' : '') + '</span>' +
+      '<button type="button" class="tb-monitor-switch" aria-expanded="' + (isFilmMonitorOpen()?'true':'false') +
+        '" onclick="UI.toggleFilmMonitor()">' + (isFilmMonitorOpen()?'Hide':'Show') + ' project monitor</button>' +
       (typeof SaveSlots!=='undefined' ? '<button class="tb-save-slot" onclick="UI.go(&quot;saves&quot;)" title="Manage saved studios">' + esc(SaveSlots.activeName()||'Saved Games') + '</button>' : '') +
       '<span class="spacer"></span>' +
       '<button ' + (blocked ? 'disabled' : '') + ' onclick="UI.nextWeek()">Next week</button>' +
@@ -1819,6 +1821,7 @@ var UI = (function () {
     renderDrawer();
     renderTutorial();
     renderYearEndHonors();
+    renderFilmMonitor();
   }
 
 // ===== SECTION: ACTIONS =====
@@ -2109,6 +2112,7 @@ var UI = (function () {
 
   return { yearEndSound: yearEndSound, revealYearEndHonors: revealYearEndHonors, closeYearEndHonors: closeYearEndHonors, replayYearEnd: replayYearEnd, openTutorial: openTutorial, closeTutorial: closeTutorial, tutorialMove: tutorialMove, tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
+    toggleFilmMonitor: toggleFilmMonitor, promoteFilm: promoteFilm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
