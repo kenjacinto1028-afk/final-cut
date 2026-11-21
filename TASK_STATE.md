@@ -31,4 +31,4 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added `ui.js` title/Save Library/sidebar/topbar controls and safe begin/continue/quit/import handling; `index.html` loads save module before UI.
 - [x] Styled save cards and mobile manager in `theme-ab.css`; documented in `docs/CHANGELOG_V13_7.md`, README and HANDOFF.
 - [x] Chromium IndexedDB test passed end-to-end: legacy migration, 4 slots, custom poster copies, switch/rename/delete, browser reload, full backup import and 390px screen; old gameplay/save tests passed. Actions #44843102726 and #44843131913 succeeded.
-- [ ] Gate merge on passing tests, merge FinalCut and verify GitHub Pages deployment.
+- [x] PR #3 merged into `main` (`d4fa3ac17803f8b218e52e638aff450ca905dbe7`), all UI, original engine and multiple-save tests passed (Actions #44843252775/#44843252730/#44843252640), GitHub Pages deployment #44843365483 succeeded.
