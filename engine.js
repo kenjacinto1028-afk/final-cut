@@ -1420,7 +1420,9 @@ var Engine = (function () {
       return;
     }
     p.stage = ACTIVE_STAGES[ACTIVE_STAGES.indexOf(p.stage) + 1];
-    p.stageWeeksLeft = f.stages[p.stage] + (p.stage === 'post' ? postWeeksAdj(p) + eraMods().postWeeks : 0);
+    const planned=p.budgetPlan?p.budgetPlan.stageWeeks[p.stage]:f.stages[p.stage];
+    p.stageWeeksLeft = planned + (p.stage === 'post' ? postWeeksAdj(p) + eraMods().postWeeks : 0) +
+      (p.stage === 'shoot'&&p.budgetPlan?p.budgetPlan.delayWeeks||0:0);
     if (p.stageWeeksLeft < 1) p.stageWeeksLeft = 1;
     addLog('"' + p.title + '" moved to ' + CONTENT.STAGE_LABELS[p.stage] + '.', 'project');
     // Routine stage transitions are visible in the dashboard and log, not blocking interruptions.
@@ -1462,7 +1464,9 @@ var Engine = (function () {
     const T = TUNING.talent, tier = TUNING.formats[p.format].tiers[p.tier];
     const roles = {};
     SLOTS.forEach(slot => { roles[slot] = Math.round(slotSkill(p, slot) * T.weights[slot] * 10) / 10; });
-    const production = tier.quality * prodQualityMult(p.budget, p.fees || 0);
+    // Allocated stage resources, not the fixed old tier, determine new films' craft.
+    const production=p.budgetPlan?clamp(7+Math.log10(Math.max(250,p.budget)/1000)*3+
+      (p.budgetPlan.qualityEffect||0),-7,24):tier.quality * prodQualityMult(p.budget, p.fees || 0);
     const ensemble=entourageContribution(p);
     const story = topicFit(p), creative = talentBonus(p, 'quality') + crewEffect(p, 'quality');
     const staff = deptBonus('development'), era = eraQuality(p.genre),
@@ -1638,7 +1642,7 @@ var Engine = (function () {
       id: 'marketing',
       text: 'How much marketing for "' + p.title + '"? Spend is a share of the production budget.',
       choices: TUNING.marketing.map(m => ({
-        label: m.name + (m.share ? ' (' + fmtMoney(p.budget * m.share) + ')' : ''),
+        label: m.name + (m.share ? ' (' + fmtMoney((p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget) * m.share) + ')' : ''),
         effects: m.share ? { marketing: m.share, hype: m.hype } : {},
         result: 'Marketing for "' + p.title + '": ' + m.name + '.'
       }))
@@ -1715,8 +1719,13 @@ var Engine = (function () {
     if (e.quality) p.qualityMod += e.quality;
     if (e.hype) p.hypeMod += e.hype;
     if (e.weeks) p.stageWeeksLeft += e.weeks;
-    if (e.costPct) { const c = Math.round(p.budget * e.costPct); state.cash -= c; p.spent += c; }
-    if (e.marketing) { const c = Math.round(p.budget * e.marketing); state.cash -= c; p.spent += c; p.marketingSpend += c; }
+    if (e.costPct) { const c = Math.round(p.budget * e.costPct);
+      if(!p.budgetPlan||!v144Pay(p,'reserve',c)){if(!p.budgetPlan){state.cash-=c;p.spent+=c;}else p.qualityMod-=2;}
+    }
+    if (e.marketing) { const c = Math.round((p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget) * e.marketing);
+      if(!p.budgetPlan){state.cash-=c;p.spent+=c;p.marketingSpend+=c;}
+      else if(v144Pay(p,'marketing',c))p.marketingSpend+=c;
+    }
     if (e.fame) state.studio.fame = clamp(state.studio.fame + e.fame, 0, 100);
   }
   function choose(i) {
@@ -2595,9 +2604,49 @@ var Engine = (function () {
 
 // ===== SECTION: FINANCE =====
   function loanCap() { return TUNING.loanBaseCap + Math.floor(state.studio.fame) * TUNING.loanCapPerFame; }
+  function v144Bucket(stage){return stage==='development'||stage==='preproduction'?'prep':stage;}
+  function v144StageCost(p){
+    if(!p.budgetPlan)return p.weekly;
+    const b=p.budgetPlan,k=v144Bucket(p.stage),stages=b.stageWeeks||FinalCutBudget.stageWeeks(p.mediaVariant||p.format);
+    const planned=k==='prep'?stages.development+stages.preproduction:stages[k]||1;
+    const normal=FinalCutBudget.milestoneCost(b.allocation,k,b.spent, {prep:planned,shoot:stages.shoot,post:stages.post});
+    if(normal)return normal;
+    // Extra weeks can consume only the pre-approved reserve. No silent cap overrun.
+    const unused=Math.max(0,b.allocation.reserve-(b.spent.reserve||0));
+    return Math.min(unused,Math.max(15,Math.round((b.allocation[k]||0)/Math.max(1,planned)*.4)));
+  }
+  function v144BudgetTick(p){
+    if(!p.budgetPlan)return p.weekly;
+    const b=p.budgetPlan,k=v144Bucket(p.stage),spent=b.spent[k]||0;
+    const normal=FinalCutBudget.milestoneCost(b.allocation,k,b.spent,{
+      prep:b.stageWeeks.development+b.stageWeeks.preproduction,shoot:b.stageWeeks.shoot,post:b.stageWeeks.post});
+    if(normal){b.spent[k]=spent+normal;return normal;}
+    const extra=v144StageCost(p);
+    if(extra){b.spent.reserve=(b.spent.reserve||0)+extra;return extra;}
+    // The production limps through without additional funded resources.
+    if((p.stageWeeksLeft||0)>0)p.qualityMod=Math.max(-18,(p.qualityMod||0)-.5);
+    return 0;
+  }
+  function v144Available(p,k){return p.budgetPlan?Math.max(0,(p.budgetPlan.allocation[k]||0)-(p.budgetPlan.spent[k]||0)):Infinity;}
+  function v144Pay(p,k,cost){
+    cost=Math.max(0,Math.round(cost)||0);
+    if(p.budgetPlan&&cost>v144Available(p,k))return false;
+    if(state.cash<cost)return false;
+    state.cash-=cost;p.spent+=cost;
+    if(p.budgetPlan)p.budgetPlan.spent[k]=(p.budgetPlan.spent[k]||0)+cost;
+    return true;
+  }
+  function v144BudgetInfo(id){
+    const p=typeof id==='object'?id:getProject(Number(id));if(!p||!p.budgetPlan)return null;
+    const b=p.budgetPlan,spent=Object.values(b.spent).reduce((a,n)=>a+(n||0),0);
+    return {cap:b.cap,classification:FinalCutBudget.budgetClass(p.format,b.cap),scope:p.productionScope,
+      allocation:Object.assign({},b.allocation),spent:Object.assign({},b.spent),stageRemaining:FinalCutBudget.KEYS
+        .reduce((out,k)=>(out[k]=v144Available(p,k),out),{}),
+      projectedRemaining:Math.max(0,b.cap-(p.fees||0)-(p.scriptFee||0)-spent)};
+  }
   function weeklyBurn() {
     return TUNING.livingCost + Math.round(state.debt * TUNING.weeklyInterest) + weeklySalaries() + weeklyPayroll() + weeklyOverhead() +
-      activeProjects().reduce((a, p) => a + p.weekly, 0) + state.series.filter(s => s.status === 'airing').reduce((a, s) => a + s.epCost, 0);
+      activeProjects().reduce((a, p) => a + v144StageCost(p), 0) + state.series.filter(s => s.status === 'airing').reduce((a, s) => a + s.epCost, 0);
   }
   function weeklyProfit() { return state.lastWeek.income - state.lastWeek.costs; }
   function takeLoan() {
@@ -4529,7 +4578,7 @@ var Engine = (function () {
     const actives = activeProjects();
     const freelance = founderFreelancing() ? freelanceIncome() : 0;
     let revenue = 0, production = 0;
-    actives.forEach(p => { p.spent += p.weekly; production += p.weekly; });
+    actives.forEach(p => { const charge=v144BudgetTick(p); p.spent += charge; production += charge; });
     state.projects.forEach(p => { if (p.stage === 'release') revenue += releaseIncome(p); });
     revenue += windowsTick();
     revenue += shortEncoreTick();
@@ -4929,6 +4978,7 @@ var Engine = (function () {
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
     startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
+    v144BudgetInfo:v144BudgetInfo,v144Pay:v144Pay,
     sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
     formats: formats, activeProject: activeProject, activeProjects: activeProjects, capacity: capacity, getProject: getProject,
     takeLoan: takeLoan, repayLoan: repayLoan, loanCap: loanCap, freelanceIncome: freelanceIncome,
