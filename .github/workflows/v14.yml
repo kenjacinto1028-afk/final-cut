@@ -21,6 +21,7 @@ jobs:
           node --check engine.js
           node --check ui.js
           node tests/v14_gameplay.js
+          node tests/v14_fullcareer.js
       - name: Preserve original economics and saved games
         run: |
           node tests/v13_smoke.js
