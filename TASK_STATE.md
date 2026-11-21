@@ -32,3 +32,13 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Styled save cards and mobile manager in `theme-ab.css`; documented in `docs/CHANGELOG_V13_7.md`, README and HANDOFF.
 - [x] Chromium IndexedDB test passed end-to-end: legacy migration, 4 slots, custom poster copies, switch/rename/delete, browser reload, full backup import and 390px screen; old gameplay/save tests passed. Actions #44843102726 and #44843131913 succeeded.
 - [x] PR #3 merged into `main` (`d4fa3ac17803f8b218e52e638aff450ca905dbe7`), all UI, original engine and multiple-save tests passed (Actions #44843252775/#44843252730/#44843252640), GitHub Pages deployment #44843365483 succeeded.
+
+## v13.8 — Film performance, Filmography finances, persistent project monitor
+- [x] Checked FinalCut main and preserved the v13.7 multiple-save baseline; confirmed user examples of zero-gross Filmography and Software Inc monitoring reference.
+- [ ] Diagnose gross=$0 by format and postrelease revenue, profit/loss and audience units in simulation; design truthful attribution.
+- [ ] Extend engine weekly revenue/reach ledgers and full lifecycle history without breaking v13 saves or legacy projects.
+- [ ] Add Filmography gross / net income / profit-loss per film, distinct for shorts, pilots and feature films.
+- [ ] Implement fixed-width collapsible project-performance dock on the right, with film stages, weekly audience and income, plus recent trends; responsive.
+- [ ] Enrich production detail and postrelease dashboard with film performance timeline, audience reach and finances.
+- [ ] Add tests (unit / multiseason / browser/mobile / save compatibility) and document results.
+- [ ] Merge validated update to main and check live Pages deployment.
