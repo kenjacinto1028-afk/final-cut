@@ -1890,25 +1890,51 @@ var UI = (function () {
   }
   async function importBackup(input){
     const f=input.files&&input.files[0];if(!f)return;
-    if(f.size>25000000){alert('The backup exceeds 25 MB.');return;}
+    if(f.size>25000000){alert('The backup exceeds 25 MB.');input.value='';return;}
+    if(saveBusy){input.value='';return;}
+    saveBusy=true;
     try{
       const b=JSON.parse(await f.text());
-      if(!['finalcut-v11-backup','finalcut-v12-backup','finalcut-v13-backup'].includes(b.format)||!b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>13)throw new Error('Not a supported Final Cut backup.');
-      if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
-      const old=localStorage.getItem('backlot_save');
-      try {
-        localStorage.setItem('backlot_save',JSON.stringify(b.game));
-        const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
-        PosterStore.resetCache();
-        await PosterStore.restore(b.posters||{});
+      if(!['finalcut-v11-backup','finalcut-v12-backup','finalcut-v13-backup'].includes(b.format)||
+          !b.game||!Array.isArray(b.game.projects)||!Number.isInteger(b.game.version)||b.game.version>13)
+        throw new Error('Not a supported FinalCut backup.');
+      if(typeof SaveSlots!=='undefined'){
+        // A backup imports as a separate campaign. Never overwrite the studio
+        // the player was running or reuse its poster namespace.
+        await SaveSlots.importCampaign(b.game);
+        let posterNote='';
+        try{await PosterStore.restore(b.posters||{});}
+        catch(err){posterNote=' Some uploaded posters could not be restored: '+err.message+'.';}
         const declared=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
-        const absent=await PosterStore.missing(declared);
-        if(absent.length) { const ids=new Set(absent); Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save(); }
-        resetHistory();closeDrawer();render();
-        alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
-      } catch(err) { if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old); if(old)Engine.load();throw err; }
+        let absent=[];
+        try{absent=await PosterStore.missing(declared);}catch(err){posterNote+=' Custom poster verification failed.';}
+        if(absent.length){
+          const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});
+          Engine.save();posterNote+=' '+absent.length+' unavailable poster(s) use generated art.';
+        }
+        clearForSaveTransition();view='saves';render();
+        alert('Backup imported into a new independent save slot.'+posterNote);
+      }else{
+        // Standalone compatibility path for older embed builds.
+        if(Engine.state&&!confirm('Replace your current game with this backup?'))return;
+        const old=localStorage.getItem('backlot_save');
+        try{
+          localStorage.setItem('backlot_save',JSON.stringify(b.game));
+          const loaded=Engine.load();if(!loaded.ok)throw new Error(loaded.reason);
+          PosterStore.resetCache();
+          await PosterStore.restore(b.posters||{});
+          const declared=Engine.state.projects.filter(p=>p.posterCustom).map(p=>p.id);
+          const absent=await PosterStore.missing(declared);
+          if(absent.length){const ids=new Set(absent);Engine.state.projects.forEach(p=>{if(ids.has(p.id))p.posterCustom=false;});Engine.save();}
+          resetHistory();closeDrawer();render();
+          alert('Backup imported.'+(absent.length?' '+absent.length+' missing poster(s) were reset to generated artwork.':' Custom posters were restored.'));
+        }catch(err){
+          if(old==null)localStorage.removeItem('backlot_save');else localStorage.setItem('backlot_save',old);
+          if(old)Engine.load();throw err;
+        }
+      }
     }catch(e){alert('Backup import failed: '+e.message);}
-    finally{input.value='';}
+    finally{saveBusy=false;input.value='';}
   }
 
 // ===== SECTION: INIT =====
