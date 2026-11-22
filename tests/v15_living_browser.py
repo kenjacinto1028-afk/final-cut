@@ -43,7 +43,7 @@ try:
     const r=Engine.startProject(input);if(!r.ok)throw Error(r.reason);
     const p=r.project;
     p.stage='done';p.releaseWeek=76;p.quality=85;p.critic=83;p.audience=88;
-    p.hype=70;p.gross=400000;p.revenue=110000;p.result='Hit';
+    p.hype=70;p.gross=400000;p.estimatedAdmissions=Engine.admissionsFromGross(p.gross,p.releaseWeek);p.revenue=110000;p.result='Hit';
     Engine.state.week=104;
     Engine.save();
     UI.openProject(p.id);
