@@ -2339,11 +2339,16 @@ var UI = (function () {
     const gone = r.talent.map(x => Engine.getTalent(x.id)).filter(Boolean);
     let h = '<h2>' + esc(r.name) + (r.status === 'bankrupt' ? ' <span class="neg">Bankrupt · ' + dateLabel(r.closedWeek) + '</span>' : '') + '</h2><dl>' +
       dl('Strategy', stratLabel(r) + (strat ? ' <span class="muted">· ' + esc(strat.desc) + '</span>' : '')) +
+      (r.living?dl('Personality',esc(r.living.trait)+' · '+esc(r.living.description))+
+        dl('Yearly ambition',esc(r.living.ambition)+' · '+esc(nameOf(CONTENT.GENRES,r.living.genre)))+
+        dl('With your studio',esc(r.living.label)+' · relationship '+r.living.relation):'') +
       dl('Size', esc(r.tierName)) + dl('Cash', signed(r.cash)) + dl('Fame', Math.round(r.fame)) +
       dl('Typical film', money(r.typicalBudget) + ' <span class="muted">· overhead ' + money(r.overhead) + '/wk</span>') +
       (r.focusNames.length ? dl('Chasing genres', esc(r.focusNames.join(', '))) : '') +
       dl('Quarter results', r.results.length ? r.results.map(signed).join(' · ') : '<span class="muted">None yet</span>') +
       dl('Founded', dateLabel(r.foundedWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS,r.region))) + '</dl>';
+    if(r.living&&r.living.history.length)h+='<details class="fc-disclosure"><summary>Studio ambitions & industry encounters</summary>'+
+      '<ul class="plain">'+r.living.history.map(e=>'<li><small>'+dateLabel(e.week)+'</small> · '+esc(e.text)+'</li>').join('')+'</ul></details>';
     h += '<h3>Recent releases</h3>' + (released.length
       ? '<div class="tbl-wrap"><table><thead><tr><th>Title</th><th>Genre</th><th class="num">Budget</th><th>Opened</th><th class="num">Gross</th><th>Result</th></tr></thead><tbody>' +
         released.map(f => '<tr><td><a href="#" onclick="UI.openFilm(\'rival:' + r.id + ':' + f.id + '\');return false">' + esc(f.title) + '</a></td><td>' + esc(nameOf(CONTENT.GENRES, f.genre)) + '</td><td class="num">' + money(f.budget) + '</td><td>' + dateLabel(f.week) +
@@ -2367,13 +2372,13 @@ var UI = (function () {
     let h = '<h1>Rivals</h1><div class="strip">' + stat('Active studios', act.length) + stat('Your box office share this year', (me ? me.share : 0) + '%') +
       stat('Talent poached from you', poached) + '</div>';
     h += '<p class="fc-compact-page-info"><button type="button" onclick="UI.go(\'calendar\')">See the release calendar</button> to compare premieres and competing genres.</p>';
-    h += '<details class="fc-brief-explanation"><summary>How rivals behave</summary><p>Rival films compete for your release weeks. A studio that keeps losing money chases trends; the weakest go bankrupt and upstarts replace them. Click a studio for its releases and poached talent.</p></details>';
+    h += '<details class="fc-brief-explanation"><summary>How rivals behave</summary><p>Each rival has a persistent personality, annual objective and relationship with your studio. Risk tolerance and past conflict influence what films they finance and whether they challenge or avoid your release weeks. Repeated losses can still lead to pivots and bankruptcy. Select a studio for its ambitions and history.</p></details>';
     h += tblHtml('rivals', {
       rows: rivalInfos,
       rowId: r => r.id,
       onRow: id => { rivalSel = Number(id); render(); },
       sort: 'tier', dir: -1,
-      search: r => [r.name, r.strategyName, r.tierName].join(' '),
+      search: r => [r.name, r.strategyName, r.tierName, r.living&&r.living.trait, r.living&&r.living.ambition].join(' '),
       filters: [
         ['active', 'Active', r => r.status === 'active'],
         ['all', 'All', null],
@@ -2381,7 +2386,9 @@ var UI = (function () {
       ],
       columns: [
         { key: 'name', label: 'Studio', value: r => r.name, render: r => esc(r.name) + (r.leader ? ' <span class="elite-label">Industry Leader</span>' : '') + (r.status === 'bankrupt' ? ' <span class="neg">closed</span>' : '') },
-        { key: 'strategy', label: 'Identity', value: r => r.identity, render: r => esc(r.identity) + ' <span class="muted">· '+esc(r.strategyName)+'</span>' },
+        { key: 'strategy', label: 'Identity', value: r => r.identity, render: r => esc(r.living&&r.living.trait||r.identity) + ' <span class="muted">· '+esc(r.strategyName)+'</span>' },
+        { key: 'ambition', label: 'Ambition', value: r=>r.living&&r.living.ambition||'', render:r=>r.living?esc(r.living.ambition):'—' },
+        { key: 'relation', label: 'Rivalry', num:true, value: r=>r.living&&r.living.relation||0, render:r=>r.living?esc(r.living.label):'Neutral' },
         { key: 'tier', label: 'Size', value: r => r.tier, render: r => esc(r.tierName) },
         { key: 'cash', label: 'Cash', num: true, value: r => r.cash, render: r => signed(r.cash) },
         { key: 'fame', label: 'Fame', num: true, value: r => Math.round(r.fame) },
