@@ -944,3 +944,16 @@ body.tutorial-open #premiere-report .fc-premiere-card{
 @media(max-width:650px){
   body.tutorial-open #premiere-report .fc-premiere-card{max-height:35dvh;width:min(360px,calc(100vw - 20px))}
 }
+
+/* v14.13: discoverable franchise follow-up actions */
+.fc-followup-panel,.fc-followup-picker{margin:12px 0;padding:12px;border:1px solid var(--line,#41545b);border-radius:10px}
+.fc-followup-picker>summary{cursor:pointer;font-weight:700;padding:3px 0}
+.fc-followup-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.fc-followup-actions button{min-height:38px;flex:1 1 125px;white-space:normal}
+.fc-franchise-library{display:grid;gap:10px;margin:12px 0}
+.fc-franchise-entry{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border:1px solid var(--line,#41545b);border-radius:9px;padding:12px;background:rgba(255,255,255,.025)}
+.fc-franchise-entry>div:first-child{min-width:0;flex:1}
+.fc-franchise-entry>div:last-child{flex:0 1 360px;min-width:0}
+.fc-franchise-entry p{margin:6px 0 0;line-height:1.6;overflow-wrap:anywhere}
+.fc-franchise-entry a{color:var(--accent,#87c9be)}
+@media(max-width:700px){.fc-franchise-entry{display:block}.fc-franchise-entry>div:last-child{margin-top:10px}.fc-followup-actions button{flex:1 1 100%}}
