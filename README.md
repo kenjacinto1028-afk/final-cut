@@ -1,6 +1,8 @@
 # Final Cut — Studio Tycoon
 
-**Current release: FinalCut v14.9b.** Custom posters now reload from browser storage without becoming stuck on “Custom poster loading…”. Deleting the original image from your PC does not affect the saved poster; see [poster persistence fix](docs/CHANGELOG_V14_9B.md). v14.9 also adds dedicated phone navigation and a compact mobile interface ([mobile release notes](docs/CHANGELOG_V14_9.md)).
+**Latest feature update: v15a + v15b.** New Project now captures the opening marketing plan before greenlight and executes it from approved funds during post-production. The Offline Poster Studio generates four distinctive scene-based designs from each film’s genre, topic, title and era, with credited director, writer and performers. See [v15a/v15b release notes](docs/CHANGELOG_V15A_V15B.md). Full v15 rival/talent/audience/industry/media improvements continue in later phases.
+
+**Earlier mobile/poster-storage release: FinalCut v14.9b.** Custom posters now reload from browser storage without becoming stuck on “Custom poster loading…”. Deleting the original image from your PC does not affect the saved poster; see [poster persistence fix](docs/CHANGELOG_V14_9B.md). v14.9 also adds dedicated phone navigation and a compact mobile interface ([mobile release notes](docs/CHANGELOG_V14_9.md)).
 
 
 ## v14.5 — Clearer navigation, premieres and rankings
