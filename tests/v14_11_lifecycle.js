@@ -39,23 +39,22 @@ function world(seed){
  p.usedEvents.push('lc_shoot_chemistry','lc_shoot_setback','lc_shoot_weather','lc_shoot_conflict');
  phase('shoot','shoot',0);
  assert(expected.at(-1)==='lc_shoot_risk_echo','on-set consequence should depend on earlier risk');
- phase('post','post',0,3);
  phase('post','preRelease',0,1);
  p.releaseWeek=s.week-1;p.weeksInRelease=1;
  phase('release','release');
  p.releaseWeek=s.week-5;p.weeksInRelease=7;
  phase('done','afterRelease',0);
- assert.equal(p.lifecycle.history.length,7,'max seven bounded events for features');
+ assert.equal(p.lifecycle.history.length,6,'six-event feature cap with a catalog slot');
  assert(p.lifecycle.tags.includes('technical_risk'));
  assert(t.studioBond>50,'filmmaking choices change collaborator bond');
  assert(E.talentFee(t,'feature')>0);
- assert.equal(E.lifecycleQuote(p.id).limit,7);
+ assert.equal(E.lifecycleQuote(p.id).limit,6);
  const size=JSON.stringify(p.lifecycle).length;assert(size<9000,'bounded film event save');
  assert(E.save());assert(E.load().ok,'chain and bond survive save');
- assert.equal(E.lifecycleQuote(p.id).history.length,7);
+ assert.equal(E.lifecycleQuote(p.id).history.length,6);
  assert.equal(E.getTalent(t.id).studioBond,t.studioBond);
  assert.equal(E.state.version,13);
- console.log('PASS seven phases, conditional risk echo, career bond and persistence');
+ console.log('PASS linked early-to-late lifecycle phases, risk echo, bond and persistence');
 }
 // Delegation resolves routine opportunities but never automatically decides a
 // high-stakes sponsorship, rights dispute or major cast conflict.
@@ -103,7 +102,7 @@ for(const [idx,policy] of ['ask','commercial'].entries()){
  const total=hist.reduce((n,h)=>n+h.length,0);
  assert(started>=12&&done.length>=10,'real film lifecycle across full simulation');
  assert(total>=12,'film opportunities must happen in long simulations');
- assert(hist.every((h,i)=>h.length<=(s.projects[i].format==='feature'?7:5)),'event cap must hold');
+ assert(hist.every((h,i)=>h.length<=(s.projects[i].format==='feature'?6:5)),'event cap must hold');
  assert(hist.every(h=>h.every(x=>typeof x.consequence==='string'&&x.consequence.length<260)));
  assert(Number.isFinite(s.cash)&&Number.isFinite(s.debt));
  assert(E.setFastSimulationTesting(false));assert(E.save(),'store complete world');
