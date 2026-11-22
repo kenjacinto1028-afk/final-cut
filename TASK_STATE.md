@@ -282,8 +282,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.11a–f full gameplay expansion (2026-11-22)
 - [ ] v14.11a: Complete shared production/Film Hub management action controls and stage-aware eligibility, avoid dead-end buttons.
-- [ ] v14.11b: Development/pre-production event catalog, meaningful options and staged selection.
-- [ ] v14.11c: Filming/post-production event chains with saved dependencies, risk and project consequences.
-- [ ] v14.11d: Before-release, release and post-release choices, long-term catalog hooks.
+- [ ] v14.11b: Added curated event definitions in `content.js` (`b84f4fe`); runtime triggering and end-to-end choice validation still pending.
+- [ ] v14.11c: Added conditional on-set and post-production event definitions (`content.js`, `b84f4fe`); chain effects pending.
+- [ ] v14.11d: Added 28 lifecycle event definitions across six phases (`content.js`, `b84f4fe`); triggers and legacy consequences pending.
 - [ ] v14.11e: Talent relationship data/chemistry and persistent future-production consequences.
 - [ ] v14.11f: Rate controls, delegation policies, legacy save migration, tests/CI and long-career balance checks.
