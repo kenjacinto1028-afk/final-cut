@@ -261,4 +261,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added targeted poster-node refresh in `ui.js` for all visible surfaces and clear loading/missing/storage-error messages, keeping forms and Film Hub tabs intact (75199a6).
 - [x] Added and passed Chromium regression `tests/v14_9b_poster_browser.py` (real upload, delete PC source, reload, missing IndexedDB notice, reupload, phone screen) plus existing Film Hub and multi-save artwork tests in workflow #44970906451.
 - [x] PR #23 merged to main as `7736fc2` after 15 successful PR workflows including poster upload/delete/reload, multi-save artwork and Film Hub; no engine, balance, or save schema changes.
-- [ ] Confirm final v14.1 long-career check and the merged GitHub Pages live deployment.
+- [x] Confirmed 16/16 PR workflows passed on final code head `1f4044d`, including 12 long-career balance tests, mobile, Film Hub, custom-poster, multi-save, compatibility and Chromium UI.
+- [x] Verified merged v14.9b GitHub Pages build and deployment #44971475972 succeeded on main (`1a9b8eec`); current README links to `docs/CHANGELOG_V14_9B.md`.
