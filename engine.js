@@ -5521,6 +5521,113 @@ var Engine = (function () {
     return {ok:true,status:'accepted',cost,receipts:upfront};
   }
 
+
+  // v15g: time-appropriate media ecology. Never show online platforms in the
+  // 1970s; these are fictional channel categories rather than outside APIs.
+  function v15MediaEra(){
+    const y=dateOf().year;
+    if(y<1990)return {id:'traditional',name:'Print, radio and television',
+      channels:['Local newspaper','Film-club newsletter','Radio interview','Television arts segment'],
+      explanation:'Print reviewers, radio interviews, local broadcasts and film societies shape public awareness.'};
+    if(y<2005)return {id:'forums',name:'Early online communities',
+      channels:['Film discussion forum','Fan website','Entertainment newspaper','TV magazine'],
+      explanation:'Dedicated fan websites and message boards join established press and TV publicity.'};
+    if(y<2010)return {id:'web',name:'Digital entertainment media',
+      channels:['Online review portal','Entertainment blog','Fan discussion board','Trailer website'],
+      explanation:'Online commentary, review portals and downloadable trailers gain importance.'};
+    if(y<2020)return {id:'social',name:'Social platforms and influencers',
+      channels:['Social network discussion','Influencer review','Trailer sharing','Fan campaign'],
+      explanation:'Online conversation can amplify publicity or backlash, especially for recognizable stars and genres.'};
+    return {id:'shortform',name:'Viral and short-form culture',
+      channels:['Short-form video trend','Online fan campaign','Creator review','Streaming discussion'],
+      explanation:'Rapid viral attention and organized fan communities coexist with traditional critics.'};
+  }
+  function v15MediaFeed(){
+    return (v15World().media||[]).slice(-16).reverse().map(x=>Object.assign({},x));
+  }
+  function v15MediaQuote(id){
+    const p=getProject(Number(id));
+    if(!p||!p.v15MediaWindow||p.v15MediaWindow.resolved||
+       p.v15MediaWindow.expiresWeek<state.week)
+      return {ok:false,reason:'No active media conversation needs a response.'};
+    const cost=Math.max(70,Math.round(Math.min(5500,p.budget*.006)));
+    const available=p.budgetPlan&&p.releaseWeek==null?v144Available(p,'marketing'):Infinity;
+    const ok=state.cash>=cost&&available>=cost;
+    return {ok,reason:ok?'':state.cash<cost?'Studio cash is insufficient.':
+      'The film needs more unspent marketing allocation.',cost,
+      tone:p.v15MediaWindow.tone,channel:p.v15MediaWindow.channel,
+      expiresWeek:p.v15MediaWindow.expiresWeek};
+  }
+  function v15MediaRespond(id,action){
+    const p=getProject(Number(id)),q=v15MediaQuote(id);
+    if(!p||!p.v15MediaWindow||p.v15MediaWindow.resolved||
+      p.v15MediaWindow.expiresWeek<state.week)
+      return {ok:false,reason:'The public conversation has already passed.'};
+    if(!['engage','ignore'].includes(action))return {ok:false,reason:'Choose engage or leave it alone.'};
+    if(action==='engage'&&!q.ok)return q;
+    const m=p.v15MediaWindow;
+    if(action==='engage'){
+      if(p.budgetPlan&&p.releaseWeek==null){
+        if(!v144Pay(p,'marketing',q.cost))return {ok:false,reason:'Marketing allocation or cash changed.'};
+      }else{state.cash-=q.cost;p.spent+=q.cost;}
+      p.marketingSpend=(p.marketingSpend||0)+q.cost;
+      state.finance.q.production+=q.cost;
+      recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
+      if(p.releaseWeek==null)p.hypeMod=clamp((p.hypeMod||0)+2,-80,80);
+      else{
+        const fan=v15FanCommunity(p);
+        fan.momentum=clamp(fan.momentum+(m.tone==='negative'?4:2),-18,18);
+      }
+    }
+    m.resolved=action;m.resolvedWeek=state.week;m.cost=action==='engage'?q.cost:0;
+    const note=action==='engage'?'Funded a '+fmtMoney(q.cost)+' '+m.channel.toLowerCase()+
+      ' response to the recent public conversation.':'Let the public conversation pass without extra spending.';
+    filmStory(p,'media',note);addLog('"'+p.title+'": '+note,'market');
+    save();emit('media',p);return {ok:true,cost:m.cost};
+  }
+  function v15MediaTick(){
+    if(state.week%13!==0||state.week===0)return;
+    const era=v15MediaEra(),world=v15World();
+    if(!Array.isArray(world.media))world.media=[];
+    // A single significant story per quarter, rooted in actual film marketing,
+    // recent theatrical reach and existing audience response.
+    const pool=state.projects.filter(p=>{
+      const early=p.releaseWeek==null&&['shoot','post'].includes(p.stage)&&
+        (p.marketingPlan&&p.marketingPlan.intensity!=='none'||p.promotionCampaign);
+      const released=p.releaseWeek!=null&&state.week-p.releaseWeek<=104;
+      return early||released;
+    }).filter(p=>!p.v15MediaWindow||state.week-(p.v15MediaPulseWeek||-999)>=26)
+      .sort((a,b)=>(b.releaseWeek||b.startWeek)-(a.releaseWeek||a.startWeek));
+    if(!pool.length||Math.random()>.36)return;
+    const p=pool[Math.floor(Math.random()*Math.min(5,pool.length))];
+    const fromRelease=p.releaseWeek!=null;
+    const positive=fromRelease?
+      ((p.audience||0)*.54+(p.critic||0)*.46>=62):(p.dna&&p.dna.vision==='prestige'||Math.random()<.65);
+    // Distinctly later-era viral effects are more variable but remain bounded.
+    const social=['social','shortform'].includes(era.id);
+    const magnitude=positive?(social?3:2):(social?3:2);
+    const movement=positive?magnitude:-magnitude;
+    const channel=era.channels[Math.floor(Math.random()*era.channels.length)];
+    const story=positive?'interest grows in "'+p.title+
+      '" following favorable audience conversation.':'debate and criticism spread around "'+
+      p.title+'" after mixed audience reaction.';
+    const text=channel+': '+story;
+    if(fromRelease){
+      const community=v15FanCommunity(p);
+      community.momentum=clamp(community.momentum+movement,-18,18);
+      community.history.push({week:state.week,kind:'media',text});
+      community.history=community.history.slice(-12);
+    }else p.hypeMod=clamp((p.hypeMod||0)+movement,-80,80);
+    p.v15MediaPulseWeek=state.week;
+    p.v15MediaWindow={week:state.week,channel,tone:positive?'positive':'negative',
+      expiresWeek:state.week+8,resolved:null};
+    world.media.push({week:state.week,era:era.id,channel,projectId:p.id,
+      title:p.title,tone:positive?'positive':'negative',text});
+    world.media=world.media.slice(-30);
+    filmStory(p,'media',text);
+    addLog(text,'market');emit('media',p);
+  }
+
   function newsCat(l) {
     const N = CONTENT.NEWS;
     if (l.cat) {
@@ -5745,6 +5852,7 @@ var Engine = (function () {
     reputationTick();
     v15FanTick();
     v15OpportunityTick();
+    v15MediaTick();
     shiftTick();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
@@ -6163,6 +6271,8 @@ var Engine = (function () {
     news: news, newsFilters: newsFilters,
     v15ActiveOffers:v15ActiveOffers,v15OfferList:v15OfferList,v15OfferAction:v15OfferAction,
     v15OpportunityTick:v15OpportunityTick,
+    v15MediaEra:v15MediaEra,v15MediaFeed:v15MediaFeed,
+    v15MediaQuote:v15MediaQuote,v15MediaRespond:v15MediaRespond,
     awardsInfo: awardsInfo, awardCampaign: awardCampaign, campaignQuote: campaignQuote,
     reputationInfo: reputationInfo, legacyInfo: legacyInfo, initiativeQuote: initiativeQuote, startInitiative: startInitiative, reissueQuote: reissueQuote, reissueFilm: reissueFilm,
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
