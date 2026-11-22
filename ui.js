@@ -1173,7 +1173,7 @@ var UI = (function () {
       items.push({id,key,title,reason,tradeoff,action,priority,cost:cost||0,phase});
     };
     const budget=Engine.v144BudgetInfo(p);
-    if(fresh&&!p.promotionCampaign){
+    if(fresh&&!p.promotionCampaign&&!p.marketingPlan){
       const affordable=Object.keys(Engine.filmPromotionOptions()||{}).map(kind=>
         Engine.filmPromotionQuote(p.id,kind)).filter(q=>q.ok).sort((a,b)=>a.cost-b.cost);
       const q=affordable[0];
@@ -2938,8 +2938,15 @@ var UI = (function () {
         '<button type="button" onclick="UI.filmSponsorDecline('+p.id+')">Decline without penalty</button></div></article>':
         '<p class="muted">'+esc(offer.reason)+'</p>';
     }
+    const approved=p.marketingPlan?'<div class="fc-approved-marketing"><strong>Opening campaign approved at greenlight</strong><p>'+
+      esc(p.marketingPlan.intensity)+' intensity · '+esc(p.marketingPlan.target)+' audience · '+esc(p.marketingPlan.message)+' message</p>'+
+      (p.marketingPlan.executedWeek!=null?
+        '<p>Completed: '+money(p.marketingPlan.spent||0)+' spent · recorded hype +'+(p.marketingPlan.hypeGained||0)+'. No duplicate decision required.</p>':
+        '<p>Scheduled for post-production. Up to '+money(p.marketingPlan.cost||0)+' planned, subject to remaining studio cash and allocation.</p>')+
+      '</div>':'';
     return '<section class="fc-film-promotion"><h3>Film Promotion</h3>'+
-      '<p class="muted">Optional, one-time pre-release reach investment. Existing feature marketing, post-opening publicity, and festival kits are separate decisions. Promotion never guarantees profit.</p>'+
+      approved+
+      '<p class="muted">Optional additional pre-release campaigns, later publicity and festival kits are separate paid decisions. No campaign guarantees profit.</p>'+
       '<div><small>RECORDED FILM MARKETING</small><strong>'+money(p.marketingSpend||0)+'</strong></div>'+
       promo+'<h3>Fictional sponsors & brand fit</h3>'+sponsor+'</section>';
   }
