@@ -2267,9 +2267,63 @@ var Engine = (function () {
     const maxTier=standing>=67?4:standing>=41?3:standing>=22?2:1;
     const count=maxTier===1?(p.critic>=75?2:1):maxTier===2?2:maxTier===3?3:4;
     const seed=(p.id*211+(p.title||'').split('').reduce((s,c)=>s+c.charCodeAt(0),0)+Math.round((p.critic||0)*7))>>>0;
-    const textGood=['A confident story with memorable detail.','The filmmaking shows assured character work.','Its dramatic choices earn their impact.','An engaging picture with a clear identity.'];
-    const textMixed=['A worthwhile idea with uneven execution.','There is craft here, though the pacing wanders.','The film has moments, but never fully settles.','Promising material meets uncertain direction.'];
-    const textPoor=['The story struggles to find its footing.','Ambition exceeds the resources on screen.','The cast cannot overcome a thin narrative.','A hesitant release with little momentum.'];
+    // Genre and topic are narrative texture, not rating modifiers. Preserve
+    // critic tier, score, publicity and save structure while diversifying prose.
+    const genreVoice={
+      drama:['emotional restraint','character relationships','dramatic tension','human detail','the quieter scenes','moral complexity'],
+      comedy:['comic timing','the ensemble chemistry','its lighter moments','the punch lines','the playful direction','its sense of mischief'],
+      horror:['dread','the atmosphere','its unsettling imagery','the scares','the soundscape','its lingering unease'],
+      thriller:['suspense','the escalating stakes','the twists','its tense set pieces','the pacing','the mounting paranoia'],
+      scifi:['world-building','the speculative ideas','its futuristic details','the central concept','its imagined technology','the human side of the premise'],
+      western:['frontier atmosphere','its rugged landscapes','the conflicts of loyalty','its old-fashioned grit','the sense of place','the showdown'],
+      romance:['romantic chemistry','the central relationship','the longing','its tender moments','the emotional stakes','the quieter exchanges'],
+      action:['the choreography','its kinetic set pieces','the momentum','the stunt work','the physical stakes','its breathless pacing'],
+      documentary:['the interviews','its research','the observed details','the central argument','its real-world perspective','the editorial choices']
+    };
+    const themeVoice={
+      smalltown:'small-town life',heist:'the elaborate scheme',haunted:'the haunted setting',
+      roadtrip:'the journey',familysecret:'the buried family history',spacecolony:'life beyond Earth',
+      boxing:'the fighter’s struggle',rockband:'the music scene',corruptcop:'the ethical compromises',
+      invasion:'the invasion',firstlove:'first love',revenge:'the pursuit of revenge',
+      cult:'the group’s hidden beliefs',frontier:'the frontier',robots:'the machines',
+      nightshift:'life after dark',organizedcrime:'the criminal underworld',conspiracy:'the conspiracy',
+      underdog:'the underdog story',medical:'the medical crisis',espionage:'the secret mission',
+      comingofage:'growing up',supernatural:'the supernatural mystery',timetravel:'time itself'
+    };
+    const positive=[
+      subject=>'A sure hand makes '+subject+' feel fresh.',
+      subject=>'There is real confidence in the treatment of '+subject+'.',
+      subject=>'The attention to '+subject+' gives the picture its identity.',
+      subject=>'What stays with you is '+subject+', handled with surprising care.',
+      subject=>'A finely judged approach to '+subject+' lifts the whole film.',
+      subject=>'Even the small choices around '+subject+' feel purposeful.',
+      subject=>'The film trusts its audience, especially when exploring '+subject+'.'
+    ];
+    const mixed=[
+      subject=>'There are bright ideas around '+subject+', though they seldom connect.',
+      subject=>'The approach to '+subject+' intrigues more than it satisfies.',
+      subject=>'Uneven pacing undermines otherwise interesting work on '+subject+'.',
+      subject=>'The ambition is apparent, but '+subject+' feels underdeveloped.',
+      subject=>'A few memorable moments cannot quite carry '+subject+'.',
+      subject=>'The film finds a voice around '+subject+', then loses it.',
+      subject=>'An uneven but occasionally engaging look at '+subject+'.'
+    ];
+    const negative=[
+      subject=>'The film struggles to make '+subject+' convincing.',
+      subject=>'Too many shortcuts leave '+subject+' without much impact.',
+      subject=>'The handling of '+subject+' becomes repetitive well before the end.',
+      subject=>'A promising premise falters whenever it returns to '+subject+'.',
+      subject=>'The production never finds a persuasive angle on '+subject+'.',
+      subject=>'The treatment of '+subject+' lacks focus and urgency.',
+      subject=>'There is little to distinguish its approach to '+subject+'.'
+    ];
+    const accents={
+      high:['A confident finish.','The ensemble earns its moments.','Its best ideas linger.','A rewarding piece of filmmaking.'],
+      mid:['The cast gives it some lift.','The ending feels slightly rushed.','Some scenes stay with you.','Its strengths and weaknesses are equally visible.'],
+      low:['The cast is left searching for direction.','The finale adds little.','The execution feels rushed.','The potential rarely reaches the screen.']
+    };
+    const genreWords=genreVoice[p.genre]||genreVoice.drama;
+    const topicWords=themeVoice[p.topic]||((byId(CONTENT.TOPICS,p.topic)||{}).name||'the central story').toLowerCase();
     const out=[];
     for(let i=0;i<count;i++){
       let tier=Math.min(maxTier,1+i);
@@ -2278,8 +2332,11 @@ var Engine = (function () {
       const n=(seed+i*71)%(CRITIC_TIERS[tier-1].length),source=CRITIC_TIERS[tier-1][n];
       const noise=((seed+i*43)%23)-11;
       const rating=clamp(Math.round(p.critic+noise),5,100);
-      const lines=rating>=73?textGood:rating<46?textPoor:textMixed;
-      const text=lines[(seed+i*13)%lines.length];
+      const lines=rating>=73?positive:rating<46?negative:mixed;
+      const subject=(i%3===0?topicWords:genreWords[(seed+i*5)%genreWords.length]);
+      const line=lines[(seed*3+i*5+Math.round(rating/7))%lines.length];
+      const accentPool=rating>=73?accents.high:rating<46?accents.low:accents.mid;
+      const text=line(subject)+(i%2===1?' '+accentPool[(seed+i*3)%accentPool.length]:'');
       out.push({name:source[0],publication:source[1],tier,score:rating,
         stars:Math.round(rating/10)/2,text,week:state.week});
     }
