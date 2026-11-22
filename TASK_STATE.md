@@ -292,3 +292,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Full gameplay CI added: `tests/v14_11_lifecycle.js`, `.github/workflows/v14_11_full.yml`. 28 events, 7 lifecycle phases, trusted actor/director relationships and cross-media continuation hooks exercised.
 - [x] Production Center / Film Hub action UI consolidated in `ui.js`, with genre/topic review diversity retained; `tests/v14_11_readability_browser.py` now covers real lifecycle decision modal and action history.
 - [ ] Confirm final CI (integrated, latest lifecycle browser/long-horizon, mobile) and GitHub Pages deployed commit; record pass/fail honestly before release.
+
+### Latest integrated QA follow-up (v14.11a–f)
+- [x] Corrected original Film Hub, promotions, finance and tutorial selectors to navigate the new tabs; restored tutorial's Project Details entry and collapsed help (commits `474033c`, `31b7164`, `e86f150`, `e081a5a`).
+- [x] Corrected older tests to acknowledge annual award popup and only expand the monitor's detailed data on demand (`ac188aa`). New stage-first UI and targeted lifecycle tests already passed; Pages deployed same executable code through `5b91fd6` (run `44984401044`).
+- [ ] Final full browser integration suite on `main` remains under review; no claim of all legacy tests passing yet. Physical-device acceptance outstanding.
