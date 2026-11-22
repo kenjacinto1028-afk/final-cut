@@ -3429,6 +3429,67 @@ var Engine = (function () {
   function stratName(id) { const s = byId(CONTENT.RIVAL_STRATEGIES, id); return s ? s.name : id; }
   function tierName(i) { return (CONTENT.GROWTH_TIERS[i] || { name: 'tier ' + i }).name; }
   function genreName(id) { const g = byId(CONTENT.GENRES, id); return g ? g.name : id; }
+
+  // v15c: permanent, behavior-driving rival traits. Stored per studio rather
+  // than regenerated each year, including when a newcomer replaces a closure.
+  const V15_RIVAL_TRAITS={
+    challenger:{name:'Competitive challenger',description:'Seeks direct release battles and recognition.',risk:1.20,yield:0.75},
+    methodical:{name:'Methodical producer',description:'Protects margins and avoids crowded release dates.',risk:0.82,yield:1.28},
+    visionary:{name:'Prestige visionary',description:'Pursues strong material and critical acclaim.',risk:0.92,yield:1.06},
+    networker:{name:'Industry connector',description:'Values talent relationships and partnerships.',risk:0.96,yield:1.20},
+    gambler:{name:'High-stakes opportunist',description:'Follows sudden demand, risking expensive misses.',risk:1.30,yield:0.90}
+  };
+  function v15RivalTrait(r){
+    if(!r.personality||!V15_RIVAL_TRAITS[r.personality]){
+      const ids=Object.keys(V15_RIVAL_TRAITS);
+      // No new random roll for migrated worlds, so reloads never flip identity.
+      let hash=2166136261;
+      for(const char of String(r.name||r.id)){hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;}
+      r.personality=ids[hash%ids.length];
+    }
+    if(!Number.isFinite(r.playerRelation))r.playerRelation=0;
+    if(!Array.isArray(r.livingHistory))r.livingHistory=[];
+    return V15_RIVAL_TRAITS[r.personality];
+  }
+  function v15RivalGoal(r){
+    v15RivalTrait(r);
+    const year=dateOf().year;
+    if(r.annualGoal&&r.annualGoal.year===year)return r.annualGoal;
+    const recent=r.results||[],profit=recent.reduce((n,x)=>n+x,0);
+    const ambition=profit<0?'Restore profitability':
+      r.personality==='visionary'||r.strategy==='prestige'?'Win critical attention':
+      r.personality==='challenger'?'Challenge leading studios':
+      r.personality==='networker'?'Build creative partnerships':
+      r.personality==='gambler'?'Exploit market trends':'Protect box office share';
+    r.annualGoal={year,name:ambition,startCash:Math.round(r.cash),
+      targetGenre:r.signatureGenre||'drama',startingReleases:r.releases||0};
+    if(!r.livingHistory.some(x=>x.year===year&&x.kind==='ambition')){
+      r.livingHistory.push({week:state.week,year,kind:'ambition',
+        text:ambition+' · '+genreName(r.annualGoal.targetGenre)});
+      r.livingHistory=r.livingHistory.slice(-12);
+    }
+    return r.annualGoal;
+  }
+  function v15RivalRelationship(r,delta,reason,p){
+    v15RivalTrait(r);
+    const old=r.playerRelation;
+    r.playerRelation=clamp(old+delta,-75,75);
+    if(!delta||old===r.playerRelation)return;
+    const text=String(reason||'Industry interaction').slice(0,135);
+    r.livingHistory.push({week:state.week,kind:delta<0?'rivalry':'relations',text,projectId:p&&p.id||null});
+    r.livingHistory=r.livingHistory.slice(-12);
+    if(p)filmStory(p,'rival',r.name+': '+text);
+  }
+  function v15RivalProfile(id){
+    const r=getRival(id);
+    if(!r)return null;
+    const trait=v15RivalTrait(r),goal=v15RivalGoal(r);
+    return {id:r.id,name:r.name,personality:r.personality,trait:trait.name,
+      description:trait.description,ambition:goal.name,genre:goal.targetGenre,
+      relation:r.playerRelation,label:r.playerRelation<=-25?'Rival':
+        r.playerRelation>=22?'Friendly':'Neutral',
+      history:r.livingHistory.slice(-10).reverse()};
+  }
   function rivalBudget(r, tier) {
     return Math.round(TUNING.rivals.tierBudget[tier == null ? r.tier : tier] * stratDef(r.strategy).budgetMult * eraScale() / 1000) * 1000;
   }
@@ -3454,6 +3515,7 @@ var Engine = (function () {
     const identity = byId(CONTENT.RIVAL_STRATEGIES, r.baseStrategy || r.strategy);
     r.signatureGenre = identity && identity.genres.length ? pick(identity.genres) : pick(CONTENT.GENRES).id;
     r.cash = Math.round(rivalBudget(r) * R.startCashBudgets);
+    v15RivalTrait(r);v15RivalGoal(r);
     state.rivals.list.push(r);
     if (seed) greenlight(r, rint(4, 30));
     return r;
@@ -3537,7 +3599,7 @@ var Engine = (function () {
   function rivalGenre(r) {
     // A recognizable specialty stays relevant while the studio adapts to the current market.
     if (r.focus && r.focus.length && Math.random() < TUNING.rivals.focusChance) return pick(r.focus);
-    if (r.signatureGenre && Math.random() < (r.industryLeader ? 0.70 : r.strategy === 'prestige' ? 0.55 : 0.34)) return r.signatureGenre;
+    if (r.signatureGenre && Math.random() < (r.industryLeader ? 0.70 : r.strategy === 'prestige' || r.personality==='visionary' ? 0.61 : 0.34)) return r.signatureGenre;
     if (r.strategy === 'trend') return pick(hottestGenres(3));
     const s = byId(CONTENT.RIVAL_STRATEGIES, r.strategy);
     const genres = s && s.genres.length ? s.genres.slice() : CONTENT.GENRES.map(g=>g.id);
@@ -3705,7 +3767,8 @@ var Engine = (function () {
   }
   function greenlight(r, lead, pitch) {
     const R = TUNING.rivals, S = stratDef(r.strategy);
-    let budget = rivalBudget(r) * rnd(0.7, 1.3);
+    const trait=v15RivalTrait(r),goal=v15RivalGoal(r);
+    let budget = rivalBudget(r) * rnd(0.7, 1.3) * trait.risk;
     if (r.cash < budget) budget *= 0.5;
     budget = Math.round(Math.min(budget, audienceCap() * R.maxBudgetCap) / 1000) * 1000;
     const tq = Math.min(R.talentQualityMax, rivalTalent(r).length * R.talentQuality);
@@ -3739,7 +3802,7 @@ var Engine = (function () {
       dna:pitch?{hook:pitch.hook,strengths:pitch.strengths.slice(),risk:pitch.risk,vision:pitch.vision,lane:pitch.vision==='bold'?'genre':'arthouse',origin:'marketplace'}:null,
       sequelOf:sequelSource ? sequelSource.id : null, franchiseId:sequelSource ? (sequelSource.franchiseId||sequelSource.id) : null, franchiseName:sequelSource?sequelSource.title:null, installment:sequelSource?2:1,
       startWeek: state.week, credits: credits,creditIds:creditIds, region: r.region, regions: [r.region].concat(r.tier >= 2 ? CONTENT.REGIONS.filter(z => z.id !== r.region).slice(0, Math.min(2,r.tier - 1)).map(z => z.id) : []), regionalGross: {}, budget: budget,
-      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + earnedCraft + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
+      quality: clamp(Math.round(rnd(S.quality[0], S.quality[1]) + tq + skillCraft + earnedCraft + (goal.name==='Win critical attention'&&genre===r.signatureGenre?1.5:0) + (r.industryLeader && genre === r.signatureGenre ? 3 : 0) + (r.tier - 1) * R.tierQuality + eraQuality(genre)), 1, 100),
       hype: clamp(Math.round(rnd(S.hype[0], S.hype[1]) + r.fame * R.fameHype + (r.tier - 1) * R.tierHype + (sequelSource ? 7 : 0)), 0, 100),
       week: 0, stage: 'planned', checked: false, moved: false, opening: 0, gross: 0, revenue: 0, weeksIn: 0, result: null };
     lead = lead || rint(R.leadWeeks[0], R.leadWeeks[1]);
@@ -3786,7 +3849,10 @@ var Engine = (function () {
     const off = w - state.week;
     const bg = off < M.slateWeeks ? (state.market.slate[off] || 0) : R.avgBackground;
     const pressure = bg + rivalPressure(w, f.genre, f).weight / (1 + Math.max(0, activeRivals().length - 6) * 0.035) + playerPressure(w, f.genre);
-    return seasonMult(w) * ((S.seasons || []).includes(seasonOf(w).id) ? R.seasonPref : 1) / (1 + M.competitionPenalty * pressure);
+    const hostile=Math.max(0,(r.playerRelation||0)*-1)/75;
+    const penalty=v15RivalTrait(r).yield*(1-hostile*.20);
+    return seasonMult(w) * ((S.seasons || []).includes(seasonOf(w).id) ? R.seasonPref : 1) /
+      (1 + M.competitionPenalty * pressure * penalty);
   }
   function bestWeek(r, f, from, to) {
     from = Math.max(from, state.week + 2);
@@ -3872,16 +3938,21 @@ var Engine = (function () {
     activeRivals().forEach(r => r.films.forEach(f => {
       if (f.stage !== 'planned' || f.moved || Math.abs(f.week - myWeek) > 1 || f.week <= state.week + 1) return;
       const theirs = f.budget * (1 + r.fame / 100);
-      if (theirs < mine * R.yieldRatio && (f.genre === p.genre || Math.random() < 0.5)) {
+      const profile=v15RivalTrait(r);
+      const antagonism=Math.max(0,-r.playerRelation)/75;
+      const yields=profile.yield*(1-antagonism*.2);
+      if (theirs < mine * R.yieldRatio*yields && (f.genre === p.genre || Math.random() < 0.5)) {
         f.week = bestWeek(r, f, myWeek + 2, myWeek + 2 + R.rescheduleRange);
         f.moved = true;
         addLog(rtx('moved', { rival: r.name, title: f.title, mine: p.title }), 'rival');
         if(p.dna){filmStory(p,'rival',r.name+' moved "'+f.title+'" away from our release week.');
           v14RivalIncident('release',r,p.id,'Shifted '+f.title+' to avoid '+p.title+'.');}
+        v15RivalRelationship(r,profile.name==='Industry connector'?2:1,'Moved '+f.title+' away from '+p.title+'.',p);
       } else if (f.genre === p.genre) {
         addLog(rtx('holds', { rival: r.name, title: f.title, genre: genreName(f.genre), mine: p.title }), 'rival');
         if(p.dna){filmStory(p,'rival',r.name+' kept "'+f.title+'" against our opening.');
           v14RivalIncident('release',r,p.id,'Held an opening opposite '+p.title+'.');}
+        v15RivalRelationship(r,profile.name==='Competitive challenger'?-4:-2,'Held '+f.title+' directly against '+p.title+'.',p);
       }
     }));
   }
@@ -3990,6 +4061,7 @@ var Engine = (function () {
     const R = TUNING.rivals, bo = state.rivals.boxOffice;
     recordWorldYear(dateOf().year-1);
     updateRivalLeaders();
+    activeRivals().forEach(r=>v15RivalGoal(r));
     bo.last = { year: bo.year, you: bo.you, rivals: bo.rivals };
     bo.year = dateOf().year;
     bo.you = 0;
@@ -4016,7 +4088,8 @@ var Engine = (function () {
     return Object.assign({}, r, { strategyName: stratName(r.strategy), baseStrategyName: stratName(r.baseStrategy), tierName: tierName(r.tier),
       overhead: rivalOverhead(r), typicalBudget: rivalBudget(r), talent: rivalTalent(r).map(t => ({ id: t.id, name: t.name, role: t.role })),
       focusNames: (r.focus || []).map(genreName), identity: r.baseStrategy==='prestige'?'Prestige House':r.baseStrategy==='blockbuster'?'Blockbuster Studio':r.baseStrategy==='cheap'?'Indie Genre Specialist':'Trend Challenger',
-      leader:!!r.industryLeader, leadershipYears:r.leadershipYears||0 });
+      leader:!!r.industryLeader, leadershipYears:r.leadershipYears||0,
+      living:v15RivalProfile(r.id) });
   }
 
   function talentMorale(t) { return isRoster(t) ? Math.round(t.contract.morale == null ? TUNING.rivals.morale.start : t.contract.morale) : null; }
@@ -5714,7 +5787,7 @@ var Engine = (function () {
     lifecycleQuote:lifecycleQuote, lifecycleTick:lifecycleTick,
     filmSponsorQuote:filmSponsorQuote,acceptFilmSponsor:acceptFilmSponsor,declineFilmSponsor:declineFilmSponsor,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
-    rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
+    rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, v15RivalProfile:v15RivalProfile, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
     talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, traitsOf: traitsOf, effReliability: effReliability,
     talentStatus: talentStatus, recognition: recognition, talentReach: talentReach, talentContribution: talentContribution, slotOptions: slotOptions, recruitmentInterest: recruitmentInterest, castSummary: castSummary,talentCareer:talentCareer,
