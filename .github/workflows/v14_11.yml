@@ -22,6 +22,7 @@ jobs:
           node --check ui.js
           node --check engine.js
           node tests/v13_5_production_center.js
+          node tests/v14_11_critic_voices.js
           node tests/v14_8_regression.js
       - name: Install Chromium
         run: |
