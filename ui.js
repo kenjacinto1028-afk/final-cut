@@ -3403,7 +3403,7 @@ var UI = (function () {
     const plan=plans[plans.length-1];if(!plan)return '';
     const chosen=(plan.priorities||[]).map(id=>YEAR_STRATEGIES.find(x=>x[0]===id)?.[1]).filter(Boolean);
     const accepted=(plan.opportunities||[]).filter(x=>x.status==='accepted');
-    return '<section class="fc-annual-summary"><h2>Annual Studio Strategy · '+plan.year+'</h2>'+
+    return '<section class="fc-annual-summary"><h2>Annual Studio Strategy · '+(plan.year+1)+'</h2>'+
       '<p class="muted">Planning priorities guide your decisions; they do not automatically spend money or guarantee results.</p>'+
       '<p><strong>Priorities:</strong> '+esc(chosen.join(' + ')||'Not set')+'</p>'+
       (accepted.length?accepted.map(o=>'<div class="fc-annual-task"><span>'+esc(o.title)+(o.reviewed?' · reviewed':' · to review')+'</span>'+
@@ -3428,6 +3428,22 @@ var UI = (function () {
           '<button type="button" aria-pressed="'+(o.status===v[0])+'" class="'+(o.status===v[0]?'is-selected':'')+
           '" onclick="UI.decideYearOpportunity('+report.year+',&quot;'+o.id+'&quot;,&quot;'+v[0]+'&quot;)">'+v[1]+'</button>').join('')+
         '</div></div>').join('')+'</div>';
+  }
+  function yearEndStrategyScorecard(report){
+    const released=Engine.state.projects.filter(p=>p.releaseWeek!=null&&Engine.dateOf(p.releaseWeek).year===report.year);
+    const receipts=released.reduce((n,p)=>n+(p.revenue||0),0),costs=released.reduce((n,p)=>n+(p.spent||0),0);
+    const plan=(Engine.state.yearPlans||[]).find(p=>p.year===report.year-1);
+    const priorities=plan?.priorities||[];
+    const notes=[];
+    if(priorities.includes('profit'))notes.push('Profitability: '+(receipts>=costs?'film receipts currently cover recorded production costs':'film receipts are below recorded production costs')+'; studio overhead is excluded.');
+    if(priorities.includes('prestige'))notes.push('Prestige: '+report.awards+' player honors recorded for this year; evaluate critic scores and rival competition as well.');
+    if(priorities.includes('franchise'))notes.push('Franchises: '+released.filter(p=>p.sequelOf!=null).length+' follow-up releases this year; each film needs independent financial review.');
+    if(priorities.includes('talent'))notes.push('Talent: review collaborators’ actual contract and relationship changes in the roster.');
+    return '<section class="fc-annual-summary"><h3>Year-end financial and strategy review</h3>'+
+      '<p><strong>'+money(receipts)+'</strong> receipts · <strong>'+money(costs)+'</strong> production spending · <strong>'+money(receipts-costs)+'</strong> direct film balance</p>'+
+      '<p class="muted">Current lifetime figures for films first released this year, not calendar-year cash flow. Studio overhead is excluded.</p>'+
+      (notes.length?'<h4>Your '+report.year+' priorities</h4>'+notes.map(n=>'<p>'+esc(n)+'</p>').join(''):'<p class="muted">No prior-year strategy priorities were selected.</p>')+
+      '</section>';
   }
   function yearEndFacts(report) {
     const s = Engine.state;
@@ -3475,7 +3491,7 @@ var UI = (function () {
         '<p class="year-end-encourage">No major ceremony victories this year. A nomination is still an achievement—and next year is a fresh competition.</p>') +
       (facts.festivals.length ? '<h3>Festival victories</h3><ul class="year-end-honors-list">' + facts.festivals.map(f =>
         '<li><strong>' + esc(f.title) + '</strong> · ' + esc(f.festival) + ' · ' + esc(f.prize) + '</li>').join('') + '</ul>' : '') +
-      '<h3>The award ceremonies</h3>' + yearEndCeremonies(facts) + '</div>';
+      '<h3>The award ceremonies</h3>' + yearEndCeremonies(facts) + yearEndStrategyScorecard(report) + '</div>';
     root.innerHTML = '<div class="year-end-shade"><div class="year-end-card" role="dialog" aria-modal="true" aria-labelledby="year-end-title" aria-describedby="year-end-description">' +
       '<div class="year-end-mast"><span>FINAL CUT · THE YEAR IN FILM</span><div class="year-end-mast-actions">' +
       (hasMedia() && Media.musicState().supported ? '<button id="year-sound-btn" type="button" aria-pressed="' + Media.settings.sfx + '" onclick="UI.yearEndSound()">♫ Sound ' + (Media.settings.sfx ? 'On' : 'Off') + '</button>' : '') +
