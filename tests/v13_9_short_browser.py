@@ -43,7 +43,9 @@ try:
   card=dock.locator('.fc-monitor-card',has_text='Olden Family')
   assert card.count()==1
   assert 'Quality' in card.inner_text() and 'Hype' in card.inner_text()
+  card.locator('.fc-monitor-expand summary').click()
   assert 'screening visits' in card.inner_text()
+  page.evaluate("UI.centerSelectTab('performance')")
   assert page.locator('.fc-center .fc-performance-board').count()==1
   board=page.locator('.fc-center .fc-performance-board')
   for phrase in ['Film quality','Release hype','Est. screening visits','FESTIVAL EXPOSURE',
@@ -68,9 +70,10 @@ try:
   assert perweek['visits']>0
   assert sum(perweek['weeks'])>0
   assert len(perweek['weeks'])>=result['run']-1  # opening week may have already run
-  assert page.locator('.fc-short-festivals').count()>=1
-  assert 'After-release opportunities' in page.locator('.fc-center').inner_text()
+  page.evaluate("UI.centerSelectTab('performance')")
   assert page.locator('.fc-film-health').count()>=1
+  page.evaluate("UI.centerSelectTab('management');UI.centerAction('festivals')")
+  assert page.locator('.fc-film-action-row').count()==1
   page.screenshot(path='/tmp/finalcut-v13_9-festival-afterlife.png',animations='disabled')
   quote=page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press')",result['id'])
   if quote['ok']:
@@ -85,7 +88,7 @@ try:
    assert page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'press').ok",result['id'])==False
   # Force a fully acclaimed title to exercise the eligibility rule for a
   # separate four-week encore; game still books the costs and real receipts.
-  page.evaluate("(id)=>{Engine.getProject(id).quality=80;UI.go('projects')}",result['id'])
+  page.evaluate("(id)=>{Engine.getProject(id).quality=80;UI.go('projects');UI.centerSelectTab('management');UI.centerAction('festivals')}",result['id'])
   encore=page.evaluate("(id)=>Engine.shortPostReleaseQuote(id,'encore')",result['id'])
   assert encore['ok'],encore
   # In-game film campaign dialog replaces native browser confirm.
