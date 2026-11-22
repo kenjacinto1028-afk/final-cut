@@ -429,3 +429,26 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 @media(max-width:400px){
   #main .fc-dashboard-identity-link{width:100%}
 }
+
+
+/* v14.10 annual studio planning */
+.fc-annual-planning { text-align:left; max-height:53vh; overflow:auto; padding:0 4px; }
+.fc-annual-planning > p { color:var(--muted,#aeb9b9); line-height:1.55; }
+.fc-annual-planning h2,.fc-annual-planning h3 { margin:12px 0; }
+.fc-annual-priorities { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:14px 0 20px; }
+.fc-annual-priorities button { display:flex; flex-direction:column; gap:6px; padding:13px; text-align:left; border:1px solid #495552; border-radius:9px; background:#202b2b; color:#edf1ed; cursor:pointer; }
+.fc-annual-priorities small { color:#b8c5c0; font-size:.78rem; line-height:1.35; }
+.fc-annual-priorities .is-selected,.fc-annual-options .is-selected { border-color:#e3bf86; background:#4a4030; color:#fff3d8; }
+.fc-annual-task { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 0; border-top:1px solid #47504b; }
+.fc-annual-task p { font-size:.88rem; line-height:1.45; margin:5px 0; color:#c5d0ca; }
+.fc-annual-task small { color:#b6c2bf; }
+.fc-annual-options { display:flex; gap:6px; flex-wrap:wrap; justify-content:end; }
+.fc-annual-options button,.fc-annual-summary button { padding:7px 10px; font-size:.8rem; border:1px solid #586861; border-radius:7px; cursor:pointer; }
+.fc-annual-summary { padding:15px; margin:14px 0; border:1px solid var(--border,#52605a); border-radius:12px; }
+.fc-annual-summary .fc-annual-task button { flex-shrink:0; }
+@media(max-width:600px) {
+  .fc-annual-priorities { grid-template-columns:1fr; }
+  .fc-annual-task { flex-direction:column; align-items:stretch; }
+  .fc-annual-options { justify-content:start; }
+  .fc-annual-planning { max-height:47vh; }
+}
