@@ -1601,13 +1601,13 @@ var UI = (function () {
   }
   function viewRankings() {
     if (filmBrowse.format === 'all') filmBrowse.format = 'feature';
-    return '<h1>Film Rankings</h1><p class="fc-compact-page-info">Compare completed releases by format, broad distribution market, audience, critics and date. Regional gross charts use recorded market receipts; no fictional city/country rankings.</p>' +
+    return '<h1>Film Rankings</h1><details class="fc-brief-explanation"><summary>About the rankings</summary><p>Compare completed releases by format, broad distribution market, audience, critics and date. Regional gross charts use recorded market receipts; no fictional city/country rankings.</p></details>' +
       filmFilters(true) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
 
 // ===== SECTION: VIEW_TALENT =====
   function viewTalent() {
-    return '<h1>Talent</h1><p class="muted">Everyone working in the business. Click a name for details and contracts.</p>' + tblHtml('talent', {
+    return '<h1>Talent</h1><details class="fc-brief-explanation"><summary>Using the Talent list</summary><p>Click a name for details and contracts.</p></details>' + tblHtml('talent', {
       rows: () => Engine.talent(),
       rowId: t => t.id,
       onRow: openTalent,
@@ -1646,10 +1646,10 @@ var UI = (function () {
     const r = Engine.roster();
     let h = '<h1>Roster</h1><div class="strip">' + stat('Signed', r.length + ' / ' + Engine.rosterCap()) + stat('Salaries', money(Engine.weeklySalaries()) + '/wk') +
       stat('Expiring', Engine.expiringContracts().length) + '</div>';
-    if (s.studio.fame < C.exclusiveFame) h += '<p class="muted">Exclusive contracts unlock at studio fame ' + C.exclusiveFame + ' (now ' + Math.round(s.studio.fame) + '). Until then, hire per project.</p>';
-    else h += '<p class="muted">Sign talent from the Talent page. Roster talent costs a weekly salary but no fee per project. Rows in yellow end within ' + C.warnWeeks + ' weeks.</p>';
+    if (s.studio.fame < C.exclusiveFame) h += '<details class="fc-brief-explanation"><summary>Contract rules</summary><p>Exclusive contracts unlock at studio fame ' + C.exclusiveFame + ' (now ' + Math.round(s.studio.fame) + '). Until then, hire per project.</p></details>';
+    else h += '<details class="fc-brief-explanation"><summary>Contract rules</summary><p>Sign talent from the Talent page. Roster talent costs a weekly salary but no fee per project. Rows in yellow end within ' + C.warnWeeks + ' weeks.</p></details>';
     if (!r.length) return h + '<p>No one under contract yet.</p>';
-    h += '<p class="muted">Morale below ' + lowMorale + ' (red) makes a rival poaching offer likely. Hits, renewals and fair pay raise it; idle weeks and underpay lower it.</p>';
+    h += '<details class="fc-brief-explanation"><summary>Morale and rival poaching</summary><p>Morale below ' + lowMorale + ' (red) makes a rival poaching offer likely. Hits, renewals and fair pay raise it; idle weeks and underpay lower it.</p></details>';
     return h + tblHtml('roster', {
       rows: () => Engine.roster(),
       rowId: t => t.id,
@@ -1768,7 +1768,7 @@ var UI = (function () {
     const mk = Engine.marketInfo();
     let h = '<h1>Market</h1><div class="strip">' + stat('Era', esc(mk.era.name)) + stat('Economy', esc(mk.cycle.name) + ' ' + mult(mk.cycle.mult)) + stat('Season', esc(mk.season.name) + ' ' + mult(mk.season.mult)) +
       stat('Rival releases this week', mk.slate[0].competitors) + stat('Biggest possible opening', money(mk.audienceCap)) + '</div>';
-    h += '<p class="muted">' + esc(mk.cycle.blurb) + ' Demand = popularity × era taste. Popularity changes every quarter; era taste changes with each era. Each rival release in your opening week cuts the opening; so do your own films still in their first weeks.</p>';
+    h += '<details class="fc-brief-explanation"><summary>How market demand works</summary><p>' + esc(mk.cycle.blurb) + ' Demand = popularity × era taste. Popularity changes every quarter; era taste changes with each era. Each rival release in your opening week cuts the opening; so do your own films still in their first weeks.</p></details>';
     h += '<h2>Genres</h2>' + tblHtml('market', {
       rows: () => Engine.marketInfo().genres,
       rowId: g => g.id,
@@ -1929,7 +1929,7 @@ var UI = (function () {
     let h = '<h1>Rivals</h1><div class="strip">' + stat('Active studios', act.length) + stat('Your box office share this year', (me ? me.share : 0) + '%') +
       stat('Talent poached from you', poached) + '</div>';
     h += '<p class="fc-compact-page-info"><button type="button" onclick="UI.go(\'calendar\')">See the release calendar</button> to compare premieres and competing genres.</p>';
-    h += '<p class="muted">Rival films compete for your release weeks. A studio that keeps losing money chases trends; the weakest go bankrupt and upstarts replace them. Click a studio for its releases and poached talent.</p>';
+    h += '<details class="fc-brief-explanation"><summary>How rivals behave</summary><p>Rival films compete for your release weeks. A studio that keeps losing money chases trends; the weakest go bankrupt and upstarts replace them. Click a studio for its releases and poached talent.</p></details>';
     h += tblHtml('rivals', {
       rows: rivalInfos,
       rowId: r => r.id,
@@ -3630,6 +3630,12 @@ var UI = (function () {
     if (s && view !== 'saves') h = sectionTabs() + h;
     if (flash) h = '<div class="alert" role="status" aria-live="polite" aria-atomic="true">' + esc(flash) + '</div>' + h;
     $('main').innerHTML = h;
+    // Explanations stay available to assistive technology and via hover/focus,
+    // but do not add a permanent paragraph beneath every Production Center KPI.
+    $('main').querySelectorAll('.fc-stats em').forEach(node=>{
+      node.parentElement.title=(node.parentElement.title?node.parentElement.title+' · ':'')+node.textContent.trim();
+      node.classList.add('fc-visually-hidden');
+    });
     if (viewTransitionPending && hasMedia() && Media.motionOK()) {
       $('main').classList.remove('fc-view-enter');
       void $('main').offsetWidth;
