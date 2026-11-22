@@ -957,3 +957,25 @@ body.tutorial-open #premiere-report .fc-premiere-card{
 .fc-franchise-entry p{margin:6px 0 0;line-height:1.6;overflow-wrap:anywhere}
 .fc-franchise-entry a{color:var(--accent,#87c9be)}
 @media(max-width:700px){.fc-franchise-entry{display:block}.fc-franchise-entry>div:last-child{margin-top:10px}.fc-followup-actions button{flex:1 1 100%}}
+
+/* World Film Archive: clear sort affordances and persistent player-film identity */
+.fc-archive-hint{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;color:#bfd0c9;font-size:12px;line-height:1.5}
+.fc-film-owner-tag{display:inline-flex;align-items:center;vertical-align:middle;margin-left:8px;padding:2px 7px;
+  border:1px solid #7cae9b;border-radius:5px;background:#31574d;color:#e9f8ed;font-size:10px;
+  font-weight:800;letter-spacing:.035em;line-height:1.45;white-space:nowrap}
+.fc-archive-hint .fc-film-owner-tag{margin-left:0}
+.fc-finance-table .fc-archive-sort{display:inline-flex;align-items:center;gap:5px;max-width:100%;
+  border:0;background:transparent;box-shadow:none;border-radius:4px;margin:-3px 0;padding:5px 3px;
+  color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:30px}
+.fc-finance-table th.num .fc-archive-sort{justify-content:flex-end;text-align:right;width:100%}
+.fc-finance-table .fc-archive-sort:hover{color:#c2ebdf;background:#36524c}
+.fc-finance-table .fc-archive-sort:focus-visible{outline:2px solid #b9e6d3;outline-offset:2px}
+.fc-finance-table .fc-archive-sort.is-active{color:#d2ead9}
+.fc-archive-sort-indicator{font-size:12px;opacity:.75;white-space:nowrap}
+.fc-archive-sort.is-active .fc-archive-sort-indicator{opacity:1;color:#b7e3c5}
+.fc-finance-table tbody tr.fc-archive-player-film>td{background:#29453f;color:#eff7ef}
+.fc-finance-table tbody tr.fc-archive-player-film:hover>td,
+.fc-finance-table tbody tr.fc-archive-player-film:focus-within>td{background:#36584f}
+.fc-finance-table tbody tr.fc-archive-player-film>td:first-child{box-shadow:inset 4px 0 #a3dcc1}
+.fc-finance-table tbody tr.fc-archive-player-film a{color:#d0f7e2;font-weight:750}
+@media(max-width:620px){.fc-archive-hint{font-size:11px}.fc-finance-table .fc-archive-sort{min-height:34px}}
