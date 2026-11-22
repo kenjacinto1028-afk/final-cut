@@ -1,0 +1,40 @@
+name: Final Cut v15 living industry regression
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  gameworld:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax and living-world tests
+        run: |
+          node --check engine.js
+          node --check ui.js
+          node --check media.js
+          node tests/v15_living_industry.js
+          node tests/v15a_v15b.js
+          node tests/v14_4_budget.js
+          node tests/v14_11_lifecycle.js
+      - name: Standard-start strategy baseline through 1982
+        run: |
+          UNTIL=1982 node sim.js careful 1 83
+          UNTIL=1982 node sim.js prestige 1 84
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser testing dependencies
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Living UI on desktop and phone
+        run: |
+          python tests/v15_living_browser.py
+          python tests/v15a_v15b_browser.py
