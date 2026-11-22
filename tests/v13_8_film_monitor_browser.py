@@ -73,6 +73,8 @@ try:
   for _ in range(10):
    if not page.locator('#premiere-report').is_visible():break
    page.locator('#premiere-report').get_by_role('button',name='Close & continue').click()
+  if page.locator('#year-end-awards').is_visible():
+   page.evaluate("UI.closeYearEndHonors()")
   assert page.locator('#film-monitor').is_visible()
   assert page.locator('.fc-monitor-card').count()>=1
   assert page.locator('#film-monitor').get_by_text('Cinema Rising').count()==1
