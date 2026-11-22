@@ -329,6 +329,146 @@ var Media = (function () {
     if (cur) lines.push(cur);
     return lines.slice(0, 3);
   }
+
+  // v15b: entirely offline illustrated art with stable genre/topic/title choices.
+  function v15PosterCredits(p,state){
+    const c=p.credits||p.castNames||{},founder=state&&state.founder&&state.founder.name||'';
+    function person(slot){
+      if(typeof c[slot]==='string'&&c[slot])return c[slot];
+      const val=p.cast&&p.cast[slot];
+      if(val==='founder')return founder;
+      if(typeof val==='number'&&typeof Engine!=='undefined'){
+        const t=Engine.getTalent(val);if(t)return t.name;
+      }
+      return '';
+    }
+    const actors=[person('lead')],extra=c.supporting||p.talentSnapshot&&p.talentSnapshot.supporting||[];
+    if(Array.isArray(extra))extra.forEach(x=>actors.push(typeof x==='string'?x:x&&x.name||''));
+    return {writer:person('writer')||'Uncredited',director:person('director')||'Uncredited',
+      actors:[...new Set(actors.filter(Boolean))].slice(0,3)};
+  }
+  function v15PosterScene(p,P,r){
+    const A=P[1],L=P[2],D=P[3],t=p.topic||'';
+    const city='<path d="M0 171V102H22V142H37V78H65V137H82V91H109V145H124V69H151V142H167V100H188V153H200V181Z" fill="'+D+'"/>'+
+      '<g fill="'+L+'" opacity=".72"><rect x="48" y="94" width="8" height="11"/><rect x="130" y="83" width="9" height="10"/><rect x="175" y="112" width="7" height="14"/></g>';
+    const town='<path d="M0 168L36 129L68 151L99 114L131 145L171 116L200 150V183H0Z" fill="'+D+'"/>'+
+      '<path d="M19 147V112L41 95L63 112V147ZM85 143V113L106 98L128 113V143ZM146 154V115L167 100L191 115V154Z" fill="'+A+'" opacity=".8"/>'+
+      '<path d="M0 183L85 141H113L200 183Z" fill="'+L+'" opacity=".24"/>';
+    const figure='<circle cx="101" cy="77" r="27" fill="'+L+'" opacity=".85"/>'+
+      '<path d="M46 185Q47 110 100 106Q151 107 155 185Z" fill="'+A+'"/>'+
+      '<path d="M72 114Q97 137 125 115L150 185H49Z" fill="'+D+'" opacity=".42"/>';
+    const letter='<g transform="rotate(-9 100 102)"><rect x="45" y="54" width="110" height="91" rx="2" fill="'+L+'" opacity=".9"/>'+
+      '<path d="M45 54L100 102L155 54M45 145L86 109M155 145L114 109" fill="none" stroke="'+A+'" stroke-width="3"/></g>';
+    const planet='<circle cx="117" cy="84" r="59" fill="'+A+'" opacity=".84"/>'+
+      '<ellipse cx="112" cy="89" rx="87" ry="23" transform="rotate(-24 112 89)" fill="none" stroke="'+L+'" stroke-width="4"/>'+
+      '<circle cx="33" cy="41" r="2" fill="'+L+'"/><circle cx="182" cy="54" r="1.5" fill="'+L+'"/>';
+    const road='<path d="M90 113L109 113L200 185H0Z" fill="'+D+'"/>'+
+      '<path d="M99 123V151M99 167V183" stroke="'+L+'" stroke-width="3" stroke-dasharray="13 7"/>'+
+      '<rect x="73" y="112" width="56" height="24" rx="5" fill="'+A+'"/>'+
+      '<circle cx="84" cy="137" r="7" fill="'+L+'"/><circle cx="117" cy="137" r="7" fill="'+L+'"/>';
+    const house='<path d="M43 167V88L99 41L159 88V167Z" fill="'+D+'" stroke="'+A+'" stroke-width="3"/>'+
+      '<path d="M29 91L99 27L173 91" fill="none" stroke="'+L+'" stroke-width="6"/>'+
+      '<rect x="87" y="121" width="27" height="46" fill="'+A+'"/>'+
+      '<rect x="57" y="91" width="18" height="25" fill="'+L+'" opacity=".75"/>'+
+      '<rect x="124" y="91" width="18" height="25" fill="'+L+'" opacity=".75"/>';
+    const clock='<g fill="none" stroke="'+L+'"><circle cx="100" cy="93" r="65" stroke-width="3"/>'+
+      '<circle cx="100" cy="93" r="47" stroke-width="1.5"/></g>'+
+      '<path d="M100 92L99 55M100 92L129 113" stroke="'+A+'" stroke-width="6" stroke-linecap="round"/>';
+    const ring='<path d="M0 128H200M0 149H200M17 111V185M183 111V185" stroke="'+L+'" stroke-width="4" opacity=".75"/>'+
+      '<circle cx="70" cy="90" r="19" fill="'+A+'"/><path d="M45 185L52 112L93 115L102 185Z" fill="'+D+'"/>'+
+      '<circle cx="141" cy="91" r="18" fill="'+L+'"/><path d="M116 185L124 115L160 110L170 185Z" fill="'+A+'"/>';
+    const music='<rect x="83" y="49" width="34" height="69" rx="17" fill="'+A+'" stroke="'+L+'" stroke-width="3"/>'+
+      '<path d="M100 117V158M71 145Q100 166 129 145M79 160H121" fill="none" stroke="'+L+'" stroke-width="6"/>';
+    const west='<circle cx="147" cy="62" r="39" fill="'+L+'" opacity=".8"/>'+
+      '<path d="M0 157L37 115L70 145L93 102L140 152L178 122L200 151V185H0Z" fill="'+D+'"/>';
+    let subject=figure;
+    if(['smalltown','comingofage'].includes(t))subject=town;
+    else if(['roadtrip'].includes(t))subject=road;
+    else if(['haunted','supernatural','nightshift'].includes(t))subject=house;
+    else if(['heist','corruptcop','organizedcrime','conspiracy','espionage'].includes(t))subject=city+letter;
+    else if(['familysecret','medical'].includes(t))subject=figure+letter;
+    else if(['spacecolony','invasion','robots'].includes(t))subject=planet;
+    else if(['boxing','underdog'].includes(t))subject=ring;
+    else if(['rockband','celebrity'].includes(t))subject=city+music;
+    else if(['frontier','revenge'].includes(t))subject=west;
+    else if(t==='timetravel')subject=clock;
+    else if(t==='firstlove')subject=figure+'<path d="M92 139Q44 102 75 85Q91 79 101 96Q121 74 139 92Q148 115 105 143Z" fill="'+L+'" opacity=".6"/>';
+    else if(t==='cult')subject=clock+figure;
+    const title=String(p.title||'').toLowerCase();
+    if(/letter|postmark|envelope|mail|paper/.test(title))subject+=letter;
+    else if(/clock|time|hour|tomorrow/.test(title))subject+=clock;
+    else if(/moon|night|midnight/.test(title))subject+='<circle cx="166" cy="40" r="25" fill="'+L+'" opacity=".56"/>';
+    else if(/river|tide|harbor|ocean/.test(title))subject+='<path d="M0 172Q42 152 96 169T200 170" stroke="'+L+'" stroke-width="4" fill="none"/>';
+    return subject;
+  }
+  function v15TitleWrap(title){
+    const words=String(title||'UNTITLED').trim().toUpperCase().split(/\s+/),lines=[];let line='';
+    for(const word of words){
+      if(line&&(line+' '+word).length>18){lines.push(line);line=word;}
+      else line=line?line+' '+word:word;
+    }
+    if(line)lines.push(line);
+    return lines.slice(0,4);
+  }
+  function v15PosterSVG(p,opts,style,eraId,E,pal,year){
+    const family=(style-8)%6,variation=Math.floor((style-8)/6);
+    const seed=hash(String(p.id||'')+'|'+p.title+'|'+p.genre+'|'+p.topic+'|'+style);
+    const r=rng(seed),id='fcart'+seed.toString(36);
+    const A=pal[1],L=pal[2],D=pal[3],base=variation%2?pal[0]:D;
+    const state=typeof Engine!=='undefined'?Engine.state:null;
+    const credits=v15PosterCredits(p,state);
+    const studio=opts.studio||p.studio||(state&&state.studio&&state.studio.name)||'Final Cut';
+    const text=(value,y,size,color,attr)=>{
+      const str=String(value||'');
+      const shrink=str.length*size*.58>184?' textLength="184" lengthAdjust="spacingAndGlyphs"':'';
+      return '<text x="100" y="'+y+'" text-anchor="middle" font-family="'+E.font.replace(/"/g,'')+
+        '" font-size="'+size+'" fill="'+color+'"'+shrink+(attr||'')+'>'+xml(str)+'</text>';
+    };
+    let svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" role="img" aria-label="'+xml('Poster for '+p.title)+'">';
+    svg+='<defs><linearGradient id="'+id+'" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="'+base+'"/>'+
+      '<stop offset=".65" stop-color="'+pal[0]+'"/><stop offset="1" stop-color="'+D+'"/></linearGradient>'+
+      '<clipPath id="'+id+'c"><rect x="0" y="17" width="200" height="169"/></clipPath></defs>'+
+      '<rect width="200" height="300" fill="url(#'+id+')"/>';
+    svg+='<g clip-path="url(#'+id+'c)">';
+    for(let i=0;i<24;i++)svg+='<circle cx="'+(r()*200).toFixed(1)+'" cy="'+(r()*188).toFixed(1)+
+      '" r="'+(.4+r()*1.7).toFixed(1)+'" fill="'+L+'" opacity="'+(.08+r()*.22).toFixed(2)+'"/>';
+    const scene=v15PosterScene(p,pal,r),plain=motif(p.genre,pal,r);
+    if(family===0)svg+='<circle cx="112" cy="80" r="75" fill="'+A+'" opacity=".17"/>'+
+      '<circle cx="101" cy="82" r="29" fill="'+L+'" opacity=".7"/>'+
+      '<path d="M36 186Q38 106 100 109Q164 110 166 186Z" fill="'+D+'" stroke="'+A+'" stroke-width="3"/>'+
+      '<g opacity=".63" transform="translate(0 22) scale(1 .78)">'+scene+'</g>';
+    else if(family===1)svg+='<circle cx="160" cy="59" r="45" fill="'+A+'" opacity=".65"/>'+scene;
+    else if(family===2)svg+='<rect x="19" y="23" width="162" height="153" fill="'+L+'" opacity=".08" stroke="'+A+'" stroke-width="2"/>'+
+      '<circle cx="100" cy="95" r="71" fill="'+A+'" opacity=".14"/>'+
+      '<g transform="translate(30 29) scale(.7)">'+scene+'</g>';
+    else if(family===3)svg+='<path d="M-15 17H128L39 185H-15Z" fill="'+A+'" opacity=".32"/>'+
+      '<path d="M165 17H217L129 185H65Z" fill="'+L+'" opacity=".15"/>'+
+      '<g transform="translate(-6 -8) scale(1.1)">'+scene+'</g>';
+    else if(family===4)svg+='<rect x="10" y="27" width="180" height="153" fill="'+A+'" opacity=".16" stroke="'+L+'" stroke-width="3"/>'+
+      '<g transform="translate(7 8) scale(.93)">'+scene+'</g>';
+    else svg+='<rect x="18" y="30" width="164" height="142" rx="4" fill="'+D+'" stroke="'+A+'" stroke-width="5"/>'+
+      '<g transform="translate(17 7) scale(.84)">'+scene+'</g>';
+    if(variation===2)svg+='<g opacity=".22">'+plain+'</g>';
+    else if(variation===3)svg+='<path d="M0 176L200 27" stroke="'+L+'" stroke-width="15" opacity=".14"/>';
+    svg+='</g><rect x="0" y="188" width="200" height="112" fill="'+D+'" opacity=".96"/>'+
+      '<path d="M10 188H190" stroke="'+A+'" stroke-width="2"/>';
+    const format=p.mediaVariant==='web'?'WEB ORIGINAL':p.format==='pilot'?'SERIES PREMIERE':
+      p.format==='short'?'SHORT FILM':'MOTION PICTURE';
+    svg+=text(format,18,6,L,' letter-spacing="1.4" opacity=".88"');
+    const lines=v15TitleWrap(p.title),size=lines.length>3?14:lines.length>2?16:lines.some(x=>x.length>13)?18:21;
+    const height=size*1.04,start=210-(lines.length-1)*height*.42;
+    for(let i=0;i<lines.length;i++)svg+=text(lines[i],(start+i*height).toFixed(1),size,L,
+      ' font-weight="800" paint-order="stroke" stroke="'+D+'" stroke-width="2" stroke-linejoin="round"');
+    const tagline=(TAGLINES[p.genre]||TAGLINES.drama)[seed%3];
+    svg+=text(tagline,Math.min(258,start+lines.length*height+3),7.1,A,' font-style="italic"');
+    svg+='<path d="M16 261H184" stroke="'+A+'" stroke-width=".8"/>';
+    if(credits.actors.length)svg+=text('STARRING '+credits.actors.join(' · '),270,6.2,L,' font-weight="700"');
+    svg+=text('WRITTEN BY '+credits.writer,278,6.2,L,' font-weight="700"')+
+      text('DIRECTED BY '+credits.director,286,6.2,L,' font-weight="700"')+
+      text(String(studio).toUpperCase()+'  ·  '+year,295,5.7,A,' letter-spacing=".5"');
+    return svg+'</svg>';
+  }
+
   // p = project; returns an SVG string. opts.studio overrides the studio name (tests).
   function posterSVG(p, opts) {
     opts = opts || {};
@@ -339,6 +479,10 @@ var Media = (function () {
     const E = POSTER_ERAS[eraId] || POSTER_ERAS.newhollywood;
     const pal = GENRE_PAL[p.genre] || GENRE_PAL.drama;
     const familySeed = hash((p.id || 0) + '|' + p.title + '|' + p.genre + '|' + (p.topic || ''));
+    const chosen=opts.styleId!=null?Number(opts.styleId):
+      p.posterStyleId!=null?Number(p.posterStyleId):8+(familySeed%24);
+    if(Number.isInteger(chosen)&&chosen>=8&&chosen<=31)
+      return v15PosterSVG(p,opts,chosen,eraId,E,pal,year);
     const family = Number.isFinite(Number(opts.styleId)) ? Number(opts.styleId) % 8 : Number.isFinite(Number(p.posterStyleId)) ? Number(p.posterStyleId) % 8 : familySeed % 8;
     const r = rng(hash((p.id || 0) + '|' + p.title + '|' + p.genre + '|' + family));
     const uid = 'p' + (p.id || 0) + '_' + (hash(p.title) % 9973) + '_' + family;
@@ -386,7 +530,10 @@ var Media = (function () {
     svg += '<g font-family="' + E.font.replace(/"/g, '') + '" font-weight="' + E.weight + '" text-anchor="middle" letter-spacing="' + E.spacing + '"' + (E.glow ? ' filter="url(#g' + uid + ')"' : '') + '>' +
       lines.map((l, i) => '<text x="100" y="' + (ty + i * size * 1.05).toFixed(1) + '" font-size="' + size + '" fill="' + fill + '"' + (E.chrome ? ' stroke="#12081f" stroke-width="2.6" stroke-linejoin="round" paint-order="stroke"' : '') + '>' + xml(l) + '</text>').join('') + '</g>';
     svg += '<text x="100" y="' + (ty + lines.length * size * 1.05 + 4).toFixed(1) + '" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="7.5" fill="' + ink + '" opacity=".85">' + xml(tagline) + '</text>';
-    if (credit) svg += '<text x="100" y="286" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.6" fill="' + ink + '" opacity=".75">' + xml(credit) + '</text>';
+    const oldCredits=v15PosterCredits(p,s);
+    if(oldCredits.actors.length)svg += '<text x="100" y="269" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.2" fill="' + ink + '">' + xml('Starring '+oldCredits.actors.join(' · ')) + '</text>';
+    svg += '<text x="100" y="278" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.4" fill="' + ink + '">' + xml('Written by '+oldCredits.writer) + '</text>';
+    svg += '<text x="100" y="286" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.4" fill="' + ink + '">' + xml('Directed by '+oldCredits.director) + '</text>';
     svg += '<text x="100" y="294" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5" letter-spacing="1.5" fill="' + ink + '" opacity=".6">' + year + '</text>';
     return svg + '</svg>';
   }
