@@ -4,7 +4,7 @@ var PosterStore = (function () {
   'use strict';
   const DB = 'finalcut-custom-posters', STORE = 'posters';
   let openPromise = null;
-  const cache = new Map(), requested = new Set();
+  const cache = new Map(), requested = new Set(), lookupFailures = new Map();
   function campaign() {
     return (typeof Engine !== 'undefined' && Engine.state && Engine.state.campaignId) || 'legacy';
   }
@@ -46,16 +46,24 @@ var PosterStore = (function () {
     });
   }
   function signal() { if (typeof document !== 'undefined') document.dispatchEvent(new Event('finalcut-poster-change')); }
+  function status(projectId) {
+    const k = key(projectId);
+    return cache.has(k) ? 'ready' : (lookupFailures.get(k) || 'loading');
+  }
   function memo(k, blob) {
     if (cache.has(k)) URL.revokeObjectURL(cache.get(k));
-    cache.set(k, URL.createObjectURL(blob)); signal();
+    cache.set(k, URL.createObjectURL(blob)); lookupFailures.delete(k); signal();
   }
   function url(projectId) {
     const k = key(projectId);
     if (cache.has(k)) return cache.get(k);
-    if (!requested.has(k)) {
+    if (!requested.has(k) && !lookupFailures.has(k)) {
       requested.add(k);
-      readByKey(k).then(blob => { if (blob) memo(k,blob); }).catch(() => {}).finally(() => requested.delete(k));
+      readByKey(k).then(blob => {
+        if (blob instanceof Blob && blob.size > 0) memo(k, blob);
+        else { lookupFailures.set(k, 'missing'); signal(); }
+      }).catch(() => { lookupFailures.set(k, 'error'); signal(); })
+        .finally(() => requested.delete(k));
     }
     return null;
   }
@@ -66,7 +74,8 @@ var PosterStore = (function () {
   }
   async function remove(projectId) {
     const k=key(projectId);await deleteByKey(k);
-    if(cache.has(k))URL.revokeObjectURL(cache.get(k));cache.delete(k);signal();
+    if(cache.has(k))URL.revokeObjectURL(cache.get(k));cache.delete(k);
+    lookupFailures.set(k, 'missing');signal();
   }
   function asDataURL(blob) { return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);}); }
   async function missing(projectIds) {
@@ -111,13 +120,13 @@ var PosterStore = (function () {
       tx.onerror=()=>reject(tx.error||Error('Could not delete campaign artwork.'));
     });
     for(const k of [...cache.keys()])if(k.startsWith(prefix)){
-      URL.revokeObjectURL(cache.get(k));cache.delete(k);requested.delete(k);
+      URL.revokeObjectURL(cache.get(k));cache.delete(k);requested.delete(k);lookupFailures.delete(k);
     }
     signal();
   }
   function resetCache() {
-    cache.forEach(u=>URL.revokeObjectURL(u));cache.clear();requested.clear();
+    cache.forEach(u=>URL.revokeObjectURL(u));cache.clear();requested.clear();lookupFailures.clear();
   }
-  return { url, put, remove, missing, bundle, restore, resetCache,
+  return { url, status, put, remove, missing, bundle, restore, resetCache,
     copyCampaign, deleteCampaign };
 })();

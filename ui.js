@@ -102,11 +102,35 @@ var UI = (function () {
     const p = id == null ? null : Engine.getProject(id);
     const custom = !!(p && p.posterCustom && typeof PosterStore !== 'undefined');
     const url = custom ? PosterStore.url(p.id) : null;
-    // Never briefly replace an uploaded poster with an unrelated generated
-    // design during an asynchronous IndexedDB lookup or save-slot reload.
-    if(custom)return url ? '<img class="poster-custom" alt="Custom poster for '+esc(f.title)+'" src="'+esc(url)+'">' :
-      '<div class="fc-custom-poster-loading" role="status">Custom poster loading…<small>If it stays missing, restore its poster backup from the original browser.</small></div>';
+    // Keep a stable marker on custom posters so an async IndexedDB read can
+    // replace just the affected image, without redrawing forms or Film Hub tabs.
+    if(custom){
+      const marker=' data-fc-custom-poster="'+Number(p.id)+'"';
+      if(url)return '<img class="poster-custom"'+marker+' alt="Custom poster for '+esc(f.title)+'" src="'+esc(url)+'">';
+      const state=typeof PosterStore.status==='function'?PosterStore.status(p.id):'loading';
+      const message=state==='missing'?'Custom poster unavailable':state==='error'?'Poster storage unavailable':'Loading saved poster…';
+      const help=state==='missing'?'Re-upload in Film Hub or restore a backup with posters.':
+        state==='error'?'Reload this page or check browser storage.':'Stored locally in this browser.';
+      return '<div class="fc-custom-poster-loading"'+marker+' data-fc-poster-state="'+state+'" role="status">'+
+        esc(message)+'<small>'+esc(help)+'</small></div>';
+    }
     return hasMedia() ? Media.posterSVG(p || f) : '';
+  }
+  function refreshCustomPosters(){
+    if(!Engine.state || typeof PosterStore==='undefined')return;
+    // PosterStore announces completed loads, including missing/failed reads.
+    // Replacing only poster nodes prevents reloads from discarding user input.
+    document.querySelectorAll('[data-fc-custom-poster]').forEach(node=>{
+      const id=Number(node.getAttribute('data-fc-custom-poster'));
+      const p=Number.isFinite(id)?Engine.getProject(id):null;
+      if(!p)return;
+      const url=p.posterCustom?PosterStore.url(id):null;
+      const state=p.posterCustom&&typeof PosterStore.status==='function'?PosterStore.status(id):'loading';
+      if(p.posterCustom && url && node.tagName==='IMG' && node.getAttribute('src')===url)return;
+      if(p.posterCustom && !url && node.classList.contains('fc-custom-poster-loading') &&
+        node.getAttribute('data-fc-poster-state')===state)return;
+      node.outerHTML=posterFor(p);
+    });
   }
   // Three curated design alternatives; can always restore the seeded default.
   function designChoices(p) {
@@ -3615,11 +3639,11 @@ var UI = (function () {
     }
     if(style===-1){delete p.posterStyleId;Engine.save();}
     else Engine.setPosterStyle(id,style);
-    renderDrawer();
+    render();
   }
   async function removePoster(id) {
     const p=Engine.getProject(id);if(!p)return;
-    try {await PosterStore.remove(id);p.posterCustom=false;Engine.save();renderDrawer();}
+    try {await PosterStore.remove(id);p.posterCustom=false;Engine.save();render();}
     catch(e) {drawerMsg=e.message;renderDrawer();}
   }
   async function beginPosterUpload(id,input) {
@@ -3657,7 +3681,7 @@ var UI = (function () {
       const out=blob.type==='image/webp'?blob:await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image encoding failed.')),'image/jpeg',.76));
       await PosterStore.put(id,out);
       const p=Engine.getProject(id);if(p){p.posterCustom=true;Engine.save();}
-      closePosterEditor();renderDrawer();
+      closePosterEditor();render();
     }catch(e){notifyGame('Poster could not be saved: '+e.message);}
   }
   async function exportBackup(){
@@ -3759,7 +3783,7 @@ var UI = (function () {
       if (e.key === 'Escape') { closeMobileNav(); closeDrawer(); }
     });
     $('scrim').addEventListener('click', closeDrawer);
-    document.addEventListener('finalcut-poster-change', () => { if(drawer)renderDrawer(); });
+    document.addEventListener('finalcut-poster-change', () => { refreshCustomPosters(); if(drawer)renderDrawer(); });
   }
   document.addEventListener('DOMContentLoaded', init);
 

@@ -254,3 +254,10 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Final v14.1 12-career balance job #44918725663 succeeded: all 15 of 15 PR workflows passed on final code head `7626308`.
 - [ ] Verify the new GitHub Pages deployment (main is merged; live-site verification was not independently available).
 - [ ] Physical Brave Android/iPhone touch acceptance remains outstanding; disable browser "Desktop site" when checking the true mobile layout.
+
+## v14.9b — Custom poster stays loading / missing after local file deletion (2026-11-22)
+- [x] Inspect persisted poster data model and screenshot: cropped image bytes are stored as blobs in browser IndexedDB; local PC file deletion should not remove them. Found poster async completion only rerenders open drawer, leaving Production Center poster placeholder indefinitely (`poster-store.js` / `ui.js`).
+- [x] Implemented explicit loaded/missing/error lookup states with completion event for every result in `poster-store.js` (00bfcfc); blobs remain stored in IndexedDB and export/import untouched.
+- [x] Added targeted poster-node refresh in `ui.js` for all visible surfaces and clear loading/missing/storage-error messages, keeping forms and Film Hub tabs intact (75199a6).
+- [x] Added and passed Chromium regression `tests/v14_9b_poster_browser.py` (real upload, delete PC source, reload, missing IndexedDB notice, reupload, phone screen) plus existing Film Hub and multi-save artwork tests in workflow #44970906451.
+- [ ] Merge fully tested fix and verify GitHub Pages deployment. Do not change game balance or saves.

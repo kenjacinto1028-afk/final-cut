@@ -1,0 +1,38 @@
+name: FinalCut custom-poster persistence and UI
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  poster-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate syntax
+        run: |
+          node --check poster-store.js
+          node --check ui.js
+          python -m py_compile tests/v14_9b_poster_browser.py
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test poster import, source deletion, reload, missing recovery
+        run: python tests/v14_9b_poster_browser.py
+      - name: Check existing Film Hub poster contracts
+        run: python tests/v14_3a_filmhub_browser.py
+      - name: Check existing multi-save artwork behavior
+        run: python tests/v13_7_multi_save_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: finalcut-v14-9b-poster-qa
+          path: /tmp/finalcut-v14-9b-*.png
+          if-no-files-found: ignore
