@@ -68,7 +68,7 @@ try:
     Engine.state.endRunPresented.push(p.id);
     UI.render();
   }""",project)
-  page.evaluate('(id)=>UI.openProject(id)',project)
+  page.evaluate('(id)=>{UI.openProject(id);UI.filmHubSelect("performance")}',project)
   assert 'Release Postmortem' in page.locator('#drawer').inner_text()
   page.evaluate('UI.closeDrawer();UI.go("filmography")')
   assert 'Understanding the numbers' in page.locator('#main').inner_text()
