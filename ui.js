@@ -3453,7 +3453,11 @@ var UI = (function () {
     const festivals = s.projects.flatMap(p => (p.festResults || []).filter(f => f.year === report.year && f.kind === 'winner')
       .map(f => ({title:p.title, festival:f.festival, prize:f.result})));
     const film = id => s.projects.find(p => p.id === id);
-    const topGross = film(report.topGrossId), topCritic = film(report.topCriticId);
+    // Recompute from stored film receipts so older save reports with a stale
+    // all-zero gross selection display the actual highest-earning release.
+    const released=s.projects.filter(p=>p.releaseWeek!=null&&Engine.dateOf(p.releaseWeek).year===report.year);
+    const topGross=released.slice().sort((a,b)=>(b.revenue||0)-(a.revenue||0))[0]||film(report.topGrossId);
+    const topCritic=film(report.topCriticId);
     return {ceremonies, nominations, wins, festivals, topGross, topCritic};
   }
   function yearEndCeremonies(facts) {
