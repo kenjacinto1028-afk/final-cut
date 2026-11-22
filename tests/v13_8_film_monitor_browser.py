@@ -84,7 +84,9 @@ try:
   assert bounds['mainRight']<=bounds['dockLeft']+2,bounds
   page.screenshot(path='/tmp/finalcut-v13_8-dock-desktop.png',animations='disabled')
   card=page.locator('.fc-monitor-card',has_text='Cinema Rising')
-  card.locator('.fc-monitor-expand summary').click()
+  detail=page.locator('#film-monitor .fc-monitor-expand summary').first
+  assert detail.count()==1,page.locator('#film-monitor').inner_html()[:1800]
+  detail.click()
   assert card.locator('.fc-pulse-chart').count()==1
   assert 'admissions' in card.inner_text()
   # Promotional action should be optional and charged exactly once.
