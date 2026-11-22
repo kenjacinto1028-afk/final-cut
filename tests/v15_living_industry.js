@@ -41,7 +41,7 @@ function syntheticFilm(E){
   E.state.week=52;
   const p2=E.v15RivalProfile(r.id);
   assert.equal(p2.ambition.length>0,true);
-  assert(r.livingHistory.length>=2,'a new year should record an updated ambition');
+  assert(E.getRival(r.id).livingHistory.length>=2,'a new year should record an updated ambition');
   console.log('PASS v15c personality, yearly goal, relationship, saved history');
 }
 {
