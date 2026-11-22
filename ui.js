@@ -739,7 +739,8 @@ var UI = (function () {
   const draft = { title: '', format: 'short', mediaVariant:'short',budgetCap:1500,
     scope:'intimate', allocation:null,allocationPreset:'balanced',genre: 'drama', topic: 'smalltown', tier: 0,
     cast: { director: 'founder', writer: 'founder', lead: '', crew: '' },supporting:[],specialists:[],backgroundCrew:0,
-    pitchId:null,pitchApproach:'standard',vision:'mainstream',releasePosition:'wide' };
+    pitchId:null,pitchApproach:'standard',vision:'mainstream',releasePosition:'wide',
+    marketingPlan:{intensity:'medium',target:'genre',message:'story'} };
   function syncDraftTier(){
     const f=Engine.formats().find(x=>x.id===draft.format);if(!f)return;
     draft.tier=f.tiers.reduce((i,t,k)=>t.budget<=draft.budgetCap&&!t.locked?k:i,0);
@@ -763,6 +764,13 @@ var UI = (function () {
     render();
   }
   function setScope(value){if(!FinalCutBudget.SCOPE[value])return;draft.scope=value;render();}
+  function setMarketingPlan(field,value){
+    const choices={intensity:['none','small','medium','large'],target:['general','genre','critics','fans'],
+      message:['story','cast','prestige','event']};
+    if(!choices[field]||!choices[field].includes(value))return;
+    draft.marketingPlan=Object.assign({},draft.marketingPlan,{[field]:value});
+    render();
+  }
   function setAllocation(key,value){
     if(!FinalCutBudget.KEYS.includes(key))return;
     const quote=Engine.previewProject(Object.assign({},draft,{allocation:null}));
@@ -1033,6 +1041,27 @@ var UI = (function () {
         'Pilots need a network pickup. Production cost and cast contracts renew each season.')+
         ' TV slots: '+Engine.tvSlotsUsed()+' / '+Engine.growthTier().maxSeries+'.</p>';
     }
+    // v15a — one pre-greenlight choice, no duplicate stage prompt.
+    const mQuote=Engine.v15MarketingQuote(draft,pv);
+    const mSelect=(field,label,options)=>
+      '<label>'+esc(label)+' <select onchange="UI.setMarketingPlan(\''+field+'\',this.value)">'+
+      options.map(x=>'<option value="'+esc(x[0])+'"'+(draft.marketingPlan[field]===x[0]?' selected':'')+'>'+esc(x[1])+'</option>').join('')+
+      '</select></label>';
+    h+='<section class="fc-budget-step fc-marketing-step"><h2>6. Marketing & audience plan</h2>'+
+      '<p class="muted">Choose your release campaign before greenlighting. It runs during post-production without asking again. Approved spending stays within remaining cash and the existing marketing budget.</p>'+
+      '<div class="fc-marketing-inputs">'+
+      mSelect('intensity','Campaign intensity',[
+        ['none','None — no opening campaign'],['small','Small — focused reach'],
+        ['medium','Medium — balanced campaign'],['large','Large — maximum planned commitment']])+
+      mSelect('target','Primary audience',[
+        ['general','General audiences'],['genre','Genre enthusiasts'],
+        ['critics','Critics and festival audiences'],['fans','Franchise / existing fans']])+
+      mSelect('message','Campaign message',[
+        ['story','Lead with the story'],['cast','Lead with the cast'],
+        ['prestige','Lead with artistry and acclaim'],['event','Make it an event']])+'</div>'+
+      '<div class="fc-marketing-preview"><strong>Planned opening campaign: '+money(mQuote.cost)+'</strong>'+
+      '<span>Estimated awareness effect: '+(mQuote.estimatedHype?'+':'')+mQuote.estimatedHype+' hype</span>'+
+      '<small>No payment now. Later funds may reduce actual reach. Optional extra promotions are separate.</small></div></section>';
     // Pre-greenlight checkpoint: connect this budget choice to the studio's annual goals.
     const annual=activeAnnualPlan(),focus=annual?.priorities||[];
     if(focus.length){
@@ -4276,7 +4305,7 @@ var UI = (function () {
     const r = Engine.startProject(draft);
     if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
       draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
-      draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;
+      draft.allocation=null;draft.allocationPreset='balanced'; draft.marketingPlan={intensity:'medium',target:'genre',message:'story'}; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;
       recommendationPopupId=tutorialStep>=0?null:r.project.id;
       go('dashboard'); } else { setFlash(r.reason); render(); }
   }
@@ -4497,7 +4526,7 @@ var UI = (function () {
     tutorialRestartGuided:tutorialRestartGuided,tutorialFollowExistingFilm:tutorialFollowExistingFilm,
     tutorialOpenSection: tutorialOpenSection, tutorialMinimize: tutorialMinimize, go: go, toggleMobileNav: toggleMobileNav, back: back, forward: forward, render: render, setDraft: setDraft, setCast: setCast, randomizeTitle: randomizeTitle,
     v14SelectScript:v14SelectScript, v14CustomScript:v14CustomScript,
-    setMediaVariant:setMediaVariant,setScope:setScope,setBudgetCap:setBudgetCap,
+    setMediaVariant:setMediaVariant,setScope:setScope,setBudgetCap:setBudgetCap,setMarketingPlan:setMarketingPlan,
     v144Shift:v144Shift,v144Extra:v144Extra,
     seriesPlan:seriesPlan,seriesEpisodeCount:seriesEpisodeCount,seriesScope:seriesScope,seriesSponsor:seriesSponsor,
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
