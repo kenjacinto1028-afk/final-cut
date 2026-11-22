@@ -132,20 +132,37 @@ var UI = (function () {
       node.outerHTML=posterFor(p);
     });
   }
-  // Three curated design alternatives; can always restore the seeded default.
+  // Four film-aware designs from a 24-composition offline library.
+  // Regeneration changes the offered batch but preserves the chosen poster.
   function designChoices(p) {
-    const seed = p.title.split('').reduce((n,c)=>n*31+c.charCodeAt(0), 17) >>> 0;
-    return [seed%8,(seed+3)%8,(seed+6)%8];
+    const txt=[p.id,p.title,p.genre,p.topic].join('|');
+    const seed=txt.split('').reduce((n,c)=>(Math.imul(n,31)+c.charCodeAt(0))>>>0,17);
+    const batch=Number(p.posterDesignBatch)||0;
+    return Array.from({length:4},(_,i)=>8+((seed+batch*3+i)%6)+
+      6*((Math.floor(seed/6)+batch+i)%4));
+  }
+  function regeneratePosterSet(id){
+    const result=Engine.regeneratePosterSet(id);
+    if(!result.ok){drawerMsg=result.reason;renderDrawer();return;}
+    if(drawer)renderDrawer();else render();
   }
   function posterActions(p) {
-    if(!p) return '';
-    const styles=designChoices(p);
-    return '<div class="poster-picker"><h3>Film poster</h3><p class="muted">Cosmetic art only — never changes film outcomes.</p>' +
-      '<div class="poster-variants">' + styles.map((v,i)=>'<button class="poster-variant' + (p.posterStyleId===v?' selected':'') + '" onclick="UI.selectPosterStyle('+p.id+','+v+')" aria-label="Select poster design '+(i+1)+'">'+Media.posterSVG(p,{styleId:v})+'<small>Design '+(i+1)+'</small></button>').join('') + '</div>' +
-      '<div class="actions"><label class="poster-upload">Upload custom poster <input type="file" accept="image/png,image/jpeg,image/webp" onchange="UI.beginPosterUpload('+p.id+',this)"></label>' +
-      '<button onclick="UI.selectPosterStyle('+p.id+',-1)">Generated default</button>' +
-      (p.posterCustom?'<button onclick="UI.removePoster('+p.id+')">Remove uploaded poster</button>':'')+'</div>' +
-      '<p class="muted">Custom posters stay on this device unless included in a backup export. Choosing a generated design replaces uploaded art.</p></div>';
+    if(!p||!hasMedia())return '';
+    const styles=designChoices(p),names=['Character','Atmosphere','Symbolic','Spectacle','Retro','Broadcast'];
+    const selected=Number.isInteger(p.posterStyleId)?p.posterStyleId:null;
+    return '<div class="poster-picker fc-poster-studio"><h3>Offline Poster Studio</h3>'+
+      '<p class="muted">Four illustrated options shaped by this film’s genre, topic, title and era. The poster uses the actual credited director, writer and featured actors. Artwork remains cosmetic.</p>'+
+      '<div class="poster-variants fc-poster-grid">'+styles.map((v,i)=>
+        '<button type="button" class="poster-variant'+(selected===v?' selected':'')+
+        '" aria-pressed="'+(selected===v)+'" onclick="UI.selectPosterStyle('+p.id+','+v+
+        ')" aria-label="Choose '+names[(v-8)%6]+' poster design '+(i+1)+'">'+
+        Media.posterSVG(p,{styleId:v})+'<small>'+names[(v-8)%6]+' · '+(i+1)+'</small></button>').join('')+'</div>'+
+      '<div class="actions"><button type="button" onclick="UI.regeneratePosterSet('+p.id+
+      ')">Regenerate 4 designs</button>'+
+      '<button type="button" onclick="UI.selectPosterStyle('+p.id+',-1)">Use automatic poster</button>'+
+      '<label class="poster-upload">Upload custom poster <input type="file" accept="image/png,image/jpeg,image/webp" onchange="UI.beginPosterUpload('+p.id+',this)"></label>'+
+      (p.posterCustom?'<button type="button" onclick="UI.removePoster('+p.id+')">Remove uploaded poster</button>':'')+'</div>'+
+      '<p class="muted">Regenerating does not replace an existing choice or uploaded artwork. Custom posters stay stored on this device and in exports that include artwork.</p></div>';
   }
   function portrait(t) { return hasMedia() ? '<div class="portrait">' + Media.portraitSVG(t, 120) + '</div>' : ''; }
   function eraBanner(eraId) { return hasMedia() ? '<div class="banner" aria-hidden="true">' + Media.backdropSVG(eraId) + '</div>' : ''; }
@@ -4545,5 +4562,5 @@ var UI = (function () {
     filmHubSelect:filmHubSelect,projectDetailSelect:projectDetailSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, centerSelectTab:centerSelectTab,centerAction:centerAction, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, setFilmSort: setFilmSort, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
-    toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
+    toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, regeneratePosterSet:regeneratePosterSet, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();
