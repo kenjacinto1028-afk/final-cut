@@ -269,4 +269,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added annual opportunities (sequel, talent, market, budget, revival, acclaim), two priorities and accept/defer/dismiss with studio save migration (`ui.js`, `engine.js`; `4c3b1f6`, `e3930a6`).
 - [x] Added planning stage after honors, next-year inbox/action routing, accessible Studio Profile annual summary and responsive controls (`ui.js`, `design-v14_7.css`; `4bcbcc9`).
 - [x] Added `tests/v14_10_browser.py` and `v14_10.yml`; targeted workflow passed on commits `42be526`, `9701ad8`, `dbe8200`, `be565d8`. Updated older monitor and dashboard expectations. Full integrated QA and latest Pages deployment are being checked; physical-device acceptance remains separate.
-- [ ] Verify final HEAD integrated CI and GitHub Pages deployment, then close v14.10.
+- [x] Full integrated filmmaking QA passed on code commit `be565d8` (run `44976467071`), and targeted v14.10 QA passed on `c9ef711` (run `44976538557`). Newer commits only updated tests, release notes, and checkpoints.
+- [ ] Confirm final GitHub Pages deployment and physical mobile acceptance separately.
