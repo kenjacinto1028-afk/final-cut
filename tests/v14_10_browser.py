@@ -10,6 +10,14 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     body=re.sub(r'<script.*?</script>','',(ROOT/'index.html').read_text().split('<body>')[1].split('</body>')[0],flags=re.S)
     page.set_content('<html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>'+body+'</body></html>')
+    page.evaluate("""() => {
+      const db=new Map();
+      Object.defineProperty(window,'localStorage',{configurable:true,value:{
+        getItem:k=>db.has(k)?db.get(k):null,
+        setItem:(k,v)=>db.set(k,String(v)),
+        removeItem:k=>db.delete(k)
+      }});
+    }""")
     for css in ['style.css','theme-ab.css','design-v14_7.css','mobile-v14_9.css']:
         page.add_style_tag(content=(ROOT/css).read_text())
     for js in ['content.js','engine.js','poster-store.js','save-slots.js','media.js','design-theme-v14_7.js','ui.js']:
