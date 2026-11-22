@@ -1446,6 +1446,87 @@ var Engine = (function () {
     return result;
   }
 
+
+  // v15e: film fan culture is grounded in recorded audience reach. Only the
+  // community response changes: no synthetic box office, admissions or tickets.
+  function v15FanCommunity(p){
+    if(!p.community||typeof p.community!=='object')
+      p.community={momentum:0,history:[],lastUpdate:state.week,
+        eventsHosted:0,lastHostedWeek:-999,lastPulseWeek:-999};
+    if(!Array.isArray(p.community.history))p.community.history=[];
+    return p.community;
+  }
+  function v15FanStatus(id){
+    const p=typeof id==='object'?id:getProject(Number(id));
+    if(!p||p.releaseWeek==null)return null;
+    const c=v15FanCommunity(p),fans=filmFollowing(p);
+    const age=Math.max(0,state.week-p.releaseWeek);
+    const warmth=(p.audience||0)-(p.critic||0);
+    const outlook=c.momentum>=9?'Resurgent fandom':c.momentum<=-9?'Community backlash':
+      fans.status==='Cult classic'?'Cult following':
+      fans.loyal>=9000?'Loyal community':'Emerging community';
+    return {id:p.id,momentum:c.momentum,active:fans.active,loyal:fans.loyal,
+      age,criticGap:warmth,status:outlook,history:c.history.slice(-6).reverse(),
+      nextEngagementWeek:c.lastHostedWeek+52};
+  }
+  function v15FanEventQuote(id){
+    const p=getProject(Number(id));
+    if(!p||p.releaseWeek==null)return {ok:false,reason:'A film needs an actual release before engaging its fans.'};
+    if(state.gameOver)return {ok:false,reason:'The studio is closed.'};
+    const c=v15FanCommunity(p);
+    const since=state.week-c.lastHostedWeek;
+    if(since<52)return {ok:false,reason:'Another organized fan event is possible in '+(52-since)+' weeks.'};
+    if(c.eventsHosted>=3)return {ok:false,reason:'This film has used its three major fan events.'};
+    const following=filmFollowing(p);
+    const quality=Math.round(((p.quality||0)+(p.audience||0))/2);
+    if(quality<45||following.active<200)return {ok:false,reason:'The film needs a more engaged audience before organizing a paid fan event.'};
+    const cost=Math.max(90,Math.round(Math.min(p.budget*.012,8000)));
+    return {ok:state.cash>=cost,reason:state.cash>=cost?'':'Studio cash cannot cover the event.',
+      cost,expectedMomentum:following.loyal>3500?6:4,following:following.active};
+  }
+  function v15HostFanEvent(id){
+    const q=v15FanEventQuote(id);if(!q.ok)return q;
+    const p=getProject(Number(id)),c=v15FanCommunity(p);
+    state.cash-=q.cost;p.spent+=q.cost;c.momentum=clamp(c.momentum+q.expectedMomentum,-18,18);
+    c.eventsHosted++;c.lastHostedWeek=state.week;
+    const description='Organized a fan conversation and community screening for '+fmtMoney(q.cost)+'.';
+    c.history.push({week:state.week,kind:'engagement',text:description});
+    c.history=c.history.slice(-12);
+    filmStory(p,'fans',description);addLog('"'+p.title+'": '+description,'release');
+    save();emit('fans',p);return {ok:true,cost:q.cost,momentum:c.momentum};
+  }
+  function v15FanTick(){
+    // Quarterly check, at most two notable developments per cycle across the
+    // whole player's catalog. No automatic paid costs or compulsory decisions.
+    if(state.week%13!==0)return;
+    let used=0;
+    const eligible=state.projects.filter(p=>p.releaseWeek!=null&&
+      state.week-p.releaseWeek>=13&&state.week-p.releaseWeek<=52*7);
+    eligible.sort((a,b)=>b.releaseWeek-a.releaseWeek);
+    for(const p of eligible){
+      const c=v15FanCommunity(p);
+      if(c.lastPulseWeek>=state.week-39)continue;
+      c.momentum=clamp(Math.round(c.momentum*.90),-18,18);
+      if(used>=2)continue;
+      const following=filmFollowing(p);
+      if(following.active<500)continue;
+      const reception=((p.quality||0)+(p.audience||0))/2;
+      const backlash=(p.audience||0)<48&&(p.hype||0)>=52;
+      const strong=reception>=71&&following.loyal>=500;
+      if(!strong&&!backlash)continue;
+      const odds=strong?.085:.06;
+      if(Math.random()>=odds)continue;
+      const delta=strong?Math.min(7,2+Math.round(following.loyal/10000)):-4;
+      c.momentum=clamp(c.momentum+delta,-18,18);c.lastPulseWeek=state.week;
+      const text=strong?'Fans keep recommending "'+p.title+
+        '" and organizing independent discussions.':'Disappointed viewers are pushing back against "'+
+        p.title+'".';
+      c.history.push({week:state.week,kind:strong?'grassroots':'backlash',text});
+      c.history=c.history.slice(-12);
+      filmStory(p,'fans',text);addLog(text,'release');used++;
+    }
+  }
+
   // Followers are simulated interest, not unique measured admissions.
   // Derive them from the canonical film record so old saves require no invented history.
   function filmFollowing(p) {
@@ -1462,12 +1543,13 @@ var Engine = (function () {
     const age=Math.max(0,state.week-p.releaseWeek);
     const durable=q>=78&&a>=70;
     const permanent=durable?.72:q>=68?.36:.10;
-    const loyal=Math.round(loyal0*(permanent+(1-permanent)*Math.exp(-age/(durable?650:250))));
+    const momentum=clamp(Number(p.community&&p.community.momentum)||0,-18,18);
+    const loyal=Math.round(loyal0*(permanent+(1-permanent)*Math.exp(-age/(durable?650:250)))*(1+momentum*.012));
     const casual=Math.max(0,awareness-loyal0);
-    const active=Math.round(loyal+casual*Math.exp(-age/(durable?105:64)));
+    const active=Math.round(Math.max(loyal,(loyal+casual*Math.exp(-age/(durable?105:64)))*(1+momentum*.008)));
     const status=age>=52&&q>=74&&loyal>=3500&&loyal/Math.max(1,active)>.42?
       'Cult classic':loyal>=8000?'Dedicated following':active>=8000?'Growing following':'Small following';
-    return {active,loyal,trend:age<8?'Building':age>104&&durable?'Enduring':'Gradually cooling',status};
+    return {active,loyal,trend:momentum>=9?'Resurgent':momentum<=-9?'Facing backlash':age<8?'Building':age>104&&durable?'Enduring':'Gradually cooling',status};
   }
   function studioFollowing(){
     if(!state)return {active:0,loyal:0,trend:'New studio'};
@@ -5512,6 +5594,7 @@ var Engine = (function () {
     awardsTick();
     checkCalendar();
     reputationTick();
+    v15FanTick();
     shiftTick();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
@@ -5909,6 +5992,7 @@ var Engine = (function () {
     staffInfo: staffInfo, staffAction: staffAction,
     regions: () => CONTENT.REGIONS, homeRegion: homeRegion, regionQuote: regionQuote, setDistribution: setDistribution,
     filmFollowing:filmFollowing, studioFollowing:studioFollowing,
+    v15FanStatus:v15FanStatus,v15FanEventQuote:v15FanEventQuote,v15HostFanEvent:v15HostFanEvent,
     filmHistory: filmHistory, filmById: filmById, filmScore: filmScore, filmRankings: filmRankings, sequelEligibility: sequelEligibility, franchiseFilms: franchiseFilms, receptionText: receptionText,
     projectPulse: projectPulse, filmAdmissions: filmAdmissions, admissionsFromGross: admissionsFromGross,
     shortAudience: shortAudience, shortRunRemaining: shortRunRemaining, shortScreeningWeeks:shortScreeningWeeks,
