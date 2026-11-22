@@ -979,3 +979,28 @@ body.tutorial-open #premiere-report .fc-premiere-card{
 .fc-finance-table tbody tr.fc-archive-player-film>td:first-child{box-shadow:inset 4px 0 #a3dcc1}
 .fc-finance-table tbody tr.fc-archive-player-film a{color:#d0f7e2;font-weight:750}
 @media(max-width:620px){.fc-archive-hint{font-size:11px}.fc-finance-table .fc-archive-sort{min-height:34px}}
+
+/* v15a: campaign plan stays inside New Project; no extra post-greenlight gate */
+.fc-marketing-step{margin:17px 0}
+.fc-marketing-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.fc-marketing-inputs label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#dce7df}
+.fc-marketing-inputs select{width:100%;min-height:42px;background:#1b282a;color:#f1f4ef;
+  border:1px solid #728a7d;border-radius:6px;padding:8px}
+.fc-marketing-preview{margin-top:12px;padding:12px;border-radius:8px;border:1px solid #729287;
+  background:#253d39;display:flex;align-items:flex-start;flex-direction:column;gap:5px}
+.fc-marketing-preview strong{color:#e8f8ec}
+.fc-marketing-preview span{color:#c0ead8;font-size:12px}
+.fc-marketing-preview small{color:#c1d0c7;line-height:1.4}
+/* v15b: four readable offline poster variants and mobile-friendly selection */
+.fc-poster-studio{min-width:0}
+.fc-poster-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.fc-poster-grid .poster-variant{display:flex;flex-direction:column;gap:5px;align-items:stretch;
+  min-width:0;border-radius:7px;cursor:pointer}
+.fc-poster-grid .poster-variant svg{width:100%;height:auto;max-height:240px;aspect-ratio:2/3}
+.fc-poster-grid .poster-variant small{text-align:center;line-height:1.4}
+.fc-poster-grid .poster-variant:focus-visible{outline:2px solid #b7e6d2;outline-offset:3px}
+@media(max-width:690px){
+  .fc-poster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fc-poster-grid .poster-variant svg{max-height:210px}
+  .fc-marketing-inputs{grid-template-columns:1fr}
+}
