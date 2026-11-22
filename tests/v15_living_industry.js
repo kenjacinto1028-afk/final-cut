@@ -45,6 +45,29 @@ function syntheticFilm(E){
   console.log('PASS v15c personality, yearly goal, relationship, saved history');
 }
 {
+  const {E,math}=world(117),s=E.state;
+  s.cash=1000000;
+  const rival=E.activeRivals().find(r=>r.status==='active');
+  const before=E.v15RivalProfile(rival.id).relation;
+  const quote=E.v15RivalOutreachQuote(rival.id);
+  assert(quote.ok&&quote.cost>0&&quote.chance>0&&quote.chance<=1);
+  math.random=()=>0;
+  const cash=s.cash,meet=E.v15RivalOutreach(rival.id);
+  assert(meet.ok&&meet.success,'mutual industry meeting should succeed at zero random roll');
+  assert.equal(cash-s.cash,quote.cost,'outreach must cost actual studio cash');
+  assert.equal(E.v15RivalProfile(rival.id).relation,before+9);
+  assert(!E.v15RivalOutreachQuote(rival.id).ok,'one approach per rival per year');
+  s.week=52;
+  assert(E.v15RivalOutreachQuote(rival.id).ok);
+  const second=E.v15RivalOutreach(rival.id);
+  assert(second.ok&&second.success);
+  assert(E.v15RivalProfile(rival.id).relation>=12,
+    'deliberate outreach must unlock eligible collaboration negotiations');
+  assert(E.save()&&E.load().ok);
+  assert.equal(E.v15RivalProfile(rival.id).relation,before+18);
+  console.log('PASS v15h paid rival outreach, annual limit, relationship and save');
+}
+{
   const {E}=world(),s=E.state;
   const t=E.talent().find(x=>x.role==='actor');
   const stage=E.v15TalentProfile(t.id);
