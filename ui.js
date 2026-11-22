@@ -1437,7 +1437,7 @@ var UI = (function () {
       '<button type="button" onclick="UI.centerAction(&quot;budget&quot;)">Budget</button>'+
       '<button type="button" onclick="UI.centerAction(&quot;distribution&quot;)">Distribution</button>'+
       '<button type="button" onclick="UI.centerAction(&quot;release&quot;)">Release</button>'+
-      '<button type="button" onclick="UI.openProject('+chosen.id+')">Full Film Hub</button></div>'+
+      '<button type="button" onclick="UI.openProject('+chosen.id+')">Open project details</button></div>'+
       '<div class="fc-center-quick-decision">'+(current?decision:'<span class="muted">Production continues automatically unless a decision needs attention.</span>')+'</div></div>';
     const section=centerTab==='overview'?overview:
       centerTab==='management'?centerManagement(chosen):
@@ -2670,7 +2670,9 @@ var UI = (function () {
         dl('Expected release',p.releaseWeek!=null?dateLabel(p.releaseWeek):centerWeeksLeft(p)+' estimated work weeks')+
         dl('Quality',p.quality==null?'Est. '+centerEstimate(p).value:p.quality+'/100')+
         dl('Hype',p.hype==null?'Not final':p.hype+'/100')+'</dl>'+
-        '<button type="button" onclick="UI.projectDetailSelect(&quot;management&quot;)">Manage this film</button></div>';
+        '<button type="button" onclick="UI.projectDetailSelect(&quot;management&quot;)">Manage this film</button>'+ 
+        '<details class="fc-brief-explanation fc-project-help"><summary>What can I do next?</summary>'+
+        filmLifecycleGuide(p)+'</details></div>';
     }else if(projectDetailTab==='management'){
       h+=centerManagement(p);
     }else if(projectDetailTab==='performance')h+=projectPerformanceBoard(p)+filmPostmortem(p);
