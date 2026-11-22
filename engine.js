@@ -1969,8 +1969,20 @@ var Engine = (function () {
     if (e.quality) p.qualityMod += e.quality;
     if (e.hype) p.hypeMod += e.hype;
     if (e.weeks) p.stageWeeksLeft += e.weeks;
-    if (e.costPct) { const c = Math.round(p.budget * e.costPct);
-      if(!p.budgetPlan||!v144Pay(p,'reserve',c)){if(!p.budgetPlan){state.cash-=c;p.spent+=c;}else p.qualityMod-=2;}
+    if (e.costPct) {
+      const c=Math.round(p.budget*e.costPct);
+      if(c<0){
+        // Savings reduce future production charges; never create free cash
+        // or undo already booked costs.
+        p.lifecycleSavings=Math.min(Math.round(p.budget*.12),(p.lifecycleSavings||0)-c);
+      }else if(c>0){
+        if(!p.budgetPlan){
+          state.cash-=c;p.spent+=c;
+        }else if(!v144Pay(p,'reserve',c)){
+          // Insufficient available reserve: requested improvement is not free.
+          p.qualityMod=Math.max(-18,(p.qualityMod||0)-2);
+        }
+      }
     }
     if (e.marketing) { const c = Math.round((p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget) * e.marketing);
       if(!p.budgetPlan){state.cash-=c;p.spent+=c;p.marketingSpend+=c;}
@@ -5147,7 +5159,17 @@ var Engine = (function () {
     const actives = activeProjects();
     const freelance = founderFreelancing() ? freelanceIncome() : 0;
     let revenue = 0, production = 0;
-    actives.forEach(p => { const charge=v144BudgetTick(p); p.spent += charge; production += charge; });
+    actives.forEach(p => {
+      const planned=v144BudgetTick(p);
+      const saved=Math.min(planned,Math.max(0,p.lifecycleSavings||0));
+      if(saved&&p.budgetPlan){
+        const key=v144Bucket(p.stage);
+        p.budgetPlan.spent[key]=Math.max(0,(p.budgetPlan.spent[key]||0)-saved);
+      }
+      p.lifecycleSavings=Math.max(0,(p.lifecycleSavings||0)-saved);
+      const charge=planned-saved;
+      p.spent+=charge;production+=charge;
+    });
     state.projects.forEach(p => { if (p.stage === 'release') revenue += releaseIncome(p); });
     revenue += windowsTick();
     revenue += shortEncoreTick();
