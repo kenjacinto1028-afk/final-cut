@@ -281,9 +281,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] Confirm final integrated filmmaking browser QA and deployment of documentation-only follow-up; physical phone acceptance remains separate.
 
 ## v14.11a–f full gameplay expansion (2026-11-22)
-- [ ] v14.11a: Complete shared production/Film Hub management action controls and stage-aware eligibility, avoid dead-end buttons.
+- [x] v14.11a: Shared horizontal film-management panel in Production Center and both Film Hub views, stage indicators and functional distribution/cast/budget/legacy/decision sections (`ui.js`, `fb80430`).
 - [x] v14.11b: Curated development/pre-production decisions in `content.js` and capped triggers in `engine.js` (`b84f4fe`, `e6a705c`), pending tests.
 - [x] v14.11c: Filming/post-production conditional chains with saved tags, trust changes and real cost/schedule effects (`content.js`, `engine.js`, `e6a705c`, `9dccab0`), pending tests.
 - [x] v14.11d: 28 lifecycle events including before-release, release, and completed-film follow-ups; bounded selection and saved sequel/cult/reunion hooks (`content.js`, `engine.js`), pending tests.
-- [ ] v14.11e: Talent relationship data/chemistry and persistent future-production consequences.
+- [x] v14.11e: Saved studio bond per talent, event-driven trust/morale changes, modest future skill and fee effects; relationship shown in Film Hub/Talent (`engine.js`, `ui.js`, `e6a705c`, `fb80430`).
 - [ ] v14.11f: Rate controls, delegation policies, legacy save migration, tests/CI and long-career balance checks.
