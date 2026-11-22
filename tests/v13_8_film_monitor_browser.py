@@ -84,6 +84,7 @@ try:
   assert bounds['mainRight']<=bounds['dockLeft']+2,bounds
   page.screenshot(path='/tmp/finalcut-v13_8-dock-desktop.png',animations='disabled')
   card=page.locator('.fc-monitor-card',has_text='Cinema Rising')
+  card.locator('.fc-monitor-expand summary').click()
   assert card.locator('.fc-pulse-chart').count()==1
   assert 'admissions' in card.inner_text()
   # Promotional action should be optional and charged exactly once.
@@ -107,7 +108,7 @@ try:
   }""")
   assert layers['drawer']>layers['monitor'],layers
   page.screenshot(path='/tmp/finalcut-v13_8-film-details.png',animations='disabled',full_page=False)
-  page.evaluate('UI.closeDrawer();UI.go("projects")')
+  page.evaluate('(id)=>{UI.closeDrawer();UI.go("projects");UI.centerFocus(id);UI.centerSelectTab("performance")}',result['id'])
   assert page.locator('.fc-center .fc-performance-board').count()==1
   assert page.locator('.fc-performance-metrics').count()>=1
   page.screenshot(path='/tmp/finalcut-v13_8-production-center.png',animations='disabled')
