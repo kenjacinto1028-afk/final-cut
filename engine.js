@@ -1761,7 +1761,7 @@ var Engine = (function () {
   // Film-level cadence: one event per early stage, at most two on long shoots,
   // one prerelease, one opening-window and one catalog follow-up. Old saves
   // acquire empty lifecycle records lazily without changing historic outcomes.
-  const LIFECYCLE_CAP={short:5,feature:7,pilot:5};
+  const LIFECYCLE_CAP={short:5,feature:6,pilot:5};
   const LIFECYCLE_STAGE_CAP={development:1,preproduction:1,shoot:2,post:1,preRelease:1,release:1,afterRelease:1};
   function lifecycleData(p){
     if(!p.lifecycle||typeof p.lifecycle!=='object')
@@ -1815,7 +1815,9 @@ var Engine = (function () {
     if(state.gameOver||state.pending||state.queue.length||!p)return false;
     const data=lifecycleData(p),phase=lifecyclePhase(p);
     const count=Object.values(data.counts).reduce((n,x)=>n+(x||0),0);
-    if(count>=(LIFECYCLE_CAP[p.format]||5))return false;
+    // Reserve one opportunity for the catalog phase. This prevents long
+    // shoots from consuming every choice before the film can find its legacy.
+    if(count>=(LIFECYCLE_CAP[p.format]||5)-(phase==='afterRelease'?0:1))return false;
     if((data.counts[phase]||0)>=(phase==='shoot'&&p.format==='feature'?2:1))return false;
     if(state.week-data.lastWeek<2||state.week-(p.lastEventWeek||-99)<2)return false;
     if(phase==='afterRelease'){
