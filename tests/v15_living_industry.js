@@ -107,10 +107,11 @@ function syntheticFilm(E){
   const before=E.filmFollowing(p);
   const q=E.v15FanEventQuote(p.id);
   assert(q.ok,q.reason);
-  const originalCash=E.state.cash;
+  const originalCash=E.state.cash,booked=E.state.finance.q.production;
   const signed=E.v15HostFanEvent(p.id);
   assert(signed.ok&&signed.cost===q.cost);
   assert.equal(originalCash-E.state.cash,q.cost);
+  assert.equal(E.state.finance.q.production-booked,q.cost,'fan event is booked once in quarterly production costs');
   assert(E.filmFollowing(p).loyal>=before.loyal);
   assert(!E.v15FanEventQuote(p.id).ok,'repeat paid fan action must cool down');
   assert(E.v15FanStatus(p.id).history.length>=1);
