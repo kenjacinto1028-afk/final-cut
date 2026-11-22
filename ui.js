@@ -1033,6 +1033,23 @@ var UI = (function () {
         'Pilots need a network pickup. Production cost and cast contracts renew each season.')+
         ' TV slots: '+Engine.tvSlotsUsed()+' / '+Engine.growthTier().maxSeries+'.</p>';
     }
+    // Pre-greenlight checkpoint: connect this budget choice to the studio's annual goals.
+    const annual=activeAnnualPlan(),focus=annual?.priorities||[];
+    if(focus.length){
+      const cautions=[];
+      if(focus.includes('profit')){
+        if((pv.budget||0)>(Engine.state.cash||0)*.55)
+          cautions.push('Profitability risk: the proposed budget consumes more than half of current cash. Consider a smaller production or review financing.');
+        else cautions.push('Profitability goal: compare estimated production cost against available cash and expected distribution options.');
+      }
+      if(focus.includes('prestige'))
+        cautions.push('Prestige goal: balance genre/topic fit, casting and creative quality against this budget. Awards are not guaranteed.');
+      if(focus.includes('franchise'))cautions.push('Franchise goal: consider story continuity and returning talent; a follow-up can still underperform.');
+      if(focus.includes('talent'))cautions.push('Talent goal: consider long-term creative partnerships before locking the cast.');
+      h+='<section class="fc-annual-summary fc-goal-advisory"><h3>Annual goals check · '+(annual.year+1)+'</h3>'+
+        cautions.map(t=>'<p>'+esc(t)+'</p>').join('')+
+        '<button type="button" onclick="UI.go(&quot;studio_profile&quot;)">Review goals</button></section>';
+    }
     if (!pv.ok) h += '<p class="neg">' + esc(pv.reason) + '</p>';
     h += '<button class="primary" ' + (pv.ok ? '' : 'disabled') + ' onclick="UI.startProject()">Greenlight</button>';
     return h;
