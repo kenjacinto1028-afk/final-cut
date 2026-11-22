@@ -568,6 +568,7 @@ var UI = (function () {
     if(currentYearEndReport())return {action:'yearend',label:'Annual studio review'};
     if(s.warning?.stage||s.cash<0)return {action:'finance',label:'Review studio finances'};
     if(Engine.expiringContracts().length)return {action:'roster',label:'Review expiring contracts'};
+    if(Engine.v15ActiveOffers().length)return {action:'news',label:'Review industry offer'};
     const plan=(s.yearPlans||[]).flatMap(x=>x.opportunities||[]).find(x=>x.status==='accepted'&&!x.reviewed);
     if(plan)return {action:'plan',id:plan.id,year:plan.year,label:'Review annual plan'};
     const reco=firstUnreviewedRecommendation();
@@ -603,6 +604,7 @@ var UI = (function () {
     const notes=actionInbox();
     const planned=(s.yearPlans||[]).flatMap(p=>p.opportunities||[]).filter(x=>x.status==='accepted'&&!x.reviewed).slice(0,2);
     planned.forEach(x=>notes.push({level:'info',text:'Annual plan · '+x.title,action:'plan',id:x.id,year:x.year}));
+    Engine.v15ActiveOffers().slice(0,2).forEach(o=>notes.push({level:'info',text:'Industry offer · '+o.title,action:'news'}));
     if(!notes.length)return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>All clear</small></div><p class="muted">No urgent studio issues this week.</p></section>';
     return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>'+notes.length+' to review</small></div>'+
       notes.map(x=>'<button type="button" class="fc-qol-notice fc-qol-'+x.level+'" onclick="UI.gotoAlert(&quot;'+x.action+'&quot;'+(x.id!=null?','+x.id:'')+')">'+
@@ -2500,9 +2502,49 @@ var UI = (function () {
 
 // ===== SECTION: VIEW_NEWS =====
   // 6.4. Display only: Engine.news() (real log entries grouped by CONTENT.NEWS filters) in the shared table.
+
+  // v15f: optional industry opportunities live in Industry → News, not in
+  // recurring blocking event popups.
+  function v15OffersPanel(){
+    const offers=Engine.v15ActiveOffers();
+    const recent=Engine.v15OfferList().filter(x=>x.status!=='open').slice(0,6);
+    let h='<section class="fc-opportunities"><h2>Industry opportunities <span class="muted">'+
+      offers.length+' open</span></h2>'+
+      '<p class="muted">Real offers arise from past work, talent relationships and studio reputation. You decide whether to sign, counter or pass; none is guaranteed.</p>';
+    if(!offers.length)h+='<p class="muted">No open offers. New approaches can arrive after recognized releases or productive partnerships.</p>';
+    for(const o of offers){
+      h+='<article class="fc-opportunity"><strong>'+esc(o.title)+'</strong>'+
+        '<p>'+esc(o.detail)+'</p><small>Expires '+dateLabel(o.expiresWeek)+
+        (o.cost?' · Commitment '+money(o.cost):'')+
+        (o.upfront?' · Offered receipts '+money(o.upfront):'')+'</small>'+
+        '<p class="muted">'+esc(o.impact)+'</p><div class="actions">'+
+        '<button type="button" class="primary" onclick="UI.v15OfferAction('+o.id+',&quot;accept&quot;)">Accept</button>'+
+        '<button type="button" onclick="UI.v15OfferAction('+o.id+',&quot;counter&quot;)">Counteroffer (may fail)</button>'+
+        '<button type="button" onclick="UI.v15OfferAction('+o.id+',&quot;decline&quot;)">Decline</button></div></article>';
+    }
+    if(recent.length)h+='<details><summary>Recent outcomes</summary><ul class="plain">'+
+      recent.map(o=>'<li>'+dateLabel(o.resolvedWeek||o.expiresWeek)+' · '+
+        esc(o.title)+' · <strong>'+esc(o.status)+'</strong>'+
+        (o.receipts?' · '+money(o.receipts)+' receipts':'')+
+        (o.acceptedCost?' · '+money(o.acceptedCost)+' cost':'')+'</li>').join('')+
+      '</ul></details>';
+    return h+'</section>';
+  }
+  async function v15OfferAction(id,action){
+    const o=Engine.v15ActiveOffers().find(x=>x.id===Number(id));
+    if(!o){setFlash('That offer has expired.');render();return;}
+    if(action==='accept'||action==='counter'){
+      const text=(action==='counter'?'Counteroffer negotiations may fail and close the offer. ':'')+
+        'Review '+o.title+'?'+(o.cost?' Possible spending '+money(o.cost)+'.':'')+
+        (o.upfront?' Estimated receipts '+money(o.upfront)+'.':'');
+      if(!await confirmGame(text))return;
+    }
+    const r=Engine.v15OfferAction(id,action);
+    setFlash(r.ok?'Offer '+r.status+'.':r.reason);render();
+  }
   function viewNews() {
     const fs = Engine.newsFilters();
-    return '<h1>News</h1><p class="muted">What has happened in your studio and the business, newest first. The last ' + Engine.TUNING.news.feedMax + ' events are kept.</p>' + tblHtml('news', {
+    return '<h1>News</h1>'+v15OffersPanel()+'<p class="muted">What has happened in your studio and the business, newest first. The last ' + Engine.TUNING.news.feedMax + ' events are kept.</p>' + tblHtml('news', {
       rows: () => Engine.news(null).map((n, i) => Object.assign({ id: i }, n)),
       rowId: n => n.id,
       search: n => n.label + ' ' + n.text,
@@ -4600,7 +4642,7 @@ var UI = (function () {
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
-    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent,v15OfferAction:v15OfferAction, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
