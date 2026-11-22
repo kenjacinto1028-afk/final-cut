@@ -343,7 +343,7 @@ var Engine = (function () {
   TUNING.awards = {
     ceremonyWeek: 10,
     nominees: 4, maxPerStudio: 2, minScore: 60,
-    goldenWinMin: 92, otherWinMin: 88, criticsWinMin: 90, indieWinMin: 82, audienceWinMin: 88,
+    goldenWinMin: 80, otherWinMin: 77, criticsWinMin: 78, indieWinMin: 73, audienceWinMin: 79,
     goldenMaxWinsPerStudio: 1, otherMaxWinsPerStudio: 1, festivalWinFloorBonus: 8, festivalMaxWinsPerFilm: 2, festivalMaxStudioWinsPerYear: 2,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
