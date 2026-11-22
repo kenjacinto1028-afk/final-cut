@@ -2107,7 +2107,7 @@ var UI = (function () {
   let filmHubTab='overview';
   const FILM_HUB_TABS=[
     ['overview','Overview'],['reviews','Reviews'],['reach','Reach & Rankings'],
-    ['performance','Performance'],['legacy','Awards & Legacy'],['production','Production']
+    ['performance','Performance'],['legacy','Awards & Legacy'],['production','Production'],['manage','Manage']
   ];
   function filmHubSelect(tab){
     if(!FILM_HUB_TABS.some(x=>x[0]===tab))return;
@@ -2172,8 +2172,7 @@ var UI = (function () {
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
       h+=fanSummary;
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
-      if(original){h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
-        h+=filmTimeline(original)+filmPostmortem(original)+filmLifecycleGuide(original)+filmPromotionPanel(original)+v14ReleaseControls(original);}
+      if(original)h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
       h+='</section>';
     } else if(filmHubTab==='reviews'){
       h+='<section class="fc-hub-panel"><h3>Critical reception</h3>'+filmCriticsPanel(f)+
@@ -2204,6 +2203,13 @@ var UI = (function () {
       }
       if(f.franchiseId)h+='<p class="franchise-card">Franchise: '+esc(f.franchiseName||f.title)+'</p>';
       h+='</section>';
+    } else if(filmHubTab==='manage'){
+      h+='<section class="fc-hub-panel"><h3>Film management</h3>'+
+        (original?'<details open><summary>Promotions and sponsors</summary>'+filmPromotionPanel(original)+'</details>'+
+          '<details><summary>Optional budget review</summary>'+centerBudgetActions(original)+'</details>'+
+          '<details><summary>Release strategy</summary>'+v14ReleaseControls(original)+'</details>'+
+          '<details><summary>Festival and catalog opportunities</summary>'+shortFilmActions(original,false)+v14AfterlifeControls(original)+'</details>':
+          '<p class="muted">Industry films cannot be managed by your studio.</p>')+'</section>';
     } else if(filmHubTab==='production'){
       h+='<section class="fc-hub-panel"><h3>Cast and production</h3><dl>'+
         dl('Director',esc(f.credits?.director||'Not recorded'))+
@@ -2213,7 +2219,7 @@ var UI = (function () {
         dl('Production began',f.startWeek==null?'Not recorded':dateLabel(f.startWeek))+
         dl('Total budget',money(f.budget||0))+'</dl>';
       if(original){
-        h+=posterActions(original)+v14StoryPanel(original,false);
+        h+=posterActions(original)+filmTimeline(original)+filmLifecycleGuide(original)+v14StoryPanel(original,false);
         if(original.budgetPlan){
           const b=Engine.v144BudgetInfo(original);
           h+='<details class="fc-disclosure"><summary>Budget allocations and spending</summary><dl>'+
@@ -2604,7 +2610,41 @@ var UI = (function () {
         '</div>').join('')+'</div></section>';
   }
 
-  function projectDrawer(p) {
+  let projectDetailTab='overview';
+  const PROJECT_DETAIL_TABS=[['overview','Overview'],['management','Manage'],['performance','Performance'],['timeline','Timeline'],['story','Story'],['details','Full Details']];
+  function projectDetailSelect(id){
+    if(!PROJECT_DETAIL_TABS.some(t=>t[0]===id))return;
+    projectDetailTab=id;renderDrawer();
+    const el=$('drawer');if(el)el.scrollTop=0;
+  }
+  function projectDrawer(p){
+    const nav='<nav class="fc-hub-tabs fc-project-detail-tabs" aria-label="Project detail sections">'+
+      PROJECT_DETAIL_TABS.map(([id,name])=>
+        '<button type="button" aria-current="'+(projectDetailTab===id?'page':'false')+'" class="'+(projectDetailTab===id?'is-active':'')+
+        '" onclick="UI.projectDetailSelect(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</nav>';
+    if(projectDetailTab==='details')return projectDrawerFull(p).replace('</h2>','</h2>'+nav);
+    let h=drawerHead(p.title,esc(mediaName(p))+' · '+esc(nameOf(CONTENT.GENRES,p.genre)))+
+      '<div class="fc-project-drawer-summary"><strong>'+esc(centerStage(p).status)+'</strong>'+
+      '<span>'+money(p.spent||0)+' / '+money(p.budget||0)+' spent</span></div>'+nav;
+    if(projectDetailTab==='overview'){
+      h+='<div class="fc-project-overview">'+posterFor(p)+
+        '<dl>'+dl('Current stage',esc(centerStage(p).status))+
+        dl('Expected release',p.releaseWeek!=null?dateLabel(p.releaseWeek):centerWeeksLeft(p)+' estimated work weeks')+
+        dl('Quality',p.quality==null?'Est. '+centerEstimate(p).value:p.quality+'/100')+
+        dl('Hype',p.hype==null?'Not final':p.hype+'/100')+'</dl>'+
+        '<button type="button" onclick="UI.projectDetailSelect(&quot;management&quot;)">Manage this film</button></div>';
+    }else if(projectDetailTab==='management'){
+      h+='<section class="fc-project-manage"><details open><summary>Promotions &amp; sponsors</summary>'+filmPromotionPanel(p)+'</details>'+
+        '<details><summary>Optional budget review</summary>'+centerBudgetActions(p)+'</details>'+
+        '<details><summary>Distribution &amp; release</summary>'+v14ReleaseControls(p)+
+          '<button type="button" onclick="UI.projectDetailSelect(&quot;details&quot;)">View region settings</button></details>'+
+        '<details><summary>Festivals &amp; post-release</summary>'+shortFilmActions(p,false)+v14AfterlifeControls(p)+'</details></section>';
+    }else if(projectDetailTab==='performance')h+=projectPerformanceBoard(p)+filmPostmortem(p);
+    else if(projectDetailTab==='timeline')h+=filmTimeline(p)+filmLifecycleGuide(p);
+    else h+=v14StoryPanel(p,false)+filmCriticsPanel(p);
+    return h;
+  }
+  function projectDrawerFull(p) {
     const profit = profitOf(p);
     const pct = p.budget ? Math.min(100, Math.round(p.spent / p.budget * 100)) : 0;
     let h = drawerHead(p.title, esc(mediaName(p)) + ' · ' + esc(nameOf(CONTENT.GENRES, p.genre)) + ' · ' + esc(nameOf(CONTENT.TOPICS, p.topic)));
@@ -3975,7 +4015,7 @@ var UI = (function () {
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
-    filmHubSelect:filmHubSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
+    filmHubSelect:filmHubSelect,projectDetailSelect:projectDetailSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
     tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, centerSelectTab:centerSelectTab,centerAction:centerAction, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
