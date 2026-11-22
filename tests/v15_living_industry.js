@@ -24,7 +24,7 @@ function syntheticFilm(E){
   assert(made.ok,made.reason);
   const p=made.project;
   p.stage='done';p.releaseWeek=20;p.quality=88;p.critic=83;p.audience=89;
-  p.hype=77;p.gross=400000;p.revenue=110000;p.result='Hit';
+  p.hype=77;p.gross=400000;p.estimatedAdmissions=E.admissionsFromGross(p.gross,p.releaseWeek);p.revenue=110000;p.result='Hit';
   return p;
 }
 {
