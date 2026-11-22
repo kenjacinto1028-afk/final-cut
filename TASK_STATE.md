@@ -286,4 +286,9 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v14.11c: Filming/post-production conditional chains with saved tags, trust changes and real cost/schedule effects (`content.js`, `engine.js`, `e6a705c`, `9dccab0`), pending tests.
 - [x] v14.11d: 28 lifecycle events including before-release, release, and completed-film follow-ups; bounded selection and saved sequel/cult/reunion hooks (`content.js`, `engine.js`), pending tests.
 - [x] v14.11e: Saved studio bond per talent, event-driven trust/morale changes, modest future skill and fee effects; relationship shown in Film Hub/Talent (`engine.js`, `ui.js`, `e6a705c`, `fb80430`).
-- [ ] v14.11f: Rate controls, delegation policies, legacy save migration, tests/CI and long-career balance checks.
+- [x] v14.11f: Per-film opportunity cap (5 shorts/TV, 6 features), reserved catalog choice, 2-week cooldown, routine delegation with high-stakes overrides, and non-cash-producing budget savings. Targeted deterministic event chain/legacy-save tests plus two funded 12-year simulations passed (CI `44983647532`); full integrated QA and final deployment remain under review.
+
+## v14.11a–f final QA checkpoints
+- [x] Full gameplay CI added: `tests/v14_11_lifecycle.js`, `.github/workflows/v14_11_full.yml`. 28 events, 7 lifecycle phases, trusted actor/director relationships and cross-media continuation hooks exercised.
+- [x] Production Center / Film Hub action UI consolidated in `ui.js`, with genre/topic review diversity retained; `tests/v14_11_readability_browser.py` now covers real lifecycle decision modal and action history.
+- [ ] Confirm final CI (integrated, latest lifecycle browser/long-horizon, mobile) and GitHub Pages deployed commit; record pass/fail honestly before release.
