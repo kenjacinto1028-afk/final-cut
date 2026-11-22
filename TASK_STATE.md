@@ -321,5 +321,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added pre-greenlight annual goals check in New Project; ui.js (b992710).
 - [x] Added year-end earnings and goals scorecard, marking current lifetime receipts vs costs honestly and not treating them as annual cash flow; ui.js (88b5484).
 - [x] Extended browser regression for pre-greenlight goal advisory; tests/v14_10_browser.py (333f64b).
+- [x] Added a 156-week rival awards simulation and annual recap assertions to `tests/v14_12_awards_finance.js`; wired to `.github/workflows/v14_12.yml` (a8d4bcd, 03e63256).
 - [ ] Wait for final main GitHub Actions v14.10 / v14.12 / integrated tests and Pages deployment to report result; fix any failures.
 - [ ] Physical mobile device acceptance remains outstanding.
