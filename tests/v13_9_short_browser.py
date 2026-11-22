@@ -127,7 +127,7 @@ try:
   assert size['doc']<=size['w']+2,size
   page.get_by_role('button',name='Show project monitor').click()
   assert page.locator('#film-monitor').is_visible()
-  assert 'screening visits' in page.locator('#film-monitor').inner_text()
+  assert 'screening visits' not in page.locator('#film-monitor').inner_text(), 'completed shorts should leave the project monitor'
   page.screenshot(path='/tmp/finalcut-v13_9-mobile-monitor.png',animations='disabled')
   page.get_by_role('button',name='Collapse project monitor').click()
   assert not page.locator('#film-monitor').is_visible()
