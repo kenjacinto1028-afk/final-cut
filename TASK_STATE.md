@@ -354,3 +354,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v15c checkpoint (2026-11-22): stable rival trait/goal/relationship history; goal and risk affect genre choices, financing and release-date competition; Industry → Rivals lists traits, ambitions and studio relationship (`engine.js`, `ui.js`; commits 4fadc20, a4520ef).
 
 - [x] v15d checkpoint (2026-11-22): artist age and career stage, four enduring career goals, salary/fee sensitivity, retirement after late-career threshold, one bounded annual career-demand decision with raise/promise/decline consequences, actual casting fulfills promises (`engine.js`, `ui.js`; commits d7daf9a, 7877849, 2b75dca).
+
+- [x] v15e checkpoint (2026-11-22): community momentum derived from existing recorded audience reach and actual film reception, bounded grassroots/backlash quarterly changes, optional priced fan discussion with cooldown and total cap, history and UI on released Film Hubs (`engine.js`, `ui.js`; commits 71f2d40, 6c64153).
