@@ -40,6 +40,7 @@ try:
   page.locator('.fc-project-detail-tabs').get_by_role('button',name='Manage').click()
   assert page.locator('#drawer').get_by_text('Optional budget review').count()>=1
   page.evaluate("UI.closeDrawer(); UI.go('dashboard')")
+  if page.locator('#film-monitor').is_hidden(): page.evaluate("UI.toggleFilmMonitor()")
   assert page.locator('.fc-monitor-card').count()==1
   assert page.locator('.fc-monitor-status').get_by_text('Development').count()==1
   assert page.locator('.fc-monitor-expand').count()==1
