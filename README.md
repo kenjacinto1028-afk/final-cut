@@ -1,6 +1,6 @@
 # Final Cut — Studio Tycoon
 
-**Current release: FinalCut v14.9.** Dedicated mobile navigation, readable start screen, compact phone dashboard and touch-friendly Project Monitor, with unchanged desktop UI and gameplay. See [v14.9 mobile release notes](docs/CHANGELOG_V14_9.md). Earlier v14.5 added navigation, premiere reports and market-aware Film Hub and rankings.
+**Current release: FinalCut v14.9b.** Custom posters now reload from browser storage without becoming stuck on “Custom poster loading…”. Deleting the original image from your PC does not affect the saved poster; see [poster persistence fix](docs/CHANGELOG_V14_9B.md). v14.9 also adds dedicated phone navigation and a compact mobile interface ([mobile release notes](docs/CHANGELOG_V14_9.md)).
 
 
 ## v14.5 — Clearer navigation, premieres and rankings
