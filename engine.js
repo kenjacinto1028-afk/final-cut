@@ -1485,6 +1485,14 @@ var Engine = (function () {
       p.hypeMod -= Math.max(0,installment-3)*2;
       p.continuity = sequelContinuity(parent,cast,supporting);
       p.hypeMod += p.continuity.hype;
+      // Follow-up interest is earned by earlier real decisions; it grants only
+      // modest initial awareness and never inherits the original film's quality.
+      const legacyTags=parent.lifecycle?.tags||[];
+      if(legacyTags.includes('sequel_interest'))p.hypeMod+=2;
+      if(legacyTags.includes('adaptation_interest')&&p.continuationType==='adaptation')p.hypeMod+=2;
+      if(legacyTags.includes('cult_legacy'))p.hypeMod+=1;
+      if((legacyTags.includes('reunion')||legacyTags.includes('chemistry'))&&
+        p.continuity?.notes?.some(x=>x.status==='retained'))p.hypeMod+=1;
     }
     if(pv.scriptPitch){
       pv.scriptPitch.claimedBy='you';p.spent+=pv.scriptFee;p.scriptFee=pv.scriptFee;
@@ -1794,6 +1802,10 @@ var Engine = (function () {
     }
     // Consequences are recorded in the film's existing story timeline,
     // awards/ratings still use normal scoring; no guaranteed box-office boosts.
+    // Hype earned after the premiere must affect the recorded film rather than
+    // only a pre-release modifier that is no longer recalculated.
+    if(p.releaseWeek!=null&&Number.isFinite(p.hype)&&(c.effects?.hype||0))
+      p.hype=clamp(p.hype+c.effects.hype,0,100);
     filmStory(p,pd.lifecyclePhase,c.result||c.label);
     addLog('"'+p.title+'" · '+(c.result||c.label),'production');
   }
@@ -4861,7 +4873,9 @@ var Engine = (function () {
         description:'Fund a small archival screening and critical retrospective. Limited attendance and recognition are uncertain.'};
     }
     if(kind==='cult'){
-      if((p.audience||0)<68||!['bold','prestige'].includes(p.dna.vision))
+      const cultInterest=(p.lifecycle?.tags||[]).some(x=>x==='cult_interest'||x==='cult_legacy');
+      if((p.audience||0)<(cultInterest?62:68)||
+        (!cultInterest&&!['bold','prestige'].includes(p.dna.vision)))
         return {ok:false,reason:'This film has not established the audience or cult credentials.'};
       const cost=Math.max(300,Math.round(p.budget*.012/100)*100);
       if(state.cash<cost)return {ok:false,reason:'Not enough cash for the fan screenings.',cost};
