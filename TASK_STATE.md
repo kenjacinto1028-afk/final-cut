@@ -333,3 +333,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added responsive franchise browser/action styling; theme-ab.css (6826dfd).
 - [x] Refetched both changed files from main, parsed full ui.js successfully and confirmed all shortcut labels/handlers/style selectors; no live browser or gameplay simulation performed.
 - [ ] Perform live-browser UX and gameplay checks on deployed site (including mobile), and review CI/Pages deployment after changes.
+
+
+## v14.14 — Sortable Film Archive and player-film identification (2026-11-22)
+- [x] Inspected existing world archive rendering, remembered browse state and player-film records; verified projectId reliably identifies the player's film.
+- [x] Added clickable Film Archive column sorting in ui.js: toggled ascending/descending, missing values last, full filtered set sorted before pagination, persisted per-view preference (483d67e).
+- [x] Highlighted player-owned releases with a distinctive row and Your film badge, plus archive legend; added responsive/focus-visible styling in theme-ab.css (d27c533).
+- [x] Passed syntax and nine focused sort/state/markup checks; existing v14.3c archive browser regression and sitewide/mobile regressions passed on the updated main build. GitHub Pages deployed successfully at d27c533.
+- [x] Confirmed an unrelated longstanding v13.8 monitor assertion remains in the v14.11a-f aggregate suite; the same suite already failed on preceding main (4270a442), before these archive changes.
