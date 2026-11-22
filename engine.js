@@ -902,7 +902,10 @@ var Engine = (function () {
     const base = T.roleBase[t.role] * Math.pow(2.0 * craftRate * visibilityRate, 1.55);
     // Acclaimed studios get a modest negotiation edge; fee remains driven by the artist.
     const repDiscount = state ? Math.min(0.06, (state.studio.fame + state.studio.criticsRep + (state.studio.prestige || 0)) * 0.00018) : 0;
-    return round50(base * (T.formatFeeMult[format] || 1) * traitMods(t).feeMult * (1 - dealDiscount()) * (1 - repDiscount));
+    // Relationship affects future negotiations modestly: trust reduces friction,
+    // serious disputes may increase the fee; nobody is guaranteed to sign.
+    const bondRate=state?1-clamp((talentBond(t)-50)*.0014,-.05,.05):1;
+    return round50(base * (T.formatFeeMult[format] || 1) * traitMods(t).feeMult * (1 - dealDiscount()) * (1 - repDiscount) * bondRate);
   }
   function eliteTalent(t) { return t.skill >= TUNING.talent.eliteSkill || t.fame >= TUNING.talent.eliteFame; }
   function recruitmentInterest(t, format, genre, topic, budget) {
@@ -1593,7 +1596,7 @@ var Engine = (function () {
     const t = typeof v === 'number' ? getTalent(v) : null;
     if (!t) return TUNING.talent.emptySkill;
     const mentor = castTalent(p).filter(o => o.id !== t.id).reduce((a, o) => a + traitMods(o).teamSkill, 0);
-    return clamp(t.skill + mentor, 0, 100);
+    return clamp(t.skill + mentor + lifecycleBondBonus(t), 0, 100);
   }
   function crewEffect(p, key) {
     const c = typeof p.cast.crew === 'number' ? getTalent(p.cast.crew) : null;
@@ -1653,8 +1656,11 @@ var Engine = (function () {
   function raise(p, def, t) {
     const pend = {
       projectId: p.id, id: def.id, talentId: t ? t.id : null, text: fill(def.text, p, t),
+      lifecyclePhase: def.lifecyclePhase || null,
       category: def.category || null, disaster: !!def.disaster,
-      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, trust:c.trust||0, flag:c.flag||null, result: c.result ? fill(c.result, p, t) : null }))
+      choices: def.choices.map(c => ({ label: c.label, effects: c.effects || {}, trust:c.trust||0, flag:c.flag||null,
+        lifecycleTag:c.tag||null, relationship:c.relationship||0,
+        result: c.result ? fill(c.result, p, t) : null }))
     };
     p.lastEventWeek = state.week;
     state.stopFlag = true;
@@ -1750,6 +1756,91 @@ var Engine = (function () {
     v14State().delegation=policy;save();emit('policy',{policy});return {ok:true};
   }
 
+
+  // === v14.11 lifecycle storytelling ===
+  // Film-level cadence: one event per early stage, at most two on long shoots,
+  // one prerelease, one opening-window and one catalog follow-up. Old saves
+  // acquire empty lifecycle records lazily without changing historic outcomes.
+  const LIFECYCLE_CAP={short:5,feature:7,pilot:5};
+  const LIFECYCLE_STAGE_CAP={development:1,preproduction:1,shoot:2,post:1,preRelease:1,release:1,afterRelease:1};
+  function lifecycleData(p){
+    if(!p.lifecycle||typeof p.lifecycle!=='object')
+      p.lifecycle={counts:{},tags:[],history:[],lastWeek:-99};
+    p.lifecycle.counts=p.lifecycle.counts||{};
+    p.lifecycle.tags=p.lifecycle.tags||[];
+    p.lifecycle.history=p.lifecycle.history||[];
+    return p.lifecycle;
+  }
+  function talentBond(t){return clamp(Number(t.studioBond==null?50:t.studioBond),0,100);}
+  function lifecycleBondBonus(t){return clamp(Math.round((talentBond(t)-50)/10),-3,3);}
+  function lifecycleResolve(p,pd,c){
+    if(!pd.lifecyclePhase)return;
+    const data=lifecycleData(p),entry={
+      week:state.week,phase:pd.lifecyclePhase,eventId:pd.id,choice:c.label,
+      consequence:c.result||c.label,tag:c.lifecycleTag||null,
+      relationship:Number(c.relationship)||0
+    };
+    if(c.lifecycleTag&&!data.tags.includes(c.lifecycleTag))
+      data.tags.push(c.lifecycleTag);
+    data.history.push(entry);
+    if(data.history.length>16)data.history.splice(0,data.history.length-16);
+    const rel=clamp(Number(c.relationship)||0,-4,4);
+    if(rel){
+      castTalent(p).forEach(t=>{
+        t.studioBond=clamp(talentBond(t)+rel,0,100);
+        if(isRoster(t))t.contract.morale=clamp((t.contract.morale==null?TUNING.rivals.morale.start:t.contract.morale)+rel,0,100);
+      });
+      p.lifecycleTrust=clamp((p.lifecycleTrust||0)+rel,-12,12);
+    }
+    // Consequences are recorded in the film's existing story timeline,
+    // awards/ratings still use normal scoring; no guaranteed box-office boosts.
+    filmStory(p,pd.lifecyclePhase,c.result||c.label);
+    addLog('"'+p.title+'" · '+(c.result||c.label),'production');
+  }
+  function lifecycleQuote(id){
+    const p=getProject(Number(id));
+    if(!p)return {ok:false,reason:'Film not found.'};
+    const data=lifecycleData(p);
+    return {ok:true,history:data.history.slice(),tags:data.tags.slice(),
+      decisions:data.history.length,limit:LIFECYCLE_CAP[p.format]||5,
+      bonds:castTalent(p).map(t=>({id:t.id,name:t.name,bond:talentBond(t)}))};
+  }
+  function lifecyclePhase(p){
+    if(p.stage==='done')return 'afterRelease';
+    if(p.stage==='release')return 'release';
+    if(p.stage==='post')return p.stageWeeksLeft<=1?'preRelease':'post';
+    return p.stage;
+  }
+  function lifecycleTick(p){
+    if(state.gameOver||state.pending||state.queue.length||!p)return false;
+    const data=lifecycleData(p),phase=lifecyclePhase(p);
+    const count=Object.values(data.counts).reduce((n,x)=>n+(x||0),0);
+    if(count>=(LIFECYCLE_CAP[p.format]||5))return false;
+    if((data.counts[phase]||0)>=(phase==='shoot'&&p.format==='feature'?2:1))return false;
+    if(state.week-data.lastWeek<2||state.week-(p.lastEventWeek||-99)<2)return false;
+    if(phase==='afterRelease'){
+      if(p.releaseWeek==null||state.week-p.releaseWeek>35||state.week-p.releaseWeek<3)return false;
+    }
+    if(phase==='release'&&(p.weeksInRelease||0)>5)return false;
+    // Long projects have more opportunities, shorter projects remain playable.
+    const chances={development:.48,preproduction:.56,shoot:.48,post:.53,
+      preRelease:.68,release:.36,afterRelease:.14};
+    if(Math.random()>chances[phase])return false;
+    const pool=(CONTENT.LIFECYCLE_EVENTS||[]).filter(ev=>
+      ev.stage===phase&&!p.usedEvents.includes(ev.id)&&
+      (!ev.formats||ev.formats.includes(p.format))&&
+      (!ev.theme||ev.theme.includes(p.genre)||ev.theme.includes(p.topic))&&
+      (!ev.requires||data.tags.includes(ev.requires))&&
+      !((state.events.recentProduction||[]).slice(-5).includes(ev.id)));
+    if(!pool.length)return false;
+    const chosen=pool[Math.floor(Math.random()*pool.length)];
+    const event=Object.assign({},chosen,{category:'production',lifecyclePhase:phase});
+    raise(p,event);
+    data.counts[phase]=(data.counts[phase]||0)+1;
+    data.lastWeek=state.week;
+    state.events.recentProduction=(state.events.recentProduction||[]).concat(chosen.id).slice(-12);
+    return true;
+  }
   function maybeEvent(p) {
     if (state.pending) return;
     if(p.dna){
@@ -1904,6 +1995,7 @@ var Engine = (function () {
       addLog(c.result || c.label, 'event', pd.category);
     } else if (p) {
       applyEffects(p, c.effects);
+      lifecycleResolve(p,pd,c);
       v14Choice(p,pd,c);
       if(pd.talentId!=null) {
         const participant=getTalent(pd.talentId);
@@ -5071,7 +5163,12 @@ var Engine = (function () {
       production, freelance, living: TUNING.livingCost, margin: income-costs };
     bookWeek({ revenue: revenue, freelance: freelance, production: production, salaries: salaries, payroll: payroll,
       overhead: overhead, interest: interest, living: TUNING.livingCost });
+    // Offer a bounded lifecycle decision before advancing each production stage.
+    // This shares the existing pending decision queue and delegation policy.
+    actives.forEach(p=>{if(ACTIVE_STAGES.includes(p.stage))lifecycleTick(p);});
     actives.forEach(p => { if (ACTIVE_STAGES.includes(p.stage)) advanceProject(p); });
+    // Screenings and catalog follow-ups happen after their real weekly results.
+    state.projects.some(p=>(p.stage==='release'||p.stage==='done')&&lifecycleTick(p));
     rivalTick();
     contractTick();
     moraleTick();
@@ -5487,6 +5584,7 @@ var Engine = (function () {
     estimatedTvHouseholds:estimatedTvHouseholds, householdImpressionsForRating:householdImpressionsForRating,
     estimatedTicketPrice: estimatedTicketPrice, releasePushQuote: releasePushQuote, pushRelease: pushRelease,
     filmPromotionOptions:()=>FILM_PROMOTIONS,filmPromotionQuote:filmPromotionQuote,filmPromote:filmPromote,
+    lifecycleQuote:lifecycleQuote, lifecycleTick:lifecycleTick,
     filmSponsorQuote:filmSponsorQuote,acceptFilmSponsor:acceptFilmSponsor,declineFilmSponsor:declineFilmSponsor,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
