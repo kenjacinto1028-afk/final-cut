@@ -1804,8 +1804,15 @@ var Engine = (function () {
     // awards/ratings still use normal scoring; no guaranteed box-office boosts.
     // Hype earned after the premiere must affect the recorded film rather than
     // only a pre-release modifier that is no longer recalculated.
-    if(p.releaseWeek!=null&&Number.isFinite(p.hype)&&(c.effects?.hype||0))
+    if(p.releaseWeek!=null&&Number.isFinite(p.hype)&&(c.effects?.hype||0)){
+      const before=p.hype;
       p.hype=clamp(p.hype+c.effects.hype,0,100);
+      if(p.hypeBreakdown){
+        p.hypeBreakdown.postReleaseAdjustment=
+          (p.hypeBreakdown.postReleaseAdjustment||0)+(p.hype-before);
+        p.hypeBreakdown.result=p.hype;
+      }
+    }
     filmStory(p,pd.lifecyclePhase,c.result||c.label);
     addLog('"'+p.title+'" · '+(c.result||c.label),'production');
   }
