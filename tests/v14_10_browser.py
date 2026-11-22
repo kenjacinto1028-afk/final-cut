@@ -51,6 +51,10 @@ with sync_playwright() as p:
     page.evaluate("Engine.save()")
     assert page.evaluate("Engine.load().ok")
     assert page.evaluate("Engine.state.yearPlans[0].priorities.length")==2
+    # New annual priorities remain active once the next calendar year begins.
+    page.evaluate("Engine.state.week=52; UI.go('newproject')")
+    assert page.locator('.fc-goal-advisory').count()>0, 'Annual goals must advise before greenlighting'
+    assert 'Profitability' in page.locator('.fc-goal-advisory').first.inner_text()
     page.evaluate("UI.go('studio_profile')")
     assert page.get_by_role('heading',name=re.compile('Annual Studio Strategy')).is_visible()
     assert not errors, errors
