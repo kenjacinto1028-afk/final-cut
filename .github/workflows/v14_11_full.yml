@@ -33,3 +33,11 @@ jobs:
         run: |
           python tests/v14_11_readability_browser.py
           python tests/v14_8_browser.py
+          python tests/v14_3a_filmhub_browser.py
+          python tests/v14_3b_promotions_browser.py
+          python tests/v14_3c_interface_browser.py
+          python tests/v14_2_tutorial_browser.py
+          python tests/v13_6_sitewide_browser.py
+          python tests/v13_7_multi_save_browser.py
+          python tests/v13_8_film_monitor_browser.py
+          python tests/v13_9_short_browser.py
