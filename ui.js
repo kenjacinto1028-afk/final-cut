@@ -1067,6 +1067,7 @@ var UI = (function () {
       p.recommendationPrefs={dismissed:{},snoozed:{}};
     p.recommendationPrefs.dismissed=p.recommendationPrefs.dismissed||{};
     p.recommendationPrefs.snoozed=p.recommendationPrefs.snoozed||{};
+    p.recommendationPrefs.reviewed=p.recommendationPrefs.reviewed||{};
     return p.recommendationPrefs;
   }
   function recommendationItems(p,opts){
@@ -1208,10 +1209,13 @@ var UI = (function () {
     const prefs=recommendationPrefs(p),key=recommendationPhase(p)+':'+action;
     if(snooze)prefs.snoozed[key]=Engine.state.week+4;
     else prefs.dismissed[key]=true;
+    prefs.reviewed[key]=Engine.state.week;
     Engine.save();render();
   }
   function recommendationOpen(id,action){
     const p=Engine.getProject(Number(id));if(!p)return;
+    const corresponding=recommendationItems(p,{all:true}).find(x=>x.action===action);
+    if(corresponding){recommendationPrefs(p).reviewed[corresponding.key]=Engine.state.week;Engine.save();}
     recommendationPopupId=null;
     if(action==='performance'){
       if(p.releaseWeek!=null){openProject(p.id);filmHubSelect('performance');}
@@ -1296,7 +1300,7 @@ var UI = (function () {
       (Engine.sequelEligibility(p.id).ok?'<button type="button" onclick="UI.beginSequel('+p.id+')">Explore sequel or adaptation</button>':
         '<p class="muted">Franchise opportunities require a qualifying released project.</p>')+
       lifecycleEventsPanel(p);
-    return '<section class="fc-center-management">'+buttons+'<div class="fc-center-action-content">'+content+'</div></section>';
+    return '<section class="fc-center-management">'+recommendationPanel(p,true)+buttons+'<div class="fc-center-action-content">'+content+'</div></section>';
   }
 
   const CENTER_STAGES = ['development','preproduction','shoot','post','release','done'];
@@ -1633,7 +1637,7 @@ var UI = (function () {
     const tabs='<nav class="fc-center-tabs" aria-label="Selected film sections">'+CENTER_TABS.map(([id,name])=>
       '<button type="button" aria-current="'+(centerTab===id?'page':'false')+'" class="'+(centerTab===id?'is-active':'')+
       '" onclick="UI.centerSelectTab(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</nav>';
-    const overview='<div class="fc-center-overview">'+meta+
+    const overview='<div class="fc-center-overview">'+meta+recommendationPanel(chosen,true)+
       '<div class="fc-center-actions-brief"><button type="button" onclick="UI.centerAction(&quot;promotions&quot;)">Promotions</button>'+
       '<button type="button" onclick="UI.centerAction(&quot;budget&quot;)">Budget</button>'+
       '<button type="button" onclick="UI.centerAction(&quot;distribution&quot;)">Distribution</button>'+
@@ -2414,6 +2418,7 @@ var UI = (function () {
         dl('Critical reception',f.critic==null?'Not rated':f.critic+'/100')+
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
       h+=fanSummary;
+      if(original)h+=recommendationPanel(original,true);
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original)h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
       h+='</section>';
@@ -2866,7 +2871,7 @@ var UI = (function () {
       '<div class="fc-project-drawer-summary"><strong>'+esc(centerStage(p).status)+'</strong>'+
       '<span>'+money(p.spent||0)+' / '+money(p.budget||0)+' spent</span></div>'+nav;
     if(projectDetailTab==='overview'){
-      h+='<div class="fc-project-overview">'+posterFor(p)+
+      h+='<div class="fc-project-overview">'+posterFor(p)+recommendationPanel(p,true)+
         '<dl>'+dl('Current stage',esc(centerStage(p).status))+
         dl('Expected release',p.releaseWeek!=null?dateLabel(p.releaseWeek):centerWeeksLeft(p)+' estimated work weeks')+
         dl('Quality',p.quality==null?'Est. '+centerEstimate(p).value:p.quality+'/100')+
@@ -3891,6 +3896,7 @@ var UI = (function () {
     renderPremiereReport();
     renderFilmMonitor();
     renderShortActionPrompt();
+    renderRecommendationPrompt();
   }
 
 // ===== SECTION: ACTIONS =====
@@ -3899,6 +3905,7 @@ var UI = (function () {
     drawer=null;drawerMsg='';centerProjectId=null;centerShowOlder=false;
     tutorialStep=-1;tutorialMinimized=false;tutorialReturnFocus=null;
     yearEndReplayYear=null;yearEndRendered='';yearEndStage=0;
+    recommendationPopupId=null;
     premiereReplayId=null;premiereRendered='';
     yearEndReturnFocus=null;
     if(posterEdit)closePosterEditor();
@@ -4040,7 +4047,9 @@ var UI = (function () {
     const r = Engine.startProject(draft);
     if (r.ok) { if(tutorialStep>=0)tutorialTargetId=r.project.id;
       draft.title = ''; draft.pitchId=null;draft.pitchApproach='standard'; delete draft.sequelOf;delete draft.continuationType;
-      draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0; go('dashboard'); } else { setFlash(r.reason); render(); }
+      draft.allocation=null;draft.allocationPreset='balanced'; draft.cast = { director: 'founder', writer: 'founder', lead: '', crew: '' };draft.supporting=[];draft.specialists=[];draft.backgroundCrew=0;
+      recommendationPopupId=tutorialStep>=0?null:r.project.id;
+      go('dashboard'); } else { setFlash(r.reason); render(); }
   }
   function v144Shift(id,from,to){
     const r=Engine.v144Reallocate(id,from,to,50);
@@ -4205,6 +4214,16 @@ var UI = (function () {
   function init() {
     render();
     document.addEventListener('keydown', e => {
+      if(recommendationPopupId!=null){
+        if(e.key==='Escape'){e.preventDefault();recommendationClose();return;}
+        if(e.key==='Tab'){
+          const buttons=Array.from($('fc-greenlight-recommendations')?.querySelectorAll('button:not(:disabled)')||[]);
+          if(buttons.length){const idx=buttons.indexOf(document.activeElement);
+            if(e.shiftKey&&idx<=0){e.preventDefault();buttons[buttons.length-1].focus();}
+            else if(!e.shiftKey&&idx===buttons.length-1){e.preventDefault();buttons[0].focus();}}
+        }
+        return;
+      }
       if(shortActionPending){
         if(e.key==='Escape'){e.preventDefault();shortActionCancel();return;}
         if(e.key==='Tab'){
@@ -4258,6 +4277,8 @@ var UI = (function () {
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
+    recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
+    recommendationItems:recommendationItems,
     chooseYearPriority:chooseYearPriority,decideYearOpportunity:decideYearOpportunity,reviewYearPlanOpportunity:reviewYearPlanOpportunity,showYearEndPlanning:showYearEndPlanning,
     toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
