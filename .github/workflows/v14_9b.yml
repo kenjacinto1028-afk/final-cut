@@ -29,7 +29,7 @@ jobs:
       - name: Check existing Film Hub poster contracts
         run: python tests/v14_3a_filmhub_browser.py
       - name: Check existing multi-save artwork behavior
-        run: python tests/v13_7_save_slots.py
+        run: python tests/v13_7_multi_save_browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
