@@ -343,7 +343,7 @@ var Engine = (function () {
   TUNING.awards = {
     ceremonyWeek: 10,
     nominees: 4, maxPerStudio: 2, minScore: 60,
-    goldenWinMin: 113, otherWinMin: 107, criticsWinMin: 109, indieWinMin: 94, audienceWinMin: 107,
+    goldenWinMin: 92, otherWinMin: 88, criticsWinMin: 90, indieWinMin: 82, audienceWinMin: 88,
     goldenMaxWinsPerStudio: 1, otherMaxWinsPerStudio: 1, festivalWinFloorBonus: 8, festivalMaxWinsPerFilm: 2, festivalMaxStudioWinsPerYear: 2,
     noise: 8, winNoise: 5, slotWeight: 0.25,
     rivalBoost: 20, prestigeRivalBoost: 6,
@@ -2184,7 +2184,7 @@ var Engine = (function () {
     const year = d.year;
     if (state.annualReviews && state.annualReviews.some(x=>x.year===year)) return;
     const films = state.projects.filter(p=>p.releaseWeek!=null && dateOf(p.releaseWeek).year===year);
-    const ranked = films.slice().sort((a,b)=>(b.gross||0)-(a.gross||0));
+    const ranked = films.slice().sort((a,b)=>(b.revenue||0)-(a.revenue||0));
     const critic = films.slice().sort((a,b)=>(b.critic||0)-(a.critic||0));
     const wins = films.reduce((sum,p)=>sum+(p.awards||[]).filter(x=>x.won).length+(p.festResults||[]).filter(x=>/prize|winner|won/i.test(x.result||'')).length,0);
     const report = { year, films:films.length, topGrossId:ranked[0]?ranked[0].id:null,
