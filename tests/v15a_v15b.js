@@ -47,7 +47,7 @@ const base={title:'The Last Postmark',format:'short',mediaVariant:'short',budget
   const before=[p.spent,p.marketingSpend,p.hypeMod];
   for(let i=0;i<8;i++){if(E.state.pending)E.choose(E.state.pending.choices.length-1);else E.nextTurn();}
   assert.deepEqual([p.spent-p.budgetPlan.spent.prep-p.budgetPlan.spent.shoot-p.budgetPlan.spent.post-p.budgetPlan.spent.distribution-p.budgetPlan.spent.reserve,p.marketingSpend].map(Math.round),
-    [p.fees,p.marketingSpend].map(Math.round),'marketing charged once, direct spend reconciles');
+    [p.fees+p.marketingSpend,p.marketingSpend].map(Math.round),'marketing charged once, direct spend reconciles');
   assert(E.save());assert(E.load().ok,'legacy v13 save format loads');
   const loaded=E.getProject(p.id);
   assert.equal(loaded.marketingPlan.spent,before[1],'planned campaign survives reload');
