@@ -1630,7 +1630,15 @@ var Engine = (function () {
     }
     state.cash -= pv.fees + (pv.scriptFee||0);
     if(pv.scriptFee)state.finance.q.production+=pv.scriptFee; // report actual screenplay rights expense
-    castTalent(p).forEach(t => { if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id }; });
+    castTalent(p).forEach(t => {
+      const c=v15Career(t);
+      if(c.promisedRoleUntil&&c.promisedRoleUntil>=state.week){
+        c.promisedRoleUntil=null;
+        if(isRoster(t))t.contract.morale=clamp((t.contract.morale||50)+8,0,100);
+        careerEvent(t,'partnership','The studio honored a promised role on "'+p.title+'".','player:'+p.id);
+      }
+      if (!isRoster(t)) t.contract = { type: 'project', projectId: p.id };
+    });
     state.projects.push(p);
     const hires = castTalent(p).map(t => t.name);
     addLog('Greenlit "' + p.title + '" (' + f.name + ', ' + byId(CONTENT.GENRES, p.genre).name + ', ' + fmtMoney(p.budget) + ')' +
