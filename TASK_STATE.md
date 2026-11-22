@@ -325,3 +325,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Recomputed highest-earning release dynamically from preserved film revenue for older annual-review saves (ui.js, 317554b), without changing original saved film/award history.
 - [ ] Wait for final main GitHub Actions v14.10 / v14.12 / integrated tests and Pages deployment to report result; fix any failures.
 - [ ] Physical mobile device acceptance remains outstanding.
+
+## v14.13 — Discoverable sequels, spinoffs, cross-media follow-ups (2026-11-22)
+- [x] Inspected existing continuation eligibility, retained-cast suggestions, franchise history, and current film UI. Reused existing engine behavior without a save migration.
+- [x] Added Franchises & Follow-ups to My Filmography and a collapsible released-film selector in New Project; ui.js (e2f7e93).
+- [x] Added Create sequel, Create spinoff and Adapt to another format shortcuts in film details and the Film Hub; ui.js (e2f7e93).
+- [x] Added responsive franchise browser/action styling; theme-ab.css (6826dfd).
+- [x] Refetched both changed files from main, parsed full ui.js successfully and confirmed all shortcut labels/handlers/style selectors; no live browser or gameplay simulation performed.
+- [ ] Perform live-browser UX and gameplay checks on deployed site (including mobile), and review CI/Pages deployment after changes.
