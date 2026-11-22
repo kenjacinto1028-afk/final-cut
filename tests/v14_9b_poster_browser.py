@@ -42,7 +42,7 @@ try:
         pid=film['id']
         picker=page.locator('#drawer .poster-picker input[type="file"]')
         picker.set_input_files(str(source))
-        assert page.locator('#poster-editor').is_visible()
+        page.locator('#poster-editor').wait_for(state='visible',timeout=8000)
         page.locator('#poster-editor').get_by_role('button',name='Use this poster').click()
         page.wait_for_function('(id)=>!!Engine.getProject(id).posterCustom',arg=pid)
         assert page.evaluate('(id)=>PosterStore.missing([id]).then(x=>x.length===0)',pid)
