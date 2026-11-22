@@ -1,0 +1,35 @@
+name: FinalCut v15a v15b marketing and offline posters
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  new-project-and-posters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check source and marketing/poster gameplay
+        run: |
+          node --check content.js
+          node --check engine.js
+          node --check ui.js
+          node --check media.js
+          node tests/v15a_v15b.js
+          node tests/v14_4_budget.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set up Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Browser regression
+        run: |
+          python tests/v15a_v15b_browser.py
+          python tests/v14_3c_interface_browser.py
