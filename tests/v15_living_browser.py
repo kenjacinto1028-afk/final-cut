@@ -30,6 +30,7 @@ try:
   page.locator('#main table tbody tr').first.click()
   assert 'Personality' in page.locator('#main').inner_text()
   assert 'Yearly ambition' in page.locator('#main').inner_text()
+  assert page.locator('#main').get_by_role('button',name='Approach studio',exact=False).count()==1
   page.evaluate("""()=>{
     UI.go('talent');
     UI.openTalent(Engine.talent()[0].id);
