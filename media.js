@@ -402,13 +402,19 @@ var Media = (function () {
     return subject;
   }
   function v15TitleWrap(title){
-    const words=String(title||'UNTITLED').trim().toUpperCase().split(/\s+/),lines=[];let line='';
-    for(const word of words){
-      if(line&&(line+' '+word).length>18){lines.push(line);line=word;}
-      else line=line?line+' '+word:word;
+    const words=String(title||'UNTITLED').trim().toUpperCase().split(/\s+/);
+    // Never drop trailing title words on long names. Widen lines as needed and
+    // fit oversized text to the reserved SVG width without cropping credits.
+    for(let limit=16;limit<=80;limit+=4){
+      const lines=[];let line='';
+      for(const word of words){
+        if(line&&(line+' '+word).length>limit){lines.push(line);line=word;}
+        else line=line?line+' '+word:word;
+      }
+      if(line)lines.push(line);
+      if(lines.length<=4)return lines;
     }
-    if(line)lines.push(line);
-    return lines.slice(0,4);
+    return [words.join(' ')];
   }
   function v15PosterSVG(p,opts,style,eraId,E,pal,year){
     const family=(style-8)%6,variation=Math.floor((style-8)/6);
