@@ -2914,7 +2914,17 @@ var UI = (function () {
     add('market','Study next year’s genre demand','Check actual genre and topic trends before choosing projects.','market');
     add('budget','Set a sustainable production budget','Review available cash, liabilities and film postmortems before committing to a slate.','finance');
     add('studio','Choose a studio identity direction','Balance profitable releases, prestige and the talent you hire.','studio_profile');
-    plan={year:report.year,priorities:[],opportunities:options.slice(0,5)};
+    // Last year's strategic choices shape which opportunities reach the limited
+    // annual briefing; they do not invent demand or automatically boost profits.
+    const previous=s.yearPlans.filter(p=>p.year<report.year).sort((a,b)=>b.year-a.year)[0];
+    const focus=previous?.priorities||[];
+    const matching={
+      profit:['budget','market'],prestige:['awards','international'],
+      franchise:['sequel','adaptation','revival'],talent:['talent','partnership','studio']
+    };
+    const score=id=>focus.reduce((n,key)=>n+((matching[key]||[]).includes(id)?20:0),0);
+    const prioritized=options.map((o,i)=>({o,i})).sort((a,b)=>score(b.o.id)-score(a.o.id)||a.i-b.i);
+    plan={year:report.year,priorities:[],opportunities:prioritized.slice(0,5).map(x=>x.o)};
     s.yearPlans.push(plan);Engine.save();return plan;
   }
   function chooseYearPriority(year,id){
