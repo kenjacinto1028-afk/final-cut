@@ -606,6 +606,7 @@ var Engine = (function () {
       awards: { history: [], pool: [], judged: {} },
       filmArchive: { rivals: [], incompleteBefore: null },
       annualReviews: [],
+      yearPlans: [], // Saved advisory priorities and opportunity decisions by studio year.
       yearEndPresented: [], // Year-end honors are presentation only; persist dismissal per calendar year.
       premierePresented: [], // Release reports are presentation only, one per film with saved dismissal.
       endRunPresented: [], // Distinct final screening reports, dismissed once per project.
@@ -5362,6 +5363,7 @@ var Engine = (function () {
     // Existing saves already have historic annual reviews; don't replay those old
     // popups on migration. New games persist dismissed years as they are viewed.
     state.yearEndPresented = Array.isArray(state.yearEndPresented) ? state.yearEndPresented : state.annualReviews.map(r => r.year);
+    state.yearPlans = Array.isArray(state.yearPlans) ? state.yearPlans : [];
     // Legacy studios already saw their historical releases. Do not replay all premieres after upgrade.
     state.premierePresented = Array.isArray(state.premierePresented) ? state.premierePresented :
       state.projects.filter(p => p.releaseWeek != null).map(p => p.id);
