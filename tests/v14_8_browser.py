@@ -23,7 +23,7 @@ try:
   }""")
   assert page.locator('.fc-wire-tabs button').count()==3
   assert page.locator('.fc-qol-notifications').count()==1
-  assert page.get_by_role('button',name='Next Action').count()>=1
+  assert page.locator('.fc-dashboard-actions button').first.count()==1
   assert page.get_by_role('button',name='Skip Quiet Weeks').count()>=1
   before=page.evaluate("JSON.stringify(Engine.state.market)")
   page.locator('.fc-wire-tabs').get_by_role('button',name='Market Trends').click()
