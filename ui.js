@@ -933,7 +933,7 @@ var UI = (function () {
     const fmt = fmts.find(f => f.id === draft.format) || fmts[0];
     const pv = Engine.previewProject(draft);
     const opt = (val, label, sel, dis) => '<option value="' + esc(val) + '"' + (sel ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + esc(label) + '</option>';
-    let h = '<h1>New project</h1>' + v14ScriptCards() + (draft.sequelOf != null ?
+    let h = '<h1>New project</h1>' + (draft.sequelOf==null?'<details class="fc-followup-picker"><summary>Make a sequel, spinoff or adaptation from an existing film</summary>'+franchiseLibrary()+'</details>':'') + v14ScriptCards() + (draft.sequelOf != null ?
       '<section class="franchise-card"><strong>Continue the story of '+esc((Engine.getProject(draft.sequelOf)||{}).title||'')+
       '</strong><p>Continuations inherit some audience awareness, not quality or success. Returning stars may charge more.</p><p>Existing loyal following: '+compactCount(Engine.filmFollowing(Engine.getProject(draft.sequelOf)).loyal)+' · returning fans can raise opening awareness, but success is not guaranteed.</p>'+
       '<label>Relationship <select onchange="UI.setDraft(\'continuationType\',this.value)">'+
@@ -1921,8 +1921,9 @@ var UI = (function () {
     return '<h1>My Filmography</h1><p class="fc-compact-page-info">Films, shorts, pilots and web releases from your studio. Open any title for reviews, reach, revenue and future options.</p>'+dashboard+financeGlossary()+
 
       '<div class="seg"><button class="seg-btn' + (filmBrowse.tab==='all'?' on':'') + '" onclick="UI.resetMyFilmographyFilters()">All My Films</button>' +
-      '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button></div>' +
-      filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
+      '<button class="seg-btn' + (filmBrowse.tab==='ranks'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'ranks\')">My Rankings</button>' +
+      '<button class="seg-btn' + (filmBrowse.tab==='franchises'?' on':'') + '" onclick="UI.setFilmFilter(\'tab\',\'franchises\')">Franchises & Follow-ups</button></div>' +
+      (filmBrowse.tab==='franchises'?'<p class="muted">Start a sequel, spinoff or cross-media adaptation from an eligible released film. Continuations carry audience awareness, but not guaranteed quality or profits.</p>'+franchiseLibrary():filmFilters(filmBrowse.tab==='ranks') + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>');
   }
   function viewArchive() {
     const h=Engine.state.filmArchive;
@@ -2491,7 +2492,7 @@ var UI = (function () {
       '<small>FILM HUB · '+(original?esc(original.result||CONTENT.STAGE_LABELS[original.stage]||'Released'):'Industry record')+'</small>'+
       '<h2>'+esc(f.title)+'</h2>'+
       '<p>'+esc(f.dna?.hook||f.review?.headline||'A recorded production in the industry archive.')+'</p>'+
-      (original?'<p class="fc-filmhub-open"><button type="button" onclick="UI.openProject('+original.id+')">Open Film Hub · production actions</button></p>':'')+
+      (original?'<p class="fc-filmhub-open"><button type="button" onclick="UI.openProject('+original.id+')">Open Film Hub · production actions</button></p><section class="fc-followup-panel">'+followUpActions(original.id)+'</section>':'')+
       '<div class="fc-hub-numbers">'+[
         ['Quality',f.quality],['Critics',f.critic],['Audience',f.audience],['Hype',f.hype]
       ].map(x=>'<span><small>'+x[0]+'</small><strong>'+(x[1]==null?'—':x[1]+'/100')+'</strong></span>').join('')+'</div></div></div>'+tabs;
@@ -2601,7 +2602,7 @@ var UI = (function () {
     }
     if (f.franchiseId) h += '<div class="franchise-card"><strong>Franchise: '+esc(f.franchiseName||f.title)+'</strong> · installment '+(f.installment||1)+
       '<p>'+Engine.franchiseFilms(f.franchiseId).map(x=>'<a href="#" onclick="UI.openFilm(\''+esc(x.id)+'\');return false">'+esc(x.title)+'</a>').join(' · ')+'</p></div>';
-    if (f.projectId != null && Engine.sequelEligibility(f.projectId).ok) h += '<button class="primary" onclick="UI.beginSequel('+f.projectId+')">Develop a sequel</button>';
+    if (f.projectId != null) h += '<section class="fc-followup-panel"><h3>Create a follow-up</h3>'+followUpActions(f.projectId)+'</section>';
     h += '<h3>Production</h3><dl>' + dl('Format', esc(f.format)) + dl('Started', f.startWeek == null ? 'Not recorded' : dateLabel(f.startWeek)) +
       dl('Released', dateLabel(f.releaseWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS, f.region || ''))) +
       dl('Budget', money(f.budget || 0)) + dl('Status', esc(f.result || f.stage || '—')) + '</dl>';
@@ -4155,6 +4156,44 @@ var UI = (function () {
     render();
   }
   function choose(i) { Engine.choose(i); render(); }
+  // Quick access to existing continuation mechanics; no new franchise rules.
+  function followUpActions(id) {
+    const eligibility=Engine.sequelEligibility(id);
+    if(!eligibility.ok)return '<span class="muted">'+esc(eligibility.reason)+'</span>';
+    return '<div class="fc-followup-actions" role="group" aria-label="Create a follow-up">'+
+      '<button class="primary" type="button" onclick="UI.beginFollowUp('+Number(id)+',\'direct\')">Create sequel</button>'+
+      '<button type="button" onclick="UI.beginFollowUp('+Number(id)+',\'spinoff\')">Create spinoff</button>'+
+      '<button type="button" onclick="UI.beginFollowUp('+Number(id)+',\'adaptation\')">Adapt to another format</button></div>';
+  }
+  function franchiseLibrary(){
+    const released=Engine.filmHistory().filter(f=>f.projectId!=null && Engine.getProject(f.projectId));
+    if(!released.length)return '<p class="muted">Release your first film to build your studio catalog and explore follow-ups.</p>';
+    const groups=new Map();
+    released.forEach(f=>{
+      const p=Engine.getProject(f.projectId);
+      const key=p.franchiseId||'solo:'+p.id;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push({film:f,project:p});
+    });
+    return '<div class="fc-franchise-library">'+Array.from(groups.values()).reverse().map(items=>{
+      const root=items[0],best=items[items.length-1],eligible=items.filter(x=>Engine.sequelEligibility(x.project.id).ok);
+      const parent=eligible.length?eligible[eligible.length-1]:best;
+      return '<section class="fc-franchise-entry"><div><strong>'+esc(root.project.franchiseName||root.film.title)+'</strong>'+
+        '<p class="muted">'+items.length+' released title'+(items.length===1?'':'s')+' · '+items.map(x=>
+          '<a href="#" onclick="UI.openProject('+x.project.id+');return false">'+esc(x.film.title)+'</a>').join(' · ')+'</p></div>'+
+        '<div>'+followUpActions(parent.project.id)+'</div></section>';
+    }).join('')+'</div>';
+  }
+  function beginFollowUp(id,kind) {
+    if(!['direct','spinoff','adaptation'].includes(kind))return;
+    const q=Engine.sequelEligibility(Number(id));
+    if(!q.ok){setFlash(q.reason);render();return;}
+    beginSequel(Number(id));
+    draft.continuationType=kind;
+    if(kind==='spinoff')draft.title=q.parent.title+': A New Story';
+    if(kind==='adaptation')draft.title=q.parent.title+': The Series';
+    render();
+  }
   function beginSequel(id) {
     const q=Engine.sequelEligibility(id);
     if(!q.ok){drawerMsg=q.reason;renderDrawer();return;}
@@ -4404,7 +4443,7 @@ var UI = (function () {
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
-    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
