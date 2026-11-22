@@ -556,6 +556,8 @@ var UI = (function () {
   }
   function notificationPanel(){
     const notes=actionInbox();
+    const planned=(s.yearPlans||[]).flatMap(p=>p.opportunities||[]).filter(x=>x.status==='accepted'&&!x.reviewed).slice(0,2);
+    planned.forEach(x=>notes.push({level:'info',text:'Annual plan · '+x.title,action:'plan',id:x.id,year:x.year}));
     if(!notes.length)return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>All clear</small></div><p class="muted">No urgent studio issues this week.</p></section>';
     return '<section class="fc-qol-notifications"><div class="fc-qol-notice-head"><strong>Action Inbox</strong><small>'+notes.length+' to review</small></div>'+
       notes.map(x=>'<button type="button" class="fc-qol-notice fc-qol-'+x.level+'" onclick="UI.gotoAlert(&quot;'+x.action+'&quot;'+(x.id!=null?','+x.id:'')+')">'+
@@ -869,6 +871,7 @@ var UI = (function () {
       '<section class="fc-v14-profile-section"><h2>Studio following</h2><div class="fc-fan-summary"><strong>'+
       compactCount(following.active)+' active studio followers</strong><span>'+
       compactCount(following.loyal)+' loyal studio fans</span><small>Estimated returning audience interest across your releases. Different from Fame, Buzz and Prestige.</small></div></section>'+
+      yearPlanSummary()+
       '<section class="fc-v14-profile-section"><h2>Creative delegation</h2>'+
       '<p>Routine work is automatic. Decide whether major creative dilemmas interrupt you.</p>'+
       '<div class="fc-v14-seg">'+[
@@ -2871,6 +2874,93 @@ var UI = (function () {
     const r = reports.find(x => x.year === d.year);
     return r && !(state.yearEndPresented || []).includes(d.year) ? r : null;
   }
+
+  // Annual studio planning is advisory: no automatic spending, greenlights or
+  // guaranteed sequel success. Every decision is saved on the studio itself.
+  const YEAR_STRATEGIES=[
+    ['profit','Profitability','Favor manageable budgets and reliable receipts'],
+    ['prestige','Prestige','Pursue critical recognition and festivals'],
+    ['franchise','Franchises','Explore sequels, revivals and adaptations'],
+    ['talent','Emerging talent','Develop long-term creative relationships']
+  ];
+  function annualPlanFor(report,create){
+    const s=Engine.state;if(!s||!report)return null;
+    s.yearPlans=s.yearPlans||[];
+    let plan=s.yearPlans.find(p=>p.year===report.year);
+    if(plan||!create)return plan||null;
+    const released=s.projects.filter(p=>p.releaseWeek!=null&&Engine.dateOf(p.releaseWeek).year===report.year);
+    const success=released.slice().sort((a,b)=>(b.revenue||0)-(b.spent||0)-((a.revenue||0)-(a.spent||0)))[0];
+    const acclaimed=released.slice().sort((a,b)=>(b.critic||0)-(a.critic||0))[0];
+    const legacy=s.projects.filter(p=>p.stage==='done'&&p.releaseWeek!=null&&Engine.dateOf(p.releaseWeek).year<report.year&&(p.revenue||0)>(p.spent||0)).slice(-1)[0];
+    const options=[];
+    const add=(id,title,detail,action,projectId)=>options.push({id,year:report.year,title,detail,action,projectId:projectId||null,status:'open',reviewed:false});
+    if(success&&(success.revenue||0)>(success.spent||0))
+      add('sequel','Explore a follow-up: '+success.title,'Profitable release. A sequel, prequel or spin-off still needs its own budget, cast and audience strategy.','project',success.id);
+    if(acclaimed&&(acclaimed.critic||0)>=65)
+      add('awards','Build on critical attention: '+acclaimed.title,'Review awards, festival results and how to position your next prestige film.','project',acclaimed.id);
+    if(Engine.expiringContracts().length)
+      add('talent','Retain key talent','Contracts are approaching expiry. Review renewals before collaborators become unavailable.','roster');
+    if(legacy)
+      add('revival','Consider a catalog revival: '+legacy.title,'A proven older film may support a new story or cross-media adaptation; past success is not a guarantee.','project',legacy.id);
+    if((s.studio.fame||0)>=20)
+      add('international','Review international reach','Your studio has recognition. Compare regions and rivals before expanding distribution.','market');
+    add('market','Study next year’s genre demand','Check actual genre and topic trends before choosing projects.','market');
+    add('budget','Set a sustainable production budget','Review available cash, liabilities and film postmortems before committing to a slate.','finance');
+    add('studio','Choose a studio identity direction','Balance profitable releases, prestige and the talent you hire.','studio_profile');
+    plan={year:report.year,priorities:[],opportunities:options.slice(0,5)};
+    s.yearPlans.push(plan);Engine.save();return plan;
+  }
+  function chooseYearPriority(year,id){
+    const p=(Engine.state?.yearPlans||[]).find(x=>x.year===Number(year));
+    if(!p||!YEAR_STRATEGIES.some(x=>x[0]===id))return;
+    p.priorities=p.priorities||[];
+    if(p.priorities.includes(id))p.priorities=p.priorities.filter(x=>x!==id);
+    else if(p.priorities.length<2)p.priorities.push(id);
+    else {setFlash('Choose up to two annual priorities.');return;}
+    Engine.save();yearEndRendered='';render();
+  }
+  function decideYearOpportunity(year,id,status){
+    const plan=(Engine.state?.yearPlans||[]).find(p=>p.year===Number(year));
+    const item=plan?.opportunities?.find(o=>o.id===id);
+    if(!item||!['accepted','deferred','dismissed'].includes(status))return;
+    item.status=status;item.reviewed=false;Engine.save();
+    yearEndRendered='';render();
+  }
+  function reviewYearPlanOpportunity(year,id){
+    const plan=(Engine.state?.yearPlans||[]).find(p=>p.year===Number(year));
+    const item=plan?.opportunities?.find(o=>o.id===id);
+    if(!item)return;
+    item.reviewed=true;Engine.save();
+    if(item.action==='project'&&Engine.state.projects.some(p=>p.id===item.projectId))openProject(item.projectId);
+    else go(item.action||'studio_profile');
+  }
+  function yearPlanSummary(){
+    const plans=Engine.state?.yearPlans||[];
+    const plan=plans[plans.length-1];if(!plan)return '';
+    const chosen=(plan.priorities||[]).map(id=>YEAR_STRATEGIES.find(x=>x[0]===id)?.[1]).filter(Boolean);
+    const accepted=(plan.opportunities||[]).filter(x=>x.status==='accepted');
+    return '<section class="fc-annual-summary"><h2>Annual Studio Strategy · '+plan.year+'</h2>'+
+      '<p class="muted">Planning priorities guide your decisions; they do not automatically spend money or guarantee results.</p>'+
+      '<p><strong>Priorities:</strong> '+esc(chosen.join(' + ')||'Not set')+'</p>'+
+      (accepted.length?accepted.map(o=>'<div class="fc-annual-task"><span>'+esc(o.title)+(o.reviewed?' · reviewed':' · to review')+'</span>'+
+        '<button type="button" onclick="UI.reviewYearPlanOpportunity('+plan.year+',&quot;'+o.id+'&quot;)">Open</button></div>').join(''):'<p class="muted">No opportunities accepted yet.</p>')+
+      '<button type="button" onclick="UI.replayYearEnd('+plan.year+')">Review annual plan</button></section>';
+  }
+  function yearEndPlanning(report){
+    const plan=annualPlanFor(report,true);
+    const chosen=plan.priorities||[];
+    return '<div class="fc-annual-planning"><h2>Plan for '+(report.year+1)+'</h2>'+
+      '<p>Choose up to two priorities, then accept, postpone or dismiss each opportunity. Accepted actions appear in your dashboard inbox. Nothing happens automatically.</p>'+
+      '<div class="fc-annual-priorities">'+YEAR_STRATEGIES.map(x=>'<button type="button" aria-pressed="'+chosen.includes(x[0])+'" class="'+(chosen.includes(x[0])?'is-selected':'')+
+        '" onclick="UI.chooseYearPriority('+report.year+',&quot;'+x[0]+'&quot;)"><strong>'+esc(x[1])+'</strong><small>'+esc(x[2])+'</small></button>').join('')+'</div>'+
+      '<h3>Recommended opportunities</h3>'+
+      (plan.opportunities||[]).map(o=>'<div class="fc-annual-task"><div><strong>'+esc(o.title)+'</strong><p>'+esc(o.detail)+'</p>'+
+        '<small>Status: '+esc(o.status)+'</small></div><div class="fc-annual-options">'+
+        [['accepted','Accept'],['deferred','Postpone'],['dismissed','Dismiss']].map(v=>
+          '<button type="button" aria-pressed="'+(o.status===v[0])+'" class="'+(o.status===v[0]?'is-selected':'')+
+          '" onclick="UI.decideYearOpportunity('+report.year+',&quot;'+o.id+'&quot;,&quot;'+v[0]+'&quot;)">'+v[1]+'</button>').join('')+
+        '</div></div>').join('')+'</div>';
+  }
   function yearEndFacts(report) {
     const s = Engine.state;
     const ceremonies = (s.awards.history || []).filter(x => x.year === report.year);
@@ -2899,7 +2989,7 @@ var UI = (function () {
     if (!root) return;
     const report = currentYearEndReport();
     if (!report) { root.hidden = true; root.innerHTML = ''; yearEndRendered = ''; return; }
-    const key = report.year + ':' + yearEndStage;
+    const key = report.year + ':' + yearEndStage + ':' + JSON.stringify((Engine.state.yearPlans||[]).find(p=>p.year===report.year)||{});
     if (yearEndRendered === key && !root.hidden) return;
     if (root.hidden) yearEndReturnFocus = document.activeElement;
     yearEndRendered = key;
@@ -2922,13 +3012,15 @@ var UI = (function () {
       '<div class="year-end-mast"><span>FINAL CUT · THE YEAR IN FILM</span><div class="year-end-mast-actions">' +
       (hasMedia() && Media.musicState().supported ? '<button id="year-sound-btn" type="button" aria-pressed="' + Media.settings.sfx + '" onclick="UI.yearEndSound()">♫ Sound ' + (Media.settings.sfx ? 'On' : 'Off') + '</button>' : '') +
       '<button type="button" aria-label="Dismiss year-end honors" onclick="UI.closeYearEndHonors()">✕</button></div></div>' +
-      opener + (yearEndStage === 0 ? '' : outcome) +
+      opener + (yearEndStage === 0 ? '' : yearEndStage===1 ? outcome : yearEndPlanning(report)) +
       '<div class="year-end-actions"><button type="button" onclick="UI.closeYearEndHonors()">Close</button>' +
       (yearEndStage === 0 ? '<button id="year-end-action" type="button" class="primary" onclick="UI.revealYearEndHonors()">Reveal the winners</button>' :
-        '<button id="year-end-action" type="button" class="primary" onclick="UI.closeYearEndHonors(true)">View Awards</button>') + '</div></div></div>';
+        yearEndStage===1 ? '<button id="year-end-action" type="button" class="primary" onclick="UI.showYearEndPlanning()">Plan Next Year</button>' :
+        '<button id="year-end-action" type="button" class="primary" onclick="UI.closeYearEndHonors()">Save Annual Plan</button>') + '</div></div></div>';
     root.hidden = false;
     const next = $('year-end-action'); if (next) next.focus();
   }
+  function showYearEndPlanning(){yearEndStage=2;yearEndRendered='';renderYearEndHonors();}
   function yearEndSound() {
     if (!hasMedia()) return;
     Media.toggleSfx();
@@ -3807,6 +3899,7 @@ var UI = (function () {
     v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
+    chooseYearPriority:chooseYearPriority,decideYearOpportunity:decideYearOpportunity,reviewYearPlanOpportunity:reviewYearPlanOpportunity,showYearEndPlanning:showYearEndPlanning,
     toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
