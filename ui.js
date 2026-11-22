@@ -2593,6 +2593,33 @@ var UI = (function () {
       dl('Followers','Estimated interested and loyal audiences; not verified unique viewers or ticket purchases.')+
       '</dl></details>';
   }
+
+  // v15e: display living audiences without replacing existing film reach stats.
+  function v15FanPanel(p){
+    if(!p||p.releaseWeek==null)return '';
+    const fans=Engine.v15FanStatus(p.id),quote=Engine.v15FanEventQuote(p.id);
+    if(!fans)return '';
+    return '<section class="fc-hub-panel fc-fan-community"><h3>Audience community</h3>'+
+      '<div class="fc-fan-metrics"><strong>'+esc(fans.status)+'</strong><span>'+
+      compactCount(fans.active)+' interested · '+compactCount(fans.loyal)+' loyal</span>'+
+      '<small>Simulated followers grounded in recorded exposure, not distinct ticket buyers.</small></div>'+
+      '<p>Community momentum <strong>'+(fans.momentum>=0?'+':'')+fans.momentum+'</strong> · audience/critics gap '+
+      (fans.criticGap>=0?'+':'')+fans.criticGap+'</p>'+
+      (fans.history.length?'<details><summary>Recent fan activity</summary><ul class="plain">'+
+        fans.history.map(x=>'<li>'+dateLabel(x.week)+' · '+esc(x.text)+'</li>').join('')+'</ul></details>':'')+
+      '<button type="button" '+(!quote.ok?'disabled title="'+esc(quote.reason)+'" ':'')+
+      'onclick="UI.v15FanEvent('+p.id+')">Host fan screening & discussion'+
+      (quote.ok?' · '+money(quote.cost):'')+'</button>'+
+      (!quote.ok?'<p class="muted">'+esc(quote.reason)+'</p>':'')+'</section>';
+  }
+  async function v15FanEvent(id){
+    const q=Engine.v15FanEventQuote(id);
+    if(!q.ok){setFlash(q.reason);render();return;}
+    if(!await confirmGame('Organize a fan screening and discussion for '+money(q.cost)+
+      '? This is a direct expense. Fan interest may rise but revenue is not guaranteed.'))return;
+    const r=Engine.v15HostFanEvent(id);
+    setFlash(r.ok?'Fan community event organized.':r.reason);render();
+  }
   function v145FilmHub(f){
     const original=f.projectId!=null?Engine.getProject(f.projectId):null;
     const following=original?Engine.filmFollowing(original):null;
@@ -2616,7 +2643,7 @@ var UI = (function () {
         dl('Critical reception',f.critic==null?'Not rated':f.critic+'/100')+
         dl('Audience reception',f.audience==null?'Not rated':f.audience+'/100')+'</dl>';
       h+=fanSummary;
-      if(original)h+=recommendationPanel(original,true);
+      if(original)h+=v15FanPanel(original)+recommendationPanel(original,true);
       if(f.review)h+='<p class="film-review"><strong>'+esc(f.review.headline)+'</strong> — '+esc(f.review.text)+'</p>';
       if(original)h+='<button type="button" onclick="UI.replayPremiere('+original.id+')">Replay premiere report</button>';
       h+='</section>';
@@ -2644,6 +2671,7 @@ var UI = (function () {
         dl('Awards',(f.awards||[]).map(a=>esc((a.won?'Won: ':'Nominated: ')+(a.category||a.cat)+' · '+(a.ceremony||'Film awards'))).join('<br>')||'None')+
         dl('Festivals',(f.festResults||[]).map(a=>esc(a.festival+' · '+a.result)).join('<br>')||'None')+'</dl>';
       if(original){
+        h+=v15FanPanel(original);
         if(Engine.sequelEligibility(original.id).ok)h+='<button class="primary" onclick="UI.beginSequel('+original.id+')">Continue this story</button>';
         h+=v14AfterlifeControls(original);
       }
@@ -4572,7 +4600,7 @@ var UI = (function () {
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
-    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
