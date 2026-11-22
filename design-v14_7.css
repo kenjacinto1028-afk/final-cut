@@ -500,3 +500,11 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
  .fc-monitor-quick-metrics{gap:4px}
  .fc-monitor-quick-metrics b{font-size:.82rem}
 }
+
+/* Keep full explanations reachable for screen readers and mouse hover. */
+.fc-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;padding:0!important;margin:-1px!important;border:0!important}
+.fc-stats>div{position:relative}
+.fc-stats>div[title]{cursor:help}
+.fc-brief-explanation{border:0;margin:8px 0 14px}
+.fc-brief-explanation>summary{font-size:.8rem;color:var(--muted,#aab8b2);cursor:pointer;padding:3px 0}
+.fc-brief-explanation>p{font-size:.85rem;line-height:1.55;margin:9px 0 0}
