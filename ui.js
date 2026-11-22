@@ -510,6 +510,17 @@ var UI = (function () {
     wireFilter=next;
     if(view==='dashboard')render();
   }
+  function firstUnreviewedRecommendation(){
+    const s=Engine.state;if(!s)return null;
+    const projects=s.projects.slice().reverse().filter(p=>p.stage!=='done')
+      .concat(s.projects.slice().reverse().filter(p=>p.stage==='done').slice(0,3));
+    for(const project of projects){
+      const prefs=recommendationPrefs(project);
+      const item=recommendationItems(project).find(x=>prefs.reviewed[x.key]==null);
+      if(item)return {project,item};
+    }
+    return null;
+  }
   // Actionable messages first; informational events stay in the Studio Wire.
   function actionInbox(){
     const s=Engine.state;if(!s)return [];
@@ -518,8 +529,16 @@ var UI = (function () {
     if(s.warning?.stage||s.cash<0)notes.push({level:'urgent',text:'Studio cash warning · review financing',action:'finance'});
     const ending=Engine.expiringContracts().slice(0,2);
     ending.forEach(t=>notes.push({level:'warning',text:t.name+' · contract ending in '+Engine.weeksLeft(t)+' weeks',action:'roster'}));
-    const active=(s.projects||[]).filter(p=>p.stage==='release'&&p.format==='feature'&&p.weeksInRelease>=1&&p.weeksInRelease<=6);
-    active.slice(0,2).forEach(p=>notes.push({level:'info',text:p.title+' · review theatrical performance and release strategy',action:'project',id:p.id}));
+    const recommended=firstUnreviewedRecommendation();
+    if(recommended)notes.push({level:'info',
+      text:recommended.project.title+' · '+recommended.item.title,
+      action:'recommendation',id:recommended.project.id});
+    else {
+      const active=(s.projects||[]).filter(p=>p.stage==='release'&&p.format==='feature'&&
+        p.weeksInRelease>=1&&p.weeksInRelease<=6);
+      active.slice(0,1).forEach(p=>notes.push({level:'info',
+        text:p.title+' · review theatrical performance',action:'project',id:p.id}));
+    }
     return notes.slice(0,5);
   }
   // Both dashboard and Next Action use the same priority queue. Completed films are
@@ -534,6 +553,9 @@ var UI = (function () {
     if(Engine.expiringContracts().length)return {action:'roster',label:'Review expiring contracts'};
     const plan=(s.yearPlans||[]).flatMap(x=>x.opportunities||[]).find(x=>x.status==='accepted'&&!x.reviewed);
     if(plan)return {action:'plan',id:plan.id,year:plan.year,label:'Review annual plan'};
+    const reco=firstUnreviewedRecommendation();
+    if(reco)return {action:'recommendation',id:reco.project.id,
+      actionId:reco.item.action,label:reco.item.title};
     const release=s.projects.find(p=>p.stage==='release'&&p.format==='feature'&&p.weeksInRelease>=1&&p.weeksInRelease<=6);
     if(release)return {action:'project',id:release.id,label:'Review '+release.title};
     const upcoming=s.projects.find(p=>p.stage!=='done'&&p.stage!=='release');
@@ -546,13 +568,18 @@ var UI = (function () {
     if(task.action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
     else if(task.action==='premiere'||task.action==='endrun'||task.action==='yearend')render();
     else if(task.action==='project')openProject(task.id);
+    else if(task.action==='recommendation')recommendationOpen(task.id,task.actionId);
     else if(task.action==='plan')reviewYearPlanOpportunity(task.year,task.id);
     else go(task.action);
   }
   function gotoAlert(action,id){
     if(action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
     else if(action==='project')openProject(id);
-    else go(action);
+    else if(action==='recommendation'){
+      const p=Engine.getProject(Number(id)),top=p&&recommendationItems(p)[0];
+      if(top)recommendationOpen(id,top.action);
+      else openProject(id);
+    }else go(action);
   }
   function notificationPanel(){
     const s=Engine.state;
@@ -1243,7 +1270,7 @@ var UI = (function () {
       el.id='fc-greenlight-recommendations';
       document.body.appendChild(el);
     }
-    const p=Engine.getProject(Number(recommendationPopupId));
+    const p=recommendationPopupId==null?null:Engine.getProject(Number(recommendationPopupId));
     if(!p||tutorialStep>=0||Engine.state?.pending||Engine.state?.gameOver){
       el.hidden=true;el.innerHTML='';return;
     }
