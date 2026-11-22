@@ -35,7 +35,12 @@ try:
     UI.go('projects');UI.openProject(r.project.id);
     return {id:r.project.id,year:Engine.dateOf().year};
   }""")
-  page.evaluate("UI.closePremiereReport();UI.filmHubSelect('performance')")
+  page.evaluate("""()=>{
+    UI.closePremiereReport();
+    let n=0;
+    while(Engine.state.pending&&n++<12)Engine.choose(Engine.state.pending.choices.length-1);
+    UI.render();UI.filmHubSelect('performance');
+  }""")
   assert page.locator('#drawer .fc-chart-summary').count()>=1
   assert page.locator('#drawer .fc-pulse-column').count()>=2
   bar=page.locator('#drawer .fc-pulse-column').last
