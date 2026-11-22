@@ -23,6 +23,7 @@ jobs:
           node --check engine.js
           node tests/v13_5_production_center.js
           node tests/v14_11_critic_voices.js
+          node tests/v14_12_awards_finance.js
       - name: Install Chromium
         run: |
           python -m pip install playwright
