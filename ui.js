@@ -2897,6 +2897,8 @@ var UI = (function () {
     const add=(id,title,detail,action,projectId)=>options.push({id,year:report.year,title,detail,action,projectId:projectId||null,status:'open',reviewed:false});
     if(success&&(success.revenue||0)>(success.spent||0))
       add('sequel','Explore a follow-up: '+success.title,'Profitable release. A sequel, prequel or spin-off still needs its own budget, cast and audience strategy.','project',success.id);
+    if(success&&(success.revenue||0)>(success.spent||0)&&((s.studio.fame||0)>=15||released.length>=3))
+      add('adaptation','Explore a cross-media adaptation: '+success.title,'A successful story could become a TV series or another format. Re-evaluate production scope, returning cast and audience fit.','project',success.id);
     if(acclaimed&&(acclaimed.critic||0)>=65)
       add('awards','Build on critical attention: '+acclaimed.title,'Review awards, festival results and how to position your next prestige film.','project',acclaimed.id);
     if(Engine.expiringContracts().length)
@@ -2905,6 +2907,10 @@ var UI = (function () {
       add('revival','Consider a catalog revival: '+legacy.title,'A proven older film may support a new story or cross-media adaptation; past success is not a guarantee.','project',legacy.id);
     if((s.studio.fame||0)>=20)
       add('international','Review international reach','Your studio has recognition. Compare regions and rivals before expanding distribution.','market');
+    if(released.length>=2&&(acclaimed?.critic||0)>=60)
+      add('partnership','Pursue a long-term creative partnership','Review which writers, directors and performers contributed to multiple successful productions. Renew or recruit deliberately.','roster');
+    if(released.length>=1)
+      add('rivals','Study rival release patterns','Compare upcoming rival films and avoid unnecessary genre or theme collisions in your release calendar.','calendar');
     add('market','Study next year’s genre demand','Check actual genre and topic trends before choosing projects.','market');
     add('budget','Set a sustainable production budget','Review available cash, liabilities and film postmortems before committing to a slate.','finance');
     add('studio','Choose a studio identity direction','Balance profitable releases, prestige and the talent you hire.','studio_profile');
@@ -2950,7 +2956,11 @@ var UI = (function () {
   function yearEndPlanning(report){
     const plan=annualPlanFor(report,true);
     const chosen=plan.priorities||[];
+    const released=Engine.state.projects.filter(p=>p.releaseWeek!=null&&Engine.dateOf(p.releaseWeek).year===report.year);
+    const directPL=released.reduce((sum,p)=>sum+(p.revenue||0)-(p.spent||0),0);
     return '<div class="fc-annual-planning"><h2>Plan for '+(report.year+1)+'</h2>'+
+      '<p class="fc-annual-facts"><strong>'+report.films+'</strong> releases · <strong>'+report.awards+'</strong> recorded awards · <strong>'+money(report.cash)+'</strong> closing cash · <strong>'+money(directPL)+'</strong> direct film P/L</p>'+
+      '<p class="muted">Direct film P/L excludes studio overhead; closing cash is not annual profit.</p>'+
       '<p>Choose up to two priorities, then accept, postpone or dismiss each opportunity. Accepted actions appear in your dashboard inbox. Nothing happens automatically.</p>'+
       '<div class="fc-annual-priorities">'+YEAR_STRATEGIES.map(x=>'<button type="button" aria-pressed="'+chosen.includes(x[0])+'" class="'+(chosen.includes(x[0])?'is-selected':'')+
         '" onclick="UI.chooseYearPriority('+report.year+',&quot;'+x[0]+'&quot;)"><strong>'+esc(x[1])+'</strong><small>'+esc(x[2])+'</small></button>').join('')+'</div>'+
