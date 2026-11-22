@@ -508,3 +508,42 @@ small,.fc-page-id,.fc-monitor-head small,.fc-chart-caption{
 .fc-brief-explanation{border:0;margin:8px 0 14px}
 .fc-brief-explanation>summary{font-size:.8rem;color:var(--muted,#aab8b2);cursor:pointer;padding:3px 0}
 .fc-brief-explanation>p{font-size:.85rem;line-height:1.55;margin:9px 0 0}
+
+
+/* v14.12 contextual recommendations: optional, compact, readable on phones */
+.fc-film-recommendations{border:1px solid rgba(205,174,126,.4);border-radius:11px;
+  background:rgba(197,171,129,.07);padding:13px;margin:12px 0 16px;min-width:0}
+.fc-recommendation-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.fc-recommendation-head h3{font-size:1.05rem;margin:0 0 8px}
+.fc-recommendation-head small{font-size:.73rem;color:var(--muted,#aebbb7)}
+.fc-recommendation-item{display:flex;justify-content:space-between;align-items:center;gap:13px;
+  padding:10px 0;border-top:1px solid rgba(190,195,183,.15);min-width:0}
+.fc-recommendation-item>div:first-child{min-width:0;flex:1}
+.fc-recommendation-item strong{display:block;font-size:.9rem;line-height:1.3}
+.fc-recommendation-item p{font-size:.8rem;margin:4px 0;line-height:1.45}
+.fc-recommendation-item small{display:block;font-size:.74rem;color:var(--muted,#b6c1bd);line-height:1.35}
+.fc-recommendation-controls{display:flex;gap:5px;flex-shrink:0;align-items:center}
+.fc-recommendation-controls button{font-size:.76rem;padding:7px 9px;min-height:34px;
+  border:1px solid var(--border,#59645d);border-radius:6px;cursor:pointer;white-space:nowrap}
+.fc-recommendation-controls button:first-child{background:#b6cbbc;color:#152821;font-weight:700}
+.fc-recommendation-note{color:var(--muted,#aebbb7);font-size:.72rem}
+#fc-greenlight-recommendations[hidden]{display:none!important}
+#fc-greenlight-recommendations{position:fixed;inset:0;z-index:100040}
+.fc-recommendation-shade{position:absolute;inset:0;background:rgba(3,10,10,.84);
+  display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto}
+.fc-recommendation-dialog{background:#202828;color:#eff3ee;border:1px solid #758177;
+  box-shadow:0 26px 70px rgba(0,0,0,.55);border-radius:15px;padding:22px;
+  width:min(610px,100%);max-height:min(88vh,790px);overflow:auto}
+.fc-recommendation-dialog>.fc-recommendation-head h2{font-size:1.6rem;margin:4px 0}
+.fc-recommendation-dialog>.fc-recommendation-head p{font-size:.88rem;color:#becdc4;margin:3px 0 10px}
+.fc-recommendation-dialog>.fc-recommendation-head>button{border:1px solid #68746d;
+  border-radius:8px;font-size:1.05rem;padding:7px 12px}
+.fc-recommendation-done{width:100%;min-height:42px;margin-top:10px;
+  border-radius:8px;background:#b2cabc;color:#102520;font-weight:700;cursor:pointer}
+@media(max-width:600px){
+  .fc-recommendation-shade{padding:10px;align-items:flex-start}
+  .fc-recommendation-dialog{margin:auto 0;padding:14px;max-height:calc(100dvh - 20px)}
+  .fc-recommendation-item{flex-direction:column;align-items:stretch;gap:8px}
+  .fc-recommendation-controls{justify-content:flex-start;flex-wrap:wrap}
+  .fc-recommendation-controls button{min-height:39px}
+}
