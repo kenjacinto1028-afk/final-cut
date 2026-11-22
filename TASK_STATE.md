@@ -266,6 +266,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.10 — Action navigation, active monitor, year-end studio planning (2026-11-22)
 - [x] Next Action uses a shared priority resolver; no longer opens arbitrary Project Details, disables itself when all caught up. Finished films are removed from the persistent monitor, remaining accessible in Filmography. Commit `0b676ad` (`ui.js`).
-- [ ] Add year-end planning opportunities, strategy priorities, accepted/declined/deferred decisions and saved review history.
-- [ ] Add year-end popup progression, actionable next-year plan, studio profile access, and styling.
+- [x] Added annual opportunities (sequel, talent, market, budget, revival, acclaim), two priorities and accept/defer/dismiss with studio save migration (`ui.js`, `engine.js`; `4c3b1f6`, `e3930a6`).
+- [x] Added planning stage after honors, next-year inbox/action routing, accessible Studio Profile annual summary and responsive controls (`ui.js`, `design-v14_7.css`; `4bcbcc9`).
 - [ ] Add focused regression tests and verify CI / published build.
