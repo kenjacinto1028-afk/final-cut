@@ -341,3 +341,12 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Highlighted player-owned releases with a distinctive row and Your film badge, plus archive legend; added responsive/focus-visible styling in theme-ab.css (d27c533).
 - [x] Passed syntax and nine focused sort/state/markup checks; existing v14.3c archive browser regression and sitewide/mobile regressions passed on the updated main build. GitHub Pages deployed successfully at d27c533.
 - [x] Confirmed an unrelated longstanding v13.8 monitor assertion remains in the v14.11a-f aggregate suite; the same suite already failed on preceding main (4270a442), before these archive changes.
+
+
+## v15a + v15b — New Project marketing / offline Poster Studio (2026-11-22)
+- [x] Reviewed existing budget allocation, `raiseMarketing`, saved project schema, SVG poster composition, and poster-store behavior before modifying the game.
+- [x] Implemented v15a: marketing intensity/target/message inside New Project; cash/budget-capped settlement at post-production with no second compulsory marketing decision; preserves original choice behavior for older projects without `marketingPlan` (`engine.js`, `ui.js`).
+- [x] Implemented v15b: 24 local SVG compositions based on title/topic/genre/era with actual director, writer and actor credits; four options and safe reroll in player Film Hub; selected/uploaded posters retained (`media.js`, `engine.js`, `ui.js`, `theme-ab.css`).
+- [x] Added and fixed deterministic Node tests and desktop/320px/390px browser tests (`tests/v15a_v15b.js`, `tests/v15a_v15b_browser.py`), with dedicated CI workflow. v15 workflow and GitHub Pages deployment passed at a0d36b1.
+- [x] Authored `docs/CHANGELOG_V15A_V15B.md` and updated `README.md`, on main. Save version stays v13.
+- [ ] Physical Android and iPhone acceptance, plus later v15c–h living-world features, remain future work.
