@@ -1053,6 +1053,207 @@ var UI = (function () {
       (data.tags.length?'<details><summary>Story consequences</summary><p>'+data.tags.map(esc).join(' · ')+'</p></details>':'')+
       '</section>';
   }
+
+  // Recommendation rules are advisory, sourced exclusively from current
+  // production data and existing real action quotes. They never spend money.
+  let recommendationPopupId=null;
+  const RECOMMENDATION_STAGES={
+    development:'Development',preproduction:'Pre-production',shoot:'Filming',
+    post:'Post-production',release:'Screening',done:'Catalog'
+  };
+  function recommendationPhase(p){return p.stage||'development';}
+  function recommendationPrefs(p){
+    if(!p.recommendationPrefs||typeof p.recommendationPrefs!=='object')
+      p.recommendationPrefs={dismissed:{},snoozed:{}};
+    p.recommendationPrefs.dismissed=p.recommendationPrefs.dismissed||{};
+    p.recommendationPrefs.snoozed=p.recommendationPrefs.snoozed||{};
+    return p.recommendationPrefs;
+  }
+  function recommendationItems(p,opts){
+    if(!p||!Engine.state)return [];
+    const phase=recommendationPhase(p),isReleased=p.releaseWeek!=null;
+    const fresh=phase==='development'||phase==='preproduction'||phase==='shoot'||phase==='post';
+    const cash=Engine.state.cash||0;
+    const items=[],prefs=recommendationPrefs(p);
+    const add=(id,title,reason,tradeoff,action,priority,cost)=>{
+      const key=phase+':'+id;
+      if(prefs.dismissed[key]||prefs.snoozed[key]>Engine.state.week)return;
+      items.push({id,key,title,reason,tradeoff,action,priority,cost:cost||0,phase});
+    };
+    const budget=Engine.v144BudgetInfo(p);
+    if(fresh&&!p.promotionCampaign){
+      const affordable=Object.keys(Engine.filmPromotionOptions()||{}).map(kind=>
+        Engine.filmPromotionQuote(p.id,kind)).filter(q=>q.ok).sort((a,b)=>a.cost-b.cost);
+      const q=affordable[0];
+      const awareness=Number.isFinite(p.hype)?p.hype:null;
+      if(q)add('promotion','Consider a film promotion',
+        (awareness!=null&&awareness<45?'Hype is '+awareness+'/100. ':'' )+
+        'An available campaign could build early awareness.',
+        money(q.cost)+' optional; estimated hype potential +'+q.hypeLift+'. No guaranteed revenue.',
+        'promotions',awareness!=null&&awareness<45?94:77,q.cost);
+    }
+    if(fresh&&budget){
+      const reserve=Math.max(0,budget.stageRemaining?.reserve||0);
+      if(reserve>=50||p.stage==='shoot'&&p.stageWeeksLeft<=2)
+        add('budget','Review production budget',
+          (reserve>=50?'Unspent reserve '+money(reserve)+'. ':'')+
+          (p.stage==='shoot'?'Filming is underway.':'Check spending before production advances.'),
+          'Reallocate existing funds or review an optional cap increase; costs require approval.',
+          'budget',p.stage==='shoot'?82:69,0);
+    }
+    if(fresh&&!p.sponsor&&!p.sponsorDeclined){
+      const q=Engine.filmSponsorQuote(p.id);
+      if(q.ok)add('sponsor','Review sponsorship offer',
+        q.name+' has an eligible offer. Placement may affect audience and critic reception.',
+        money(q.upfront)+' potential upfront studio receipts; critic risk up to '+q.criticRisk+'.',
+        'promotions',86,0);
+    }
+    if(fresh&&['short','feature'].includes(p.format)&&
+       (!p.regions||p.regions.length<=1)&&p.stage!=='post'){
+      const quote=Engine.regionQuote(p,p.regions);
+      add('distribution','Plan distribution reach',
+        'Only the home market is currently selected. Check whether additional regions suit this film.',
+        'Additional regions have estimated costs and uncertain returns; current plan '+money(quote.cost)+'.',
+        'distribution',p.stage==='preproduction'?73:53,0);
+    }
+    if(fresh&&Engine.lifecycleQuote(p.id).bonds.some(x=>x.bond<40)){
+      add('cast','Check cast and crew relationships',
+        'A collaborator has a strained studio relationship which may affect future negotiations.',
+        'Review existing contracts and history; no automatic replacement or spending.',
+        'cast',87,0);
+    }
+    if(fresh&&p.stage==='post')
+      add('releaseplan','Review release preparation',
+        'The film is in post-production. Check release timing and any eligible publicity.',
+        'Release positioning can affect competition; no outcome is guaranteed.',
+        'release',79,0);
+    if(isReleased&&p.stage==='release'){
+      if(p.format==='feature'){
+        const q=Engine.releasePushQuote(p.id);
+        if(q.ok)add('releasepush','Consider post-opening publicity',
+          'The film is within its early theatrical run'+(Number.isFinite(p.hype)?' with hype '+p.hype+'/100':'')+'.',
+          money(q.cost)+' for a short-lived potential ticket-demand increase; may not recover cost.',
+          'promotions',p.hype<45?94:81,q.cost);
+        if(p.weeksInRelease<=6)
+          add('reception','Review box office and reception',
+            'The opening weeks reveal actual receipts, critics and audience response.',
+            'Study weekly returns and release conflicts before further investment.',
+            'performance',65,0);
+      }else if(p.format==='short'){
+        const kit=Engine.shortPostReleaseQuote(p.id,'press');
+        if(kit.ok)add('presskit','Prepare a festival press kit',
+          'A scheduled festival jury is still ahead for this short.',
+          money(kit.cost)+' for a merit improvement; selection is not guaranteed.',
+          'festivals',83,kit.cost);
+        add('screening','Review screening reach',
+          'Screening receipts and estimated audience visits are being recorded.',
+          'Compare actual receipts with spending; audience reach is modeled.',
+          'performance',64,0);
+      }else add('broadcast','Review television reach',
+        'Recorded household reach and episode results can guide further development.',
+        'A follow-up series requires separate planning and costs.',
+        'performance',62,0);
+    }
+    if(p.stage==='done'&&isReleased){
+      const sequel=Engine.sequelEligibility(p.id);
+      if(sequel.ok)add('continuation','Explore a sequel or adaptation',
+        (p.quality!=null?'Quality '+p.quality+'/100. ':'')+
+        'This story has enough reception or recognition to explore another installment.',
+        'A new project needs its own budget and cast; success is not guaranteed.',
+        'legacy',87,0);
+      if(p.format==='short'){
+        const encore=Engine.shortPostReleaseQuote(p.id,'encore');
+        if(encore.ok)add('encore','Consider encore screenings',
+          'The short qualifies for another screening circuit.',
+          money(encore.cost)+' cost, projected receipts '+money(encore.total)+'; results uncertain.',
+          'festivals',83,encore.cost);
+        const kit=Engine.shortPostReleaseQuote(p.id,'press');
+        if(kit.ok)add('presskit','Prepare a festival press kit',
+          'There is a future festival jury for this completed short.',
+          money(kit.cost)+' merit opportunity without a guaranteed award.',
+          'festivals',78,kit.cost);
+      }else if(p.format==='feature'){
+        for(const kind of ['license','retrospective','cult']){
+          const q=Engine.v14AfterlifeQuote(p.id,kind);
+          if(q.ok)add('catalog-'+kind,q.name||'Review catalog opportunity',
+            'Recorded release outcomes make this catalog option available.',
+            (q.cost?'Potential cost '+money(q.cost)+'. ':'')+
+            (q.futureLoss?'Some future rights receipts may be forfeited. ':'')+
+            'Review full terms before deciding.',
+            'legacy',kind==='license'?76:67,q.cost);
+        }
+      }
+    }
+    return items.filter(x=>x.cost<=cash).sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))
+      .slice(0,opts?.all?12:3);
+  }
+  function recommendationPanel(p,compact){
+    const list=recommendationItems(p);
+    if(!list.length)return '';
+    return '<section class="fc-film-recommendations"><div class="fc-recommendation-head">'+
+      '<h3>Recommended next actions</h3><small>'+esc(RECOMMENDATION_STAGES[p.stage]||'Film')+
+      ' · optional</small></div>'+
+      list.map(x=>'<article class="fc-recommendation-item"><div><strong>'+esc(x.title)+'</strong>'+
+        '<p>'+esc(x.reason)+'</p><small title="Cost and uncertainty">'+esc(x.tradeoff)+'</small></div>'+
+        '<div class="fc-recommendation-controls">'+
+        '<button type="button" onclick="UI.recommendationOpen('+p.id+',&quot;'+x.action+'&quot;)">Review</button>'+
+        '<button type="button" title="Remind me in four in-game weeks" onclick="UI.recommendationDismiss('+p.id+',&quot;'+x.id+'&quot;,true)">Later</button>'+
+        '<button type="button" title="Dismiss until this film changes stage" aria-label="Dismiss '+esc(x.title)+
+        '" onclick="UI.recommendationDismiss('+p.id+',&quot;'+x.id+'&quot;,false)">✕</button></div></article>').join('')+
+      (compact?'<small class="fc-recommendation-note">Only relevant, affordable options are shown.</small>':'')+
+      '</section>';
+  }
+  function recommendationDismiss(id,action,snooze){
+    const p=Engine.getProject(Number(id));if(!p)return;
+    const prefs=recommendationPrefs(p),key=recommendationPhase(p)+':'+action;
+    if(snooze)prefs.snoozed[key]=Engine.state.week+4;
+    else prefs.dismissed[key]=true;
+    Engine.save();render();
+  }
+  function recommendationOpen(id,action){
+    const p=Engine.getProject(Number(id));if(!p)return;
+    recommendationPopupId=null;
+    if(action==='performance'){
+      if(p.releaseWeek!=null){openProject(p.id);filmHubSelect('performance');}
+      else if(view==='projects'){centerFocus(p.id);centerSelectTab('performance');}
+      else {openProject(p.id);projectDetailSelect('performance');}
+      renderRecommendationPrompt();return;
+    }
+    if(view==='projects'&&!drawer){centerFocus(p.id);centerAction(action);}
+    else {
+      openProject(p.id);
+      if(p.releaseWeek!=null)filmHubSelect('manage');
+      else projectDetailSelect('management');
+      centerManageTab=action;
+      renderDrawer();
+    }
+    renderRecommendationPrompt();
+  }
+  function recommendationClose(){
+    recommendationPopupId=null;renderRecommendationPrompt();
+  }
+  function renderRecommendationPrompt(){
+    let el=$('fc-greenlight-recommendations');
+    if(!el){
+      el=document.createElement('div');
+      el.id='fc-greenlight-recommendations';
+      document.body.appendChild(el);
+    }
+    const p=Engine.getProject(Number(recommendationPopupId));
+    if(!p||tutorialStep>=0||Engine.state?.pending||Engine.state?.gameOver){
+      el.hidden=true;el.innerHTML='';return;
+    }
+    const list=recommendationItems(p);
+    el.hidden=false;
+    el.innerHTML='<div class="fc-recommendation-shade"><section class="fc-recommendation-dialog" role="dialog" aria-modal="true" aria-label="New film recommended actions">'+
+      '<div class="fc-recommendation-head"><div><small>GREENLIGHT APPROVED</small>'+
+      '<h2>'+esc(p.title)+'</h2><p>Consider these optional next steps.</p></div>'+
+      '<button type="button" aria-label="Close recommendations" onclick="UI.recommendationClose()">✕</button></div>'+
+      (list.length?recommendationPanel(p,true):'<p>No eligible actions right now. Production will continue automatically.</p>')+
+      '<button type="button" class="fc-recommendation-done" onclick="UI.recommendationClose()">Continue to studio</button>'+
+      '</section></div>';
+  }
+
   function centerManagement(p){
     const options=[['promotions','Promotions'],['budget','Budget'],['distribution','Distribution'],
       ['cast','Cast & Crew'],['release','Release'],['festivals','Festivals'],['decisions','Decisions'],['legacy','Legacy']];
