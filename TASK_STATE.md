@@ -259,5 +259,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Inspect persisted poster data model and screenshot: cropped image bytes are stored as blobs in browser IndexedDB; local PC file deletion should not remove them. Found poster async completion only rerenders open drawer, leaving Production Center poster placeholder indefinitely (`poster-store.js` / `ui.js`).
 - [x] Implemented explicit loaded/missing/error lookup states with completion event for every result in `poster-store.js` (00bfcfc); blobs remain stored in IndexedDB and export/import untouched.
 - [x] Added targeted poster-node refresh in `ui.js` for all visible surfaces and clear loading/missing/storage-error messages, keeping forms and Film Hub tabs intact (75199a6).
-- [ ] Add browser regression: import poster from a real temp image, delete source PC file, reload and verify poster displays; simulate missing IDB record and reupload recovery. Run existing poster/save and desktop/mobile tests.
+- [x] Added and passed Chromium regression `tests/v14_9b_poster_browser.py` (real upload, delete PC source, reload, missing IndexedDB notice, reupload, phone screen) plus existing Film Hub and multi-save artwork tests in workflow #44970906451.
 - [ ] Merge fully tested fix and verify GitHub Pages deployment. Do not change game balance or saves.
