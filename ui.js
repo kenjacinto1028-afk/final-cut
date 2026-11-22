@@ -555,6 +555,7 @@ var UI = (function () {
     else go(action);
   }
   function notificationPanel(){
+    const s=Engine.state;
     const notes=actionInbox();
     const planned=(s.yearPlans||[]).flatMap(p=>p.opportunities||[]).filter(x=>x.status==='accepted'&&!x.reviewed).slice(0,2);
     planned.forEach(x=>notes.push({level:'info',text:'Annual plan · '+x.title,action:'plan',id:x.id,year:x.year}));
