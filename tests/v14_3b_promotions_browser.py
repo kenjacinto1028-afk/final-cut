@@ -21,7 +21,7 @@ try:
     const r=Engine.startProject({title:'Harbor Lights',format:'short',tier:0,genre:'drama',
      topic:'smalltown',cast:{director:'founder',writer:'founder'}});
     if(!r.ok)throw Error(r.reason);
-    UI.go('projects');UI.openProject(r.project.id);
+    UI.go('projects');UI.openProject(r.project.id);UI.projectDetailSelect('management');UI.centerAction('promotions');
     return {id:r.project.id};
   }""")
   assert page.locator('#drawer .fc-film-promotion').count()==1
@@ -34,7 +34,7 @@ try:
     Engine.state.studio.fame=25;
     Engine.state.reputation.buzz=35;
     Engine.state.reputation.currentPrestige=12;
-    UI.openProject(id);
+    UI.openProject(id);UI.projectDetailSelect('management');UI.centerAction('promotions');
   }""",data['id'])
   assert page.locator('#drawer .fc-sponsor-offer').count()==1
   page.locator('#drawer .fc-sponsor-offer').get_by_role('button',name='Accept partnership').click()
