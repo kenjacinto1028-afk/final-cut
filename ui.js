@@ -1067,7 +1067,8 @@ var UI = (function () {
       options.map(x=>'<option value="'+esc(x[0])+'"'+(draft.marketingPlan[field]===x[0]?' selected':'')+'>'+esc(x[1])+'</option>').join('')+
       '</select></label>';
     h+='<section class="fc-budget-step fc-marketing-step"><h2>6. Marketing & audience plan</h2>'+
-      '<p class="muted">Choose your release campaign before greenlighting. It runs during post-production without asking again. Approved spending stays within remaining cash and the existing marketing budget.</p>'+
+      '<p class="muted">Choose your release campaign before greenlighting. It runs during post-production without asking again. Approved spending stays within remaining cash and the existing marketing budget.</p>'+ 
+      '<p class="muted">Current publicity environment: '+esc(Engine.v15MediaEra().name)+'. Marketing channels evolve as the industry advances.</p>'+
       '<div class="fc-marketing-inputs">'+
       mSelect('intensity','Campaign intensity',[
         ['none','None — no opening campaign'],['small','Small — focused reach'],
@@ -2542,9 +2543,44 @@ var UI = (function () {
     const r=Engine.v15OfferAction(id,action);
     setFlash(r.ok?'Offer '+r.status+'.':r.reason);render();
   }
+
+  function v15MediaPanel(){
+    const era=Engine.v15MediaEra(),stories=Engine.v15MediaFeed();
+    const active=Engine.state.projects.filter(p=>p.v15MediaWindow&&!p.v15MediaWindow.resolved&&
+      p.v15MediaWindow.expiresWeek>=Engine.state.week).slice(-2);
+    let h='<section class="fc-media-culture"><h2>Media & public conversation</h2>'+
+      '<p><strong>'+esc(era.name)+'</strong> · '+esc(era.explanation)+'</p>'+
+      '<p class="muted">Typical channels: '+era.channels.map(esc).join(' · ')+
+      '. This era changes naturally as the calendar advances.</p>';
+    for(const p of active){
+      const q=Engine.v15MediaQuote(p.id),w=p.v15MediaWindow;
+      h+='<article class="fc-opportunity"><strong>'+esc(p.title)+
+        ' · '+esc(w.channel)+'</strong><p>'+esc(w.tone==='negative'?
+        'Public criticism is spreading.':'There is positive attention to build on.')+'</p>'+
+        '<small>Response window closes '+dateLabel(w.expiresWeek)+'</small>'+
+        '<div class="actions"><button type="button" '+(!q.ok?'disabled title="'+esc(q.reason)+'" ':'')+
+        'onclick="UI.v15MediaAction('+p.id+',&quot;engage&quot;)">Fund response'+
+        (q.ok?' · '+money(q.cost):'')+'</button>'+
+        '<button type="button" onclick="UI.v15MediaAction('+p.id+',&quot;ignore&quot;)">Let it pass</button></div></article>';
+    }
+    if(stories.length)h+='<details><summary>Recent press and fan conversation</summary>'+
+      '<ul class="plain">'+stories.slice(0,8).map(x=>'<li><small>'+dateLabel(x.week)+
+      '</small> · '+esc(x.text)+'</li>').join('')+'</ul></details>';
+    return h+'</section>';
+  }
+  async function v15MediaAction(id,action){
+    if(action==='engage'){
+      const q=Engine.v15MediaQuote(id);
+      if(!q.ok){setFlash(q.reason);render();return;}
+      if(!await confirmGame('Fund a '+q.channel+' public response for '+money(q.cost)+
+        '? This is a direct marketing expense and does not guarantee ticket sales.'))return;
+    }
+    const r=Engine.v15MediaRespond(id,action);
+    setFlash(r.ok?'Publicity response recorded.':r.reason);render();
+  }
   function viewNews() {
     const fs = Engine.newsFilters();
-    return '<h1>News</h1>'+v15OffersPanel()+'<p class="muted">What has happened in your studio and the business, newest first. The last ' + Engine.TUNING.news.feedMax + ' events are kept.</p>' + tblHtml('news', {
+    return '<h1>News</h1>'+v15OffersPanel()+v15MediaPanel()+'<p class="muted">What has happened in your studio and the business, newest first. The last ' + Engine.TUNING.news.feedMax + ' events are kept.</p>' + tblHtml('news', {
       rows: () => Engine.news(null).map((n, i) => Object.assign({ id: i }, n)),
       rowId: n => n.id,
       search: n => n.label + ' ' + n.text,
@@ -4642,7 +4678,7 @@ var UI = (function () {
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
-    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent,v15OfferAction:v15OfferAction, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent,v15OfferAction:v15OfferAction,v15MediaAction:v15MediaAction, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
