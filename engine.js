@@ -837,6 +837,116 @@ var Engine = (function () {
     const hypeWeight = { lead: TUNING.talent.hypeLeadFame, director: TUNING.talent.hypeDirectorFame, writer: TUNING.talent.hypeWriterFame, crew: 0 }[slot] || 0;
     return { quality, hype: Math.round(t.fame * hypeWeight * talentReach(t, region)) };
   }
+
+  // v15d: realistic ambitions and age curves, derived from each artist's stable
+  // joining year so old save data is never assigned an invented past filmography.
+  const V15_CAREER_GOALS={
+    acclaim:{name:'Critical recognition',desc:'Favors prestige material and thoughtful parts.'},
+    commercial:{name:'Mainstream breakthrough',desc:'Seeks audience visibility and larger releases.'},
+    security:{name:'Steady contracts',desc:'Values fair pay, dependable work and loyalty.'},
+    creative:{name:'Creative freedom',desc:'Prefers artistic fit and recurring partners.'}
+  };
+  function v15Career(t){
+    const c=ensureCareer(t);
+    if(!c.v15Goal||!V15_CAREER_GOALS[c.v15Goal]){
+      const index=((t.id||0)*7+(t.role==='actor'?1:t.role==='writer'?2:3))%4;
+      c.v15Goal=Object.keys(V15_CAREER_GOALS)[index];
+    }
+    if(!Number.isFinite(c.birthYear)){
+      const born=TUNING.startYear+Math.floor((t.joinedWeek||0)/TUNING.weeksPerYear);
+      c.birthYear=born-(t.role==='actor'?19+(t.id%21):24+(t.id%24));
+    }
+    if(!Number.isFinite(c.retireAge))c.retireAge=66+(t.id%9);
+    if(!Number.isFinite(c.fameAtLastDemand))c.fameAtLastDemand=t.fame||0;
+    return c;
+  }
+  function v15TalentProfile(id){
+    const t=getTalent(Number(id));if(!t)return null;
+    const c=v15Career(t),goal=V15_CAREER_GOALS[c.v15Goal];
+    const age=Math.max(18,dateOf().year-c.birthYear);
+    const stage=c.retiredWeek!=null?'Retired':
+      age<31?'Early career':age<45?'Prime years':age<59?'Established veteran':
+      'Late career';
+    const marketSalary=salaryOf(t),currentSalary=isRoster(t)?t.contract.salary:null;
+    const pressure=isRoster(t)?Math.round((marketSalary/Math.max(1,currentSalary)-1)*100):0;
+    return {id:t.id,age,stage,goal:goal.name,preference:goal.desc,retired:c.retiredWeek!=null,
+      marketSalary,currentSalary,pressure,retiredWeek:c.retiredWeek||null,
+      careerPeak:c.peakSkill||t.skill,peakFame:c.peakFame||t.fame};
+  }
+  function v15TalentDemandTick(){
+    // At most one high-stakes talent request per studio year: most negotiations
+    // remain part of existing quick-contract controls.
+    if(dateOf().week!==1||state.week===0)return;
+    const year=dateOf().year;
+    const candidates=roster().filter(t=>{
+      const c=v15Career(t);
+      if(c.retiredWeek!=null||c.lastDemandYear===year||talentProject(t))return false;
+      const ratio=salaryOf(t)/Math.max(1,t.contract.salary);
+      return (t.fame>=45||c.v15Goal==='security')&&
+        (ratio>=1.22||t.fame>=c.fameAtLastDemand+10);
+    }).sort((a,b)=>(salaryOf(b)/Math.max(1,b.contract.salary))-
+      (salaryOf(a)/Math.max(1,a.contract.salary)));
+    if(!candidates.length)return;
+    const t=candidates[0],c=v15Career(t),ratio=salaryOf(t)/Math.max(1,t.contract.salary);
+    const raise=Math.max(1,Math.min(Math.ceil(t.contract.salary*.25),
+      Math.round(Math.max(t.contract.salary*.08,(salaryOf(t)-t.contract.salary)*.45))));
+    const bonus=Math.round((t.contract.salary+raise)*2);
+    c.lastDemandYear=year;
+    raiseStudio('career_request_'+t.id+'_'+year,
+      t.name+' wants revised terms after recent career developments. '+V15_CAREER_GOALS[c.v15Goal].desc+
+      ' Current pay '+fmtMoney(t.contract.salary)+'/wk; market '+fmtMoney(salaryOf(t))+'/wk.',
+      [{label:'Approve '+fmtMoney(raise)+'/week raise + '+fmtMoney(bonus)+' one-time bonus',
+        effects:{action:'approve',raise,bonus}},
+       {label:'Promise a stronger role (no immediate cost; relationship risk)',effects:{action:'promise'}},
+       {label:'Decline the request',effects:{action:'decline'}}],
+      {scope:'career_demand',talentId:t.id});
+  }
+  function v15ResolveTalentDemand(pd,e){
+    const t=getTalent(pd.talentId);if(!t||!isRoster(t))return;
+    const c=v15Career(t);
+    let text;
+    if(e.action==='approve'&&state.cash>=(e.bonus||0)){
+      state.cash-=e.bonus;t.contract.salary+=e.raise;
+      t.contract.morale=clamp((t.contract.morale||50)+13,0,100);
+      t.studioBond=clamp((t.studioBond==null?50:t.studioBond)+5,0,100);
+      text='Approved improved terms for '+t.name+'; '+fmtMoney(e.bonus)+' bonus and +'+fmtMoney(e.raise)+'/week.';
+    }else if(e.action==='promise'){
+      t.contract.morale=clamp((t.contract.morale||50)+2,0,100);
+      c.promisedRoleUntil=state.week+52;
+      text='Promised '+t.name+' a meaningful role within the coming year.';
+    }else{
+      t.contract.morale=clamp((t.contract.morale||50)-16,0,100);
+      t.studioBond=clamp((t.studioBond==null?50:t.studioBond)-8,0,100);
+      text=t.name+' feels undervalued after the contract request was declined.';
+    }
+    c.fameAtLastDemand=t.fame;c.lastDemandYear=dateOf().year;
+    addLog(text,'contract');careerEvent(t,'contract',text);emit('contract',t);
+  }
+  function v15CareerYearTick(t){
+    const c=v15Career(t);
+    if(c.retiredWeek!=null)return;
+    const age=dateOf().year-c.birthYear;
+    if(age>=c.retireAge&&!talentProject(t)&&Math.random()<Math.min(.50,.14+(age-c.retireAge)*.07)){
+      c.retiredWeek=state.week;c.trend='Retired';
+      if(isRoster(t))endExclusive(t);
+      else t.contract=null;
+      addLog(t.name+' retires from active productions at age '+age+'.','star');
+      careerEvent(t,'retirement','Retired after a career in the film industry.');
+      return;
+    }
+    if(age>=56&&t.skill>=45&&Math.random()<.32){
+      t.skill=Math.max(35,t.skill-1);c.trend='Veteran craft';
+    }
+    if(c.promisedRoleUntil&&state.week>c.promisedRoleUntil){
+      c.promisedRoleUntil=null;
+      if(isRoster(t)){
+        t.contract.morale=clamp((t.contract.morale||50)-12,0,100);
+        t.studioBond=clamp((t.studioBond==null?50:t.studioBond)-5,0,100);
+        addLog('A promised role never materialized for '+t.name+'. Trust suffered.','contract');
+      }
+    }
+  }
+
   function talentList() { return state.talent; }
   function getTalent(id) { return byId(state.talent, Number(id)); }
   function uniqueName() {
@@ -905,11 +1015,14 @@ var Engine = (function () {
     // Relationship affects future negotiations modestly: trust reduces friction,
     // serious disputes may increase the fee; nobody is guaranteed to sign.
     const bondRate=state?1-clamp((talentBond(t)-50)*.0014,-.05,.05):1;
-    return round50(base * (T.formatFeeMult[format] || 1) * traitMods(t).feeMult * (1 - dealDiscount()) * (1 - repDiscount) * bondRate);
+    const goal=t.career&&t.career.v15Goal;
+    const demand=goal==='commercial'&&t.fame>=60?1.10:goal==='security'?1.035:goal==='creative'?1.01:1;
+    return round50(base * (T.formatFeeMult[format] || 1) * traitMods(t).feeMult * (1 - dealDiscount()) * (1 - repDiscount) * bondRate * demand);
   }
   function eliteTalent(t) { return t.skill >= TUNING.talent.eliteSkill || t.fame >= TUNING.talent.eliteFame; }
   function recruitmentInterest(t, format, genre, topic, budget) {
     if (!t || !state) return { chance: 0, elite: false, reason: 'Unavailable' };
+    if (v15Career(t).retiredWeek!=null)return {chance:0,elite:false,reason:'Retired'};
     if (isRoster(t)) return { chance: 1, elite: false, reason: 'On your roster' };
     const elite = eliteTalent(t);
     const studio = state.studio;
@@ -922,7 +1035,11 @@ var Engine = (function () {
     const industry=v14Identity('you');
     const smallBenefit=(t.role==='director'||t.role==='writer')&&
       ['prestige','incubator','indie'].includes(industry?.primary)?0.025:0;
-    const chance = elite ? clamp(0.78 + rep + smallBenefit + (fit ? 0.12 : 0) + storyFit + script + payFit -
+    const ambition=v15Career(t).v15Goal;
+    const preference=ambition==='acclaim'?(studio.criticsRep>45?.04:0):
+      ambition==='commercial'?(studio.fame>55?.05:-.02):
+      ambition==='creative'?(fit?.06:-.03):ambition==='security'?.02:0;
+    const chance = elite ? clamp(0.78 + rep + preference + smallBenefit + (fit ? 0.12 : 0) + storyFit + script + payFit -
       Math.max(0, t.skill - 55) * 0.009 - Math.max(0, t.fame - 45) * 0.0035, 0.25, 0.97) : 1;
     return { chance: Math.round(chance * 100) / 100, elite: elite, reason: fit ? 'Genre affinity' : 'Studio track record and creative fit' };
   }
@@ -938,6 +1055,7 @@ var Engine = (function () {
   function isRivalTalent(t) { return !!(t.contract && t.contract.type === 'rival'); }
   function talentStatus(t) {
     const p = talentProject(t);
+    if(v15Career(t).retiredWeek!=null)return {label:'Retired',projectId:null,roster:false,retired:true};
     if (isRoster(t)) return { label: p ? 'Roster · on "' + p.title + '"' : 'Roster', projectId: p ? p.id : null, roster: true };
     if (isRivalTalent(t)) return { label: 'At ' + rivalName(t.contract.rivalId) + (p ? ' · finishing "' + p.title + '"' : ''), projectId: p ? p.id : null, roster: false, rivalId: t.contract.rivalId };
     return p ? { label: 'On "' + p.title + '"', projectId: p.id, roster: false } : { label: 'Available', projectId: null, roster: false };
@@ -1019,6 +1137,7 @@ var Engine = (function () {
     }
     if (dateOf().week === 1 && state.week > 0) {
       state.talent.forEach(t => {
+        v15CareerYearTick(t);
         const c = ensureCareer(t);
         const idle = c.lastActiveWeek == null ? state.week - (t.joinedWeek || 0) : state.week - c.lastActiveWeek;
         if (idle > 104) {
@@ -1043,6 +1162,7 @@ var Engine = (function () {
     const c = TUNING.contracts;
     if (!state || state.gameOver) return { ok: false, reason: 'No game running.' };
     if (!t) return { ok: false, reason: 'Unknown talent.' };
+    if(v15Career(t).retiredWeek!=null)return {ok:false,reason:t.name+' has retired from active production.'};
     years = clamp(Math.round(Number(years) || 1), 1, c.maxYears);
     const salary = salaryOf(t);
     const bonus = salary * c.signingWeeks;
@@ -1181,6 +1301,7 @@ var Engine = (function () {
       } else if (typeof v === 'number') {
         const t = getTalent(v);
         if (!t || t.role !== SLOT_ROLE[s]) return { reason: 'Pick a valid ' + CONTENT.SLOT_LABELS[s].toLowerCase() + '.', fees: 0 };
+        if(v15Career(t).retiredWeek!=null)return {reason:t.name+' is retired.',fees:0};
         if (isRivalTalent(t)) return { reason: t.name + ' is under contract at ' + rivalName(t.contract.rivalId) + '.', fees: 0 };
         if (!isRoster(t) && recruitmentCooldown(t)) return { reason: t.name + ' declined recently. Try again in ' + recruitmentCooldown(t) + ' weeks, or choose another artist.', fees: 0 };
         const busy = talentProject(t);
@@ -1192,6 +1313,7 @@ var Engine = (function () {
       for(const id of extraIds(o,key)) {
         const t=getTalent(id);
         if(!t||t.role!==role) return {reason:'Invalid additional '+role+' selection.',fees:0};
+        if(v15Career(t).retiredWeek!=null)return {reason:t.name+' is retired.',fees:0};
         if(isRivalTalent(t)) return {reason:t.name+' works for a rival studio.',fees:0};
         if(!isRoster(t)&&recruitmentCooldown(t)) return {reason:t.name+' recently declined a project.',fees:0};
         const busy=talentProject(t);
@@ -1211,7 +1333,7 @@ var Engine = (function () {
     }
     state.talent.filter(t => t.role === role).sort((a, b) => b.skill - a.skill).forEach(t => {
       const bp = talentProject(t);
-      const busy = isRivalTalent(t) ? rivalName(t.contract.rivalId) : (bp ? bp.title : null);
+      const busy = v15Career(t).retiredWeek!=null?'Retired':isRivalTalent(t) ? rivalName(t.contract.rivalId) : (bp ? bp.title : null);
       const interest = recruitmentInterest(t, format, genre, topic, budget);
       opts.push({ id: t.id, name: t.name, skill: t.skill, fame: t.fame, recognition: recognition(t).name, homeRegion: t.homeRegion, trend: t.career && t.career.trend,
         contribution: talentContribution(t, slot, genre, state.studio.homeRegion), fee: isRoster(t) ? 0 : talentFee(t, format), roster: isRoster(t),
@@ -2102,6 +2224,8 @@ var Engine = (function () {
       addLog(c.result || c.label, 'staff');
     } else if (pd.scope === 'poach') {
       resolvePoach(pd, c.effects);
+    } else if (pd.scope === 'career_demand') {
+      v15ResolveTalentDemand(pd,c.effects);
     } else if (pd.scope === 'event') {
       applyEventEffects(pd, c.effects);
       addLog(c.result || c.label, 'event', pd.category);
@@ -5374,6 +5498,7 @@ var Engine = (function () {
     moraleTick();
     poachTick();
     talentTick();
+    v15TalentDemandTick();
     staffTick();
     eventTick();
     awardsTick();
@@ -5789,7 +5914,7 @@ var Engine = (function () {
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
     rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, v15RivalProfile:v15RivalProfile, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
-    talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, traitsOf: traitsOf, effReliability: effReliability,
+    talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, v15TalentProfile:v15TalentProfile, traitsOf: traitsOf, effReliability: effReliability,
     talentStatus: talentStatus, recognition: recognition, talentReach: talentReach, talentContribution: talentContribution, slotOptions: slotOptions, recruitmentInterest: recruitmentInterest, castSummary: castSummary,talentCareer:talentCareer,
     roster: roster, rosterCap: rosterCap, weeksLeft: weeksLeft, isExpiring: isExpiring, expiringContracts: expiringContracts,
     contractQuote: contractQuote, signExclusive: signExclusive, renewContract: renewContract, releaseContract: releaseContract, severanceOf: severanceOf,
