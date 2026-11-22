@@ -358,3 +358,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v15e checkpoint (2026-11-22): community momentum derived from existing recorded audience reach and actual film reception, bounded grassroots/backlash quarterly changes, optional priced fan discussion with cooldown and total cap, history and UI on released Film Hubs (`engine.js`, `ui.js`; commits 71f2d40, 6c64153).
 
 - [x] v15f checkpoint (2026-11-22): grounded catalog, festival, broadcast and rival co-development offers; all bounded, once per eligible film, expiring, accept/counter/decline with payment ledger and relationship/quality changes; surfaced Industry → News, Next Action and inbox (`engine.js`, `ui.js`; commits b91bd99, 5836a00).
+
+- [x] v15g checkpoint (2026-11-22): era-gated newspapers/radio, fan forums, web reviews, social media and short-form viral channels; earned media pulses have bounded impacts, reviewable press events and optional priced response with budget enforcement; News and New Project show the appropriate era (`engine.js`, `ui.js`; commits 0dfab0f, 08bd94a).
