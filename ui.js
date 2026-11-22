@@ -522,15 +522,32 @@ var UI = (function () {
     active.slice(0,2).forEach(p=>notes.push({level:'info',text:p.title+' · review theatrical performance and release strategy',action:'project',id:p.id}));
     return notes.slice(0,5);
   }
+  // Both dashboard and Next Action use the same priority queue. Completed films are
+  // not tasks; planning is an explicit fallback rather than reopening a random film.
+  function nextActionTarget(){
+    const s=Engine.state;if(!s)return null;
+    if(s.pending)return {action:'decisions',label:'Resolve decision'};
+    if(currentPremiereReport())return {action:'premiere',label:'Review premiere'};
+    if(currentEndRunReport())return {action:'endrun',label:'Review screening results'};
+    if(currentYearEndReport())return {action:'yearend',label:'Annual studio review'};
+    if(s.warning?.stage||s.cash<0)return {action:'finance',label:'Review studio finances'};
+    if(Engine.expiringContracts().length)return {action:'roster',label:'Review expiring contracts'};
+    const plan=(s.yearPlans||[]).flatMap(x=>x.opportunities||[]).find(x=>x.status==='accepted'&&!x.reviewed);
+    if(plan)return {action:'plan',id:plan.id,year:plan.year,label:'Review annual plan'};
+    const release=s.projects.find(p=>p.stage==='release'&&p.format==='feature'&&p.weeksInRelease>=1&&p.weeksInRelease<=6);
+    if(release)return {action:'project',id:release.id,label:'Review '+release.title};
+    const upcoming=s.projects.find(p=>p.stage!=='done'&&p.stage!=='release');
+    if(upcoming)return {action:'projects',label:'Check production progress'};
+    return null;
+  }
   function nextAction(){
-    const s=Engine.state;if(!s)return;
-    if(s.pending){renderModal();const first=$('modal')?.querySelector('button.choice');if(first)first.focus();return;}
-    if(s.warning?.stage||s.cash<0){go('finance');return;}
-    const ending=Engine.expiringContracts();if(ending.length){go('roster');return;}
-    const latest=s.projects.find(p=>p.stage==='release'&&p.format==='feature')||
-      s.projects.find(p=>p.stage!=='done');
-    if(latest){openProject(latest.id);return;}
-    go('newproject');
+    const task=nextActionTarget();
+    if(!task){setFlash('All caught up. Greenlight a film or advance when ready.');render();return;}
+    if(task.action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
+    else if(task.action==='premiere'||task.action==='endrun'||task.action==='yearend')render();
+    else if(task.action==='project')openProject(task.id);
+    else if(task.action==='plan')reviewYearPlanOpportunity(task.year,task.id);
+    else go(task.action);
   }
   function gotoAlert(action,id){
     if(action==='decisions'){renderModal();$('modal')?.querySelector('button.choice')?.focus();}
@@ -583,7 +600,7 @@ var UI = (function () {
     let h = '<div class="dashboard-layout"><section class="dashboard-primary">' + eraBanner(era.id) +
       '<div class="fc-dashboard-head"><div><div class="fc-page-id">THE STUDIO / WEEKLY OPERATIONS</div><h1>' + dateLabel() + '</h1>' +
       '<p>' + esc(s.studio.name) + ' · ' + esc(era.name) + ' era · Your productions, finances and industry pulse in one place.</p></div>' +
-      '<div class="fc-dashboard-actions"><button type="button" onclick="UI.nextAction()">Next Action</button>'+
+      '<div class="fc-dashboard-actions"><button type="button" '+(nextActionTarget()?'onclick="UI.nextAction()" title="'+esc(nextActionTarget().label)+'"':'disabled title="No pending actions"')+'>'+(nextActionTarget()?esc(nextActionTarget().label):'All caught up')+'</button>'+
       '<button type="button" onclick="UI.skipQuietWeeks()" title="Advance up to 8 weeks, stopping at decisions, premieres and milestones">Skip Quiet Weeks</button>'+
       '<button onclick="UI.go(&quot;projects&quot;)">Production Center</button>' +
       '<button class="primary" onclick="UI.go(&quot;newproject&quot;)">+ Greenlight film</button></div></div>'+notificationPanel();
@@ -1232,21 +1249,11 @@ var UI = (function () {
     const s=Engine.state,show=!!s&&view!=='saves'&&isFilmMonitorOpen();
     dock.hidden=!show;app.classList.toggle('monitor-open',show);
     if(!show){dock.innerHTML='';return;}
+    // Only active productions and currently screening releases belong in the monitor.
+    // Completed films remain in Filmography and Archive, including residual revenue.
     const active=s.projects.filter(p=>p.stage!=='done');
-    const postlife=s.projects.filter(p=>p.stage==='done'&&(
-      (p.windows||[]).some(w=>w.paid<w.total)||
-      (p.format==='short'&&(
-        Engine.shortFestivalStatus(p)?.next||
-        (p.shortEncore&&p.shortEncore.paid<p.shortEncore.total)||
-        Engine.shortPostReleaseQuote(p.id,'press').ok||
-        Engine.shortPostReleaseQuote(p.id,'encore').ok
-      ))
-    ));
-    const recent=s.projects.filter(p=>p.stage==='done').slice(-3);
-    const all=[...active,...postlife,...recent].filter((p,i,arr)=>arr.findIndex(x=>x.id===p.id)===i);
-    all.sort((a,b)=>{
-      const importance=p=>p.stage==='release'?5:p.stage!=='done'?4:
-        postlife.includes(p)?3:(p.windows||[]).some(w=>w.paid<w.total)?2:1;
+    const all=active.slice().sort((a,b)=>{
+      const importance=p=>p.stage==='release'?5:4;
       return importance(b)-importance(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
     });
     const cards=all.slice(0,6).map(p=>{
@@ -1286,7 +1293,7 @@ var UI = (function () {
         '</article>';
     }).join('');
     dock.innerHTML='<header class="fc-monitor-head"><div><small>LIVE STUDIO FEED</small><h2>Project monitor</h2>'+
-      '<span>'+active.length+' in production/release · '+postlife.length+' after-release opportunities</span></div>'+
+      '<span>'+active.length+' in production/release · completed films in Filmography</span></div>'+
       '<button class="fc-monitor-close" type="button" onclick="UI.toggleFilmMonitor()" aria-label="Collapse project monitor">✕</button></header>'+
       '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">Greenlight a film to follow weekly production and earnings.</p>')+'</div>'+
       '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Full Production Center</button>'+
