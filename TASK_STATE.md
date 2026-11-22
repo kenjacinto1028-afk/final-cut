@@ -298,11 +298,16 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Corrected older tests to acknowledge annual award popup and only expand the monitor's detailed data on demand (`ac188aa`). New stage-first UI and targeted lifecycle tests already passed; Pages deployed same executable code through `5b91fd6` (run `44984401044`).
 - [ ] Final full browser integration suite on `main` remains under review; no claim of all legacy tests passing yet. Physical-device acceptance outstanding.
 
-## Next update plan — Contextual Film Action Recommendations (proposed; not implemented)
+## v14.12 — Contextual Film Action Recommendations (implemented)
 - [x] Greenlight recommended-actions popup integrated with existing Film Hub controls and kept optional; guided tutorial skips popup (`ui.js`, `f7376f1`).
 - [x] Rule-based recommendations for development through post-production based on live budget, hype, sponsorship eligibility, distribution regions, stage and strained bonds. Three actionable options maximum (`ui.js`, `2c5cc16`, `f7376f1`).
 - [x] Stage-specific release recommendations for theatrical pushes, short festival kits, weekly screening performance and broadcast follow-up; quotes validate costs/eligibility (`ui.js`, `2c5cc16`).
 - [x] Catalog recommendations use existing sequel, encore, festival and feature afterlife eligibility; no invented rights income (`ui.js`, `2c5cc16`).
-- [ ] Shared quote-aware recommendation rules, ranking and saved snooze/dismiss implemented in `ui.js` (`2c5cc16`); wire greenlight prompt and action panels, then test.
+- [x] Shared quote-aware ranking across Production Center Overview/Manage and Project Details/Film Hub; Review button navigates to existing real action screens, no automatic purchases (`ui.js`, `2c5cc16`, `f7376f1`, `80fdf49`).
 - [x] Stage-aware recommendations recompute from existing quote states; greenlight popup only once, no weekly modal spam. Dismissal per film/stage and four-week snooze persist in save, with Action Inbox/Next Action routing (`ui.js`, `80fdf49`, `design-v14_7.css`, `7f21eba`). Browser testing pending.
-- [ ] Tests: browser acceptance of post-greenlight prompt and direct action routing, mobile presentation, zero-eligible-actions fallback, stage/metric changes, correct costs/availability, dismissal persistence, and long-career notification frequency. Balance recommendations for starter and mature studios.
+- [x] Browser verification covers post-greenlight dialog, real action routing without charges, 390px mobile layout, stage-specific choices, no-eligible fallback, dismissal and four-week snooze after save/load, and 520-week no-popup-spam checks (`tests/v14_12_recommendations_browser.py`, CI #44986523004 passed). Pages deployment #44986522739 successful on code SHA `cb2b9ae`. Final integrated legacy browser suite remains a separate unresolved gate.
+
+### v14.12 delivery notes
+- [x] Documentation: `docs/CHANGELOG_V14_12.md`. Release recommendation details show real critics/audience/receipts; early quality ranges are labeled estimates (`ui.js`, `7f1dd3b`).
+- [x] Hype accounting fixed when v14.11 after-release decisions modify scores (`engine.js`, `25e509e`), avoiding stale score-attribution totals.
+- [ ] Previous v14 integrated browser suite still has legacy UI/test compatibility failures; investigate separately, and perform physical phone acceptance. Avoid claiming full suite completion.
