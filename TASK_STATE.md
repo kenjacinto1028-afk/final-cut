@@ -260,4 +260,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Implemented explicit loaded/missing/error lookup states with completion event for every result in `poster-store.js` (00bfcfc); blobs remain stored in IndexedDB and export/import untouched.
 - [x] Added targeted poster-node refresh in `ui.js` for all visible surfaces and clear loading/missing/storage-error messages, keeping forms and Film Hub tabs intact (75199a6).
 - [x] Added and passed Chromium regression `tests/v14_9b_poster_browser.py` (real upload, delete PC source, reload, missing IndexedDB notice, reupload, phone screen) plus existing Film Hub and multi-save artwork tests in workflow #44970906451.
-- [ ] Merge fully tested fix and verify GitHub Pages deployment. Do not change game balance or saves.
+- [x] PR #23 merged to main as `7736fc2` after 15 successful PR workflows including poster upload/delete/reload, multi-save artwork and Film Hub; no engine, balance, or save schema changes.
+- [ ] Confirm final v14.1 long-career check and the merged GitHub Pages live deployment.
