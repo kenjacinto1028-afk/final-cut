@@ -16,7 +16,7 @@ function world(seed){
 {
  const {E,ctx,math}=world(100),s=E.state;
  math.random=()=>0;
- s.cash=4_000_000;s.studio.fame=65;
+ s.cash=4_000_000;s.studio.fame=65;s.studio.tier=3;
  const r=E.startProject({title:'Chain Study',format:'feature',tier:0,genre:'drama',topic:'smalltown',
    cast:{director:'founder',writer:'founder'}});
  assert(r.ok,r.reason);
