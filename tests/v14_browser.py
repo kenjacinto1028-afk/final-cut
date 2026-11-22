@@ -36,6 +36,10 @@ try:
   assert page.evaluate("UI!==null")
   page.evaluate("(id)=>UI.v14SelectScript(id)",script['id'])
   page.evaluate("UI.startProject()")
+  # v14.12 introduced an optional post-greenlight recommendations window;
+  # close it like a real player before using the underlying Production Center.
+  if page.locator("#fc-greenlight-recommendations").is_visible():
+   page.get_by_role("button",name="Continue to studio").click()
   assert page.evaluate("Engine.state.projects.length")==1
   project=page.evaluate("Engine.state.projects[0]")
   assert project['dna']['hook']==script['hook']
