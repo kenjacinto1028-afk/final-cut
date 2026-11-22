@@ -1004,3 +1004,37 @@ body.tutorial-open #premiere-report .fc-premiere-card{
   .fc-poster-grid .poster-variant svg{max-height:210px}
   .fc-marketing-inputs{grid-template-columns:1fr}
 }
+
+/* v15c–g: living industry, fan communities and public conversation */
+.fc-opportunities,.fc-media-culture{
+  margin:14px 0 20px;padding:16px;border:1px solid var(--fc-edge,#516862);
+  background:var(--fc-surface-up,#263632);border-radius:10px;color:var(--fc-text,#edf2ed)
+}
+.fc-opportunities h2,.fc-media-culture h2{margin:0 0 8px}
+.fc-opportunities p,.fc-media-culture p{line-height:1.5}
+.fc-opportunity{
+  display:flex;flex-direction:column;align-items:flex-start;gap:7px;
+  padding:13px 14px;margin:11px 0;border:1px solid #68847b;
+  background:#1d2d2b;border-radius:8px;max-width:100%;min-width:0
+}
+.fc-opportunity>strong{font-size:1.02em;color:#f1f6ef}
+.fc-opportunity>p{margin:0}
+.fc-opportunity>small{font-size:12px;color:#d6e5dc}
+.fc-opportunity .actions{display:flex;gap:8px;flex-wrap:wrap;width:100%}
+.fc-opportunity button{min-height:40px;white-space:normal}
+.fc-opportunity button:focus-visible,.fc-fan-community button:focus-visible{
+  outline:2px solid #b6e9cb;outline-offset:3px
+}
+.fc-fan-community{margin:10px 0 16px}
+.fc-fan-metrics{display:flex;flex-direction:column;gap:3px;
+  border:1px solid #749587;background:#233b37;padding:10px 13px;border-radius:8px}
+.fc-fan-metrics strong{color:#e5f3eb}
+.fc-fan-metrics small{color:#c2d4c9}
+.fc-fan-community button{margin:9px 0}
+.fc-media-culture details ul,.fc-opportunities details ul{padding-left:18px}
+@media(max-width:580px){
+ .fc-opportunities,.fc-media-culture{padding:12px;margin:12px 0}
+ .fc-opportunity{padding:11px}
+ .fc-opportunity .actions{flex-direction:column;align-items:stretch}
+ .fc-opportunity .actions button{width:100%;min-height:44px}
+}
