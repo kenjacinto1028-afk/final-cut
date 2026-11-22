@@ -24,6 +24,21 @@ try:
     UI.go('projects');
     return {id:r.project.id};
   }""")
+  # A genuine new lifecycle event should display in the existing in-game
+  # decision modal, resolve, and appear in the shared film-management history.
+  raised=page.evaluate("""(id)=>{
+    const p=Engine.getProject(id);Engine.state.week+=4;
+    const before=Math.random;Math.random=()=>0;
+    try{return Engine.lifecycleTick(p)}finally{Math.random=before}
+  }""",result['id'])
+  assert raised
+  page.evaluate('UI.render()')
+  assert page.locator('#modal .fc-event-stage').count()==1
+  page.locator('#modal .choice').first.click()
+  assert page.evaluate('(id)=>Engine.lifecycleQuote(id).history.length',result['id'])==1
+  page.evaluate("UI.go('projects');UI.centerSelectTab('management');UI.centerAction('decisions')")
+  assert page.locator('.fc-lifecycle-history .fc-lifecycle-entry').count()==1
+  page.evaluate("UI.centerSelectTab('overview')")
   assert page.locator('.fc-center-tabs button').count()==5
   assert page.locator('.fc-stats').count()==1
   assert page.locator('.fc-stats em.fc-visually-hidden').count()==5
