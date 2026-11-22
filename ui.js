@@ -1763,7 +1763,7 @@ var UI = (function () {
   }
 
 // ===== SECTION: FILM_ARCHIVES =====
-  const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', reach:'', period:'all', format: 'all', query: '', page: 0 };
+  const filmBrowse = { tab: 'all', criterion: 'overall', genre: '', topic: '', decade: '', region: '', reach:'', period:'all', format: 'all', query: '', page: 0, sort: 'release', sortDir: -1 };
   const browseSaved={};
   const browseViews=['filmography','rankings','archive'];
   function browseKey(v){return 'finalcut-browse-'+(Engine.state?.campaignId||'legacy')+'-'+v;}
@@ -1776,7 +1776,7 @@ var UI = (function () {
     if(!browseViews.includes(v))return;
     let data=browseSaved[v];
     if(!data)try{data=JSON.parse(sessionStorage.getItem(browseKey(v))||'null');}catch(_){}
-    const defaults={tab:'all',criterion:'overall',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:v==='rankings'?'feature':'all',query:'',page:0};
+    const defaults={tab:'all',criterion:'overall',genre:'',topic:'',decade:'',region:'',reach:'',period:'all',format:v==='rankings'?'feature':'all',query:'',page:0,sort:'release',sortDir:-1};
     Object.assign(filmBrowse,defaults,data&&typeof data==='object'?data:{});
   }
 
@@ -1827,9 +1827,66 @@ var UI = (function () {
     const delta=prev-f.worldRank;
     return '<small class="'+(delta>0?'rank-up':'rank-down')+'" title="Change in worldwide ranking"> '+(delta>0?'▲':'▼')+Math.abs(delta)+'</small>';
   }
+
+  const archiveSortKeys = ['title','studio','release','format','critic','gross','revenue','profit','reach','awards'];
+  function setFilmSort(key) {
+    if (view !== 'archive' || !archiveSortKeys.includes(key)) return;
+    if (filmBrowse.sort === key) filmBrowse.sortDir = filmBrowse.sortDir === 1 ? -1 : 1;
+    else {
+      filmBrowse.sort = key;
+      filmBrowse.sortDir = ['title','studio','format'].includes(key) ? 1 : -1;
+    }
+    filmBrowse.page = 0;
+    saveBrowseFor(view);
+    render();
+  }
+  function archiveFilmSortValue(f, key) {
+    switch (key) {
+      case 'title': return f.title || '';
+      case 'studio': return f.studio || '';
+      case 'release': return Number.isFinite(f.releaseWeek) ? f.releaseWeek : (Number.isFinite(f.year) ? f.year * 52 : null);
+      case 'format': return mediaName(f);
+      case 'critic': return f.critic;
+      case 'gross': return f.format === 'feature' ? f.gross : null;
+      case 'revenue': return f.revenue;
+      case 'profit': return f.profit;
+      case 'reach': return f.format === 'feature' ? f.estimatedAdmissions :
+        f.format === 'short' ? f.estimatedScreeningViewers :
+        f.format === 'pilot' ? f.estimatedHouseholdImpressions : null;
+      case 'awards': return (f.awards || []).filter(a => a.won).length +
+        (f.festResults || []).filter(a => /prize|grand|winner|won/i.test(a.result || '')).length;
+      default: return null;
+    }
+  }
+  function filmSortHead(key, label, opts) {
+    const cls = opts && opts.num ? ' class="num"' : '';
+    const tooltip = opts && opts.tip ? ' title="' + esc(opts.tip) + '"' : '';
+    if (view !== 'archive') return '<th' + cls + tooltip + '>' + label + '</th>';
+    const active = filmBrowse.sort === key, dir = filmBrowse.sortDir === 1 ? 'ascending' : 'descending';
+    return '<th' + cls + tooltip + ' aria-sort="' + (active ? dir : 'none') + '">' +
+      '<button type="button" class="fc-archive-sort' + (active ? ' is-active' : '') +
+      '" onclick="UI.setFilmSort(\'' + key + '\')" aria-label="Sort by ' + esc(label) +
+      (active ? ', currently ' + dir : '') + '">' + label +
+      '<span class="fc-archive-sort-indicator" aria-hidden="true">' +
+      (active ? (filmBrowse.sortDir === 1 ? '↑' : '↓') : '↕') + '</span></button></th>';
+  }
   function filmTable(rows, ranked, mine) {
     const q = filmBrowse.query.toLowerCase().trim();
     if (q) rows = rows.filter(f => [f.title,f.studio,nameOf(CONTENT.GENRES,f.genre),nameOf(CONTENT.TOPICS,f.topic),Object.values(f.credits||{}).join(' '),f.review&&f.review.headline].join(' ').toLowerCase().includes(q));
+    if (view === 'archive') {
+      // Sort the full filtered archive before paging; unknown historical values always go last.
+      rows = rows.slice().sort((a,b) => {
+        const av = archiveFilmSortValue(a,filmBrowse.sort);
+        const bv = archiveFilmSortValue(b,filmBrowse.sort);
+        const am = av == null || av === '' || (typeof av === 'number' && !Number.isFinite(av));
+        const bm = bv == null || bv === '' || (typeof bv === 'number' && !Number.isFinite(bv));
+        if (am !== bm) return am ? 1 : -1;
+        const cmp = am ? 0 : typeof av === 'number' && typeof bv === 'number'
+          ? av-bv : String(av).localeCompare(String(bv),undefined,{sensitivity:'base',numeric:true});
+        return cmp * filmBrowse.sortDir || (b.releaseWeek||0)-(a.releaseWeek||0) ||
+          String(a.title||'').localeCompare(String(b.title||''));
+      });
+    }
     const size = 60, maxPage = Math.max(0,Math.ceil(rows.length/size)-1);
     filmBrowse.page = Math.min(filmBrowse.page,maxPage);
     const start = filmBrowse.page*size, page = rows.slice(start,start+size);
@@ -1844,16 +1901,19 @@ var UI = (function () {
     const detailed=!ranked,ownDetails=mine&&!ranked;
     const heads=(ranked?'<th>'+(filmBrowse.region?'Market #':'Rank #')+'</th>'+(mine?'<th>Studio #</th>':''):'')+
       (ownDetails?'<th>Studio #</th><th>World #</th>':'')+
-      '<th>Film</th>'+(mine?'':'<th>Studio</th>')+'<th>Year</th><th>Format / Genre / Topic</th><th class="num">Critics</th>'+
+      filmSortHead('title','Film')+(mine?'':filmSortHead('studio','Studio'))+
+      filmSortHead('release','Year')+filmSortHead('format','Format / Genre / Topic')+
+      filmSortHead('critic','Critics',{num:true})+
       (detailed
-        ? '<th class="num" title="Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.">Box office</th>'+
-          '<th class="num" title="Money retained by the studio: box-office share, screening visits, pilot contracts, sponsorship and later rights payments.">Studio receipts</th>'+
-          '<th class="num" title="Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.">Profit / loss</th>'+
-          '<th class="num" title="Features: estimated ticket visits. Shorts: estimated screening visits. TV: household episode impressions. Not verified unique people.">Reach (est.)</th>'
+        ? filmSortHead('gross','Box office',{num:true,tip:'Only feature films sell theatrical tickets. Short films and pilots earn different kinds of receipts.'})+
+          filmSortHead('revenue','Studio receipts',{num:true,tip:'Money retained by the studio: box-office share, screening visits, pilot contracts, sponsorship and later rights payments.'})+
+          filmSortHead('profit','Profit / loss',{num:true,tip:'Film receipts minus direct production, talent and release spending. Shared studio overhead is excluded.'})+
+          filmSortHead('reach','Reach (est.)',{num:true,tip:'Features: estimated ticket visits. Shorts: estimated screening visits. TV: household episode impressions. Not verified unique people.'})
         : '<th class="num">Box office</th>')+
-      '<th class="num">'+(ranked?({reach:'Reach (est.)',audience:'Audience /100',critics:'Critics /100',gross:'Era-adjusted gross',awards:'Honors'}[filmBrowse.criterion]||'Ranking score'):'Awards')+'</th>';
+      (ranked?'<th class="num">'+({reach:'Reach (est.)',audience:'Audience /100',critics:'Critics /100',gross:'Era-adjusted gross',awards:'Honors'}[filmBrowse.criterion]||'Ranking score')+'</th>':filmSortHead('awards','Awards',{num:true}));
     h += '<div class="tbl-wrap fc-finance-table"><table><thead><tr>'+heads+'</tr></thead><tbody>'+
       page.map(f=>{
+        const isMine = f.projectId != null;
         const c=f.profit==null?'—':'<span class="'+(f.profit<0?'neg':'fc-positive')+'">'+money(f.profit)+'</span>';
         const reach=f.format==='feature'&&Number.isFinite(f.estimatedAdmissions)
           ?compactCount(f.estimatedAdmissions)+' tickets':
@@ -1865,8 +1925,8 @@ var UI = (function () {
            '<td class="num" title="Modeled reach, not counted unique viewers">'+reach+'</td>'
           :'<td class="num">'+(f.format==='feature'?money(filmBrowse.region&&f.regionalGross?.[filmBrowse.region]!=null?f.regionalGross[filmBrowse.region]:f.gross||0):
            f.format==='short'?money(f.revenue||0)+' screenings':compactCount(f.mediaVariant==='web'?f.estimatedOnlineViews||0:f.estimatedHouseholdImpressions||0)+' impressions')+'</td>';
-        return '<tr>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(ownDetails?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
-          '<td>'+filmLabel(f)+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
+        return '<tr'+(isMine?' class="fc-archive-player-film"':'')+'>'+(ranked?'<td><strong>#'+f.worldRank+'</strong>'+rankMovement(f)+'</td>'+(mine?'<td>#'+f.studioRank+'</td>':''):(ownDetails?'<td>'+(positions.has(f.id)?'#'+positions.get(f.id).studioRank:'—')+'</td><td>'+(positions.has(f.id)?'#'+positions.get(f.id).worldRank:'—')+'</td>':''))+
+          '<td>'+filmLabel(f)+(isMine&&!mine?'<span class="fc-film-owner-tag">Your film</span>':'')+(detailed?'<small class="fc-film-substats">Quality '+(f.quality==null?'—':f.quality+'/100')+
             ' · Hype '+(f.hype==null?'—':f.hype+'/100')+'</small>':'')+'</td>'+
           (mine?'':'<td>'+esc(f.studio)+'</td>')+
           '<td>'+f.year+'</td><td>'+esc(mediaName(f))+' · '+esc(nameOf(CONTENT.GENRES,f.genre))+' / '+esc(nameOf(CONTENT.TOPICS,f.topic||''))+
@@ -1929,7 +1989,7 @@ var UI = (function () {
     const h=Engine.state.filmArchive;
     return '<h1>World Film Archive</h1><p class="muted">All films across the industry, with direct studio receipts and estimated reach alongside theatrical gross. Shorts and TV do not have theatrical box office; missing historical totals display — rather than fabricated $0 values. Player and AI films remain here even when their studios close. ' +
       (h && h.incompleteBefore != null ? 'Older imported saves may have incomplete early AI credits and releases.' : 'New films have persistent historical records.') +
-      '</p>' + filmFilters(false) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
+      '</p><div class="fc-archive-hint"><span class="fc-film-owner-tag">Your film</span><span>Highlighted releases are yours. Select a column heading to sort; select it again to reverse the order.</span></div>' + filmFilters(false) + '<div id="archive-search-results">' + filmResultsMarkup() + '</div>';
   }
   function viewRankings() {
     if (filmBrowse.format === 'all') filmBrowse.format = 'feature';
@@ -4454,7 +4514,7 @@ var UI = (function () {
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     filmHubSelect:filmHubSelect,projectDetailSelect:projectDetailSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
-    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, centerSelectTab:centerSelectTab,centerAction:centerAction, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
+    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, centerSelectTab:centerSelectTab,centerAction:centerAction, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, setFilmSort: setFilmSort, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();
