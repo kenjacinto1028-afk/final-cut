@@ -257,7 +257,7 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.9b — Custom poster stays loading / missing after local file deletion (2026-11-22)
 - [x] Inspect persisted poster data model and screenshot: cropped image bytes are stored as blobs in browser IndexedDB; local PC file deletion should not remove them. Found poster async completion only rerenders open drawer, leaving Production Center poster placeholder indefinitely (`poster-store.js` / `ui.js`).
-- [ ] Resolve IndexedDB poster lookup to explicit loaded/missing/error states and emit a completion event; preserve poster blobs, campaign namespaces, and existing backup/import contracts.
+- [x] Implemented explicit loaded/missing/error lookup states with completion event for every result in `poster-store.js` (00bfcfc); blobs remain stored in IndexedDB and export/import untouched.
 - [ ] Refresh visible poster placeholders in all surfaces after async reads without resetting forms/filters; clarify truly missing vs still-loading messages.
 - [ ] Add browser regression: import poster from a real temp image, delete source PC file, reload and verify poster displays; simulate missing IDB record and reupload recovery. Run existing poster/save and desktop/mobile tests.
 - [ ] Merge fully tested fix and verify GitHub Pages deployment. Do not change game balance or saves.
