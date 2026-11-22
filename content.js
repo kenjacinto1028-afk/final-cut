@@ -1055,3 +1055,114 @@ CONTENT.SCORE = {
     rank: 'Rank {rank} on this device.'
   }
 };
+
+
+/* v14.11 lifecycle decisions: curated, conditional narrative events.
+ * Effects are capped by engine; none directly guarantees a hit.
+ * A saved tag from one decision can unlock a later consequence. */
+CONTENT.LIFECYCLE_EVENTS = [
+ {id:'lc_dev_voice',stage:'development',theme:['drama','romance','documentary'],text:'A script reader questions whether "{title}" has an honest ending.',choices:[
+  {label:'Workshop the ending',effects:{quality:3,weeks:1},tag:'authentic',relationship:2,result:'The writers find a clearer emotional resolution.'},
+  {label:'Preserve the original vision',effects:{quality:1,hype:-1},tag:'bold',relationship:1,result:'The ending remains unconventional.'},
+  {label:'Make it audience-friendly',effects:{hype:2,quality:-1},tag:'commercial',relationship:-1,result:'The ending is simpler and easier to market.'}]},
+ {id:'lc_dev_research',stage:'development',theme:['historical','boxing','smalltown','medical','conspiracy'],text:'Research for "{title}" uncovers material that could change the story.',choices:[
+  {label:'Rewrite around the discovery',effects:{quality:3,weeks:1},tag:'researched',relationship:2,result:'The new draft finds greater specificity.'},
+  {label:'Keep research as background',effects:{quality:1},relationship:0,result:'A few authentic details make the cut.'},
+  {label:'Stay with the schedule',effects:{},relationship:-1,result:'The opportunity is passed over.'}]},
+ {id:'lc_dev_pitch',stage:'development',text:'A distributor says the central hook of "{title}" is difficult to explain.',choices:[
+  {label:'Test two new pitches',effects:{hype:2,weeks:1},tag:'tested',result:'Early testing creates a clearer pitch.'},
+  {label:'Trust the creative team',effects:{quality:1,hype:-1},tag:'bold',relationship:2,result:'The studio protects the original voice.'},
+  {label:'Emphasize familiar elements',effects:{hype:3,quality:-1},tag:'commercial',relationship:-1,result:'The sales pitch becomes more conventional.'}]},
+ {id:'lc_dev_rights',stage:'development',text:'An overlooked story source for "{title}" raises a rights concern.',choices:[
+  {label:'Pay for legal clearance',effects:{costPct:.025},tag:'cleared',result:'The paperwork is resolved before production.'},
+  {label:'Rewrite the contested material',effects:{weeks:1,quality:-1},tag:'rewritten',result:'The script avoids the disputed element.'},
+  {label:'Proceed cautiously',effects:{hype:-1},tag:'rights_risk',result:'The unresolved question could return at release.'}]},
+ {id:'lc_pre_location',stage:'preproduction',text:'The ideal location for "{title}" becomes available for just a few days.',choices:[
+  {label:'Book the location',effects:{costPct:.03,quality:2},tag:'location',relationship:1,result:'The team secures an atmospheric location.'},
+  {label:'Adapt to an affordable set',effects:{costPct:-.01,quality:-1},tag:'resourceful',result:'The design team finds a practical workaround.'},
+  {label:'Move the schedule',effects:{weeks:1,quality:1},tag:'delayed',result:'Filming moves to fit the location.'}]},
+ {id:'lc_pre_cast',stage:'preproduction',text:'A cast member asks for a stronger role in "{title}" before rehearsals begin.',choices:[
+  {label:'Develop the character',effects:{quality:2,weeks:1},tag:'expanded_role',relationship:3,result:'Rehearsals give the character more depth.'},
+  {label:'Offer a smaller compromise',effects:{quality:1},relationship:1,result:'The actor accepts a few key adjustments.'},
+  {label:'Keep the contract as written',effects:{hype:-1},tag:'cast_tension',relationship:-3,result:'The production stays on track, but morale cools.'}]},
+ {id:'lc_pre_sponsor',stage:'preproduction',text:'A potential sponsor wants visible placement in "{title}".',choices:[
+  {label:'Accept the placement',effects:{costPct:-.04,quality:-2,hype:1},tag:'sponsored',result:'Funding eases costs but the placement is conspicuous.'},
+  {label:'Negotiate a discreet mention',effects:{costPct:-.02},tag:'partnered',result:'The brand accepts a less intrusive role.'},
+  {label:'Reject the terms',effects:{quality:1},tag:'independent',result:'The project remains free of brand demands.'}]},
+ {id:'lc_pre_crew',stage:'preproduction',text:'The crew identifies a technical risk that could disrupt filming on "{title}".',choices:[
+  {label:'Run safety rehearsals',effects:{costPct:.015,weeks:1},tag:'prepared',relationship:2,result:'The crew enters filming with a backup plan.'},
+  {label:'Build a cheaper alternative',effects:{quality:-1},tag:'resourceful',result:'A simpler rig is ready.'},
+  {label:'Take the risk',effects:{},tag:'technical_risk',relationship:-2,result:'The schedule proceeds without a fallback.'}]},
+ {id:'lc_shoot_chemistry',stage:'shoot',text:'Two performers in "{title}" discover an unexpectedly strong on-screen dynamic.',choices:[
+  {label:'Expand their scenes',effects:{quality:3,weeks:1},tag:'chemistry',relationship:3,result:'The story now leans into the performers’ chemistry.'},
+  {label:'Capture a few extra takes',effects:{quality:2,costPct:.01},tag:'chemistry',relationship:2,result:'The director finds more usable moments.'},
+  {label:'Stay with the shot list',effects:{quality:0},result:'The original coverage is completed.'}]},
+ {id:'lc_shoot_setback',stage:'shoot',text:'Equipment trouble forces the crew of "{title}" to improvise.',choices:[
+  {label:'Rent replacement equipment',effects:{costPct:.04,quality:1},tag:'rescued',relationship:1,result:'A replacement kit limits the disruption.'},
+  {label:'Rewrite scenes for the tools available',effects:{quality:-1,weeks:1},tag:'resourceful',relationship:1,result:'The production finds a new visual approach.'},
+  {label:'Cut the affected scenes',effects:{quality:-3,weeks:-1},tag:'cut_scenes',relationship:-2,result:'The film moves on with fewer scenes.'}]},
+ {id:'lc_shoot_weather',stage:'shoot',text:'Unreliable weather threatens an important sequence in "{title}".',choices:[
+  {label:'Wait for the right light',effects:{weeks:1,quality:2},tag:'patient',result:'The team eventually gets the shot.'},
+  {label:'Move to a practical location',effects:{costPct:.025,quality:1},tag:'resourceful',result:'A backup location saves the sequence.'},
+  {label:'Work with the weather',effects:{quality:-1,hype:1},tag:'bold',result:'The sequence becomes grittier than planned.'}]},
+ {id:'lc_shoot_conflict',stage:'shoot',text:'The director and lead actor disagree over a crucial scene in "{title}".',choices:[
+  {label:'Mediate a new interpretation',effects:{quality:2,weeks:1},tag:'reconciled',relationship:3,result:'A new scene wins both sides over.'},
+  {label:'Back the director',effects:{quality:1,hype:-1},tag:'director_backed',relationship:-2,result:'The scene is filmed as directed.'},
+  {label:'Back the actor',effects:{hype:2,quality:-1},tag:'actor_backed',relationship:1,result:'The scene shifts toward the performer’s instincts.'}]},
+ {id:'lc_shoot_risk_echo',stage:'shoot',requires:'technical_risk',text:'The untested equipment plan from pre-production fails during a scene in "{title}".',choices:[
+  {label:'Stop for repairs',effects:{costPct:.05,weeks:1},tag:'risk_resolved',relationship:1,result:'Repairs cost time but restore confidence.'},
+  {label:'Simplify the sequence',effects:{quality:-2},tag:'risk_resolved',result:'A shorter scene gets the production moving.'}]},
+ {id:'lc_shoot_role_echo',stage:'shoot',requires:'expanded_role',text:'The expanded supporting role in "{title}" needs additional shooting coverage.',choices:[
+  {label:'Fund the additional coverage',effects:{quality:2,costPct:.025},tag:'role_paid',relationship:2,result:'The extra scenes develop the character further.'},
+  {label:'Compress the role',effects:{quality:-1},tag:'role_compromise',relationship:-1,result:'The actor accepts a reduced version.'}]},
+ {id:'lc_post_cut',stage:'post',text:'The first edit of "{title}" changes its tone more than expected.',choices:[
+  {label:'Protect the original vision',effects:{quality:2,weeks:1},tag:'authentic',relationship:1,result:'The editor makes space for quieter scenes.'},
+  {label:'Lean into the new tone',effects:{hype:2,quality:1},tag:'bold',result:'The film takes on a different rhythm.'},
+  {label:'Deliver the edit on schedule',effects:{quality:-1},tag:'rushed_edit',result:'The cut is locked early.'}]},
+ {id:'lc_post_music',stage:'post',text:'A composer offers a distinctive score for "{title}" at an additional cost.',choices:[
+  {label:'Commission the score',effects:{costPct:.03,quality:2,hype:1},tag:'signature_score',relationship:1,result:'The soundtrack brings the film into focus.'},
+  {label:'Use the existing music',effects:{quality:0},result:'The edit retains its planned soundtrack.'},
+  {label:'Choose a minimalist approach',effects:{costPct:-.01,quality:1},tag:'minimalist',result:'Silence becomes part of the film’s identity.'}]},
+ {id:'lc_post_test',stage:'post',text:'A small test audience reacts differently than expected to "{title}".',choices:[
+  {label:'Make targeted changes',effects:{quality:2,weeks:1},tag:'tested',result:'The revised edit addresses the clearest concerns.'},
+  {label:'Stay with the final cut',effects:{quality:1,hype:-1},tag:'bold',relationship:1,result:'The film keeps its more demanding structure.'},
+  {label:'Pursue a broader audience',effects:{hype:3,quality:-2},tag:'commercial',result:'The revised cut favors accessibility.'}]},
+ {id:'lc_post_rights',stage:'post',requires:'rights_risk',text:'The unresolved rights issue from development threatens the release of "{title}".',choices:[
+  {label:'Pay for late clearance',effects:{costPct:.07,weeks:1},tag:'cleared',result:'Late legal fees settle the dispute.'},
+  {label:'Remove the disputed material',effects:{quality:-3},tag:'cleared',result:'A painful edit clears the film.'}]},
+ {id:'lc_prerelease_trailer',stage:'preRelease',text:'An early trailer for "{title}" draws unexpectedly strong interest.',choices:[
+  {label:'Fund a larger campaign',effects:{costPct:.03,hype:4},tag:'campaign_push',result:'The studio builds on the early response.'},
+  {label:'Target likely viewers',effects:{costPct:.015,hype:2},tag:'targeted',result:'A focused campaign reaches genre fans.'},
+  {label:'Keep the original campaign',effects:{},result:'The studio protects its cash.'}]},
+ {id:'lc_prerelease_rival',stage:'preRelease',text:'A rival announces a release close to "{title}".',choices:[
+  {label:'Reposition the marketing',effects:{costPct:.02,hype:2},tag:'targeted',result:'The campaign emphasizes a distinct audience.'},
+  {label:'Trust the release plan',effects:{hype:-1},tag:'confident',result:'The opening stays on course.'},
+  {label:'Adjust the campaign message',effects:{quality:0,hype:1},tag:'reframed',result:'The press materials now highlight the film’s unique strengths.'}]},
+ {id:'lc_prerelease_chemistry',stage:'preRelease',requires:'chemistry',text:'The on-set chemistry from "{title}" becomes a publicity talking point.',choices:[
+  {label:'Arrange a cast interview',effects:{hype:3,costPct:.012},tag:'cast_publicity',relationship:2,result:'The actors give an engaging joint interview.'},
+  {label:'Let the film speak for itself',effects:{hype:1},relationship:1,result:'The studio avoids overselling the relationship.'}]},
+ {id:'lc_release_word',stage:'release',text:'Word of mouth for "{title}" is shifting as audiences compare notes.',choices:[
+  {label:'Amplify audience reactions',effects:{hype:3,costPct:.018},tag:'word_of_mouth',result:'Viewer reactions inform a new campaign.'},
+  {label:'Arrange a filmmaker discussion',effects:{quality:0,hype:2},tag:'outreach',relationship:1,result:'The team takes questions from interested viewers.'},
+  {label:'Keep spending restrained',effects:{},tag:'steady',result:'The studio watches results without new expense.'}]},
+ {id:'lc_release_critics',stage:'release',text:'A critic requests an interview about a controversial choice in "{title}".',choices:[
+  {label:'Explain the creative intent',effects:{hype:2},tag:'prestige',relationship:1,result:'The conversation attracts an attentive audience.'},
+  {label:'Let the debate develop',effects:{hype:-1},tag:'controversy',result:'The film continues to divide opinion.'},
+  {label:'Shift focus to the cast',effects:{hype:1,costPct:.01},tag:'cast_publicity',relationship:1,result:'A cast interview brings a warmer angle.'}]},
+ {id:'lc_release_cult',stage:'release',requires:'bold',text:'A niche audience starts advocating for the unusual choices in "{title}".',choices:[
+  {label:'Host a special screening',effects:{costPct:.02,hype:3},tag:'cult_interest',result:'A small but enthusiastic fan base grows.'},
+  {label:'Stay on the existing circuit',effects:{},tag:'cult_interest',result:'The fan conversation continues organically.'}]},
+ {id:'lc_after_stream',stage:'afterRelease',text:'A distribution partner asks about a new window for "{title}".',choices:[
+  {label:'Explore the licensing offer',effects:{hype:1},tag:'rights_interest',result:'The studio begins talks for a later licensing window.'},
+  {label:'Wait for a stronger offer',effects:{},tag:'patient',result:'The catalog remains available for future interest.'}]},
+ {id:'lc_after_legacy',stage:'afterRelease',text:'Fans ask whether the story of "{title}" might continue.',choices:[
+  {label:'Commission a sequel outline',effects:{costPct:.012},tag:'sequel_interest',relationship:1,result:'The writers outline a possible continuation without guaranteeing a greenlight.'},
+  {label:'Consider a different format',effects:{hype:1},tag:'adaptation_interest',result:'The creative team considers a new medium.'},
+  {label:'Preserve the original ending',effects:{quality:0},tag:'standalone',result:'The studio leaves the story intact.'}]},
+ {id:'lc_after_reunion',stage:'afterRelease',requires:'chemistry',text:'The cast of "{title}" is approached about a reunion event.',choices:[
+  {label:'Arrange a reunion appearance',effects:{costPct:.01,hype:2},tag:'reunion',relationship:2,result:'The collaborators share the spotlight again.'},
+  {label:'Decline respectfully',effects:{},result:'The cast remains focused on current work.'}]},
+ {id:'lc_after_cult',stage:'afterRelease',requires:'cult_interest',text:'The modest release of "{title}" is gaining a longer-tail cult following.',choices:[
+  {label:'Support a retrospective',effects:{costPct:.015,hype:2},tag:'cult_legacy',result:'The film finds a fresh audience.'},
+  {label:'Let the audience organize',effects:{},tag:'cult_legacy',result:'Word of mouth continues with little studio spending.'}]}
+];
