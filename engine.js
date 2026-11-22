@@ -1518,9 +1518,16 @@ var Engine = (function () {
     return { ok: true, project: p };
   }
   function setPosterStyle(id,styleId) {
-    const p=getProject(id);if(!p)return {ok:false,reason:'Film not found.'};
-    if(!Number.isInteger(styleId)||styleId<0||styleId>7)return {ok:false,reason:'Invalid design.'};
+    const p=getProject(Number(id));if(!p)return {ok:false,reason:'Film not found.'};
+    if(!Number.isInteger(styleId)||styleId<0||styleId>31)return {ok:false,reason:'Invalid design.'};
     p.posterStyleId=styleId;save();emit('poster',p);return {ok:true};
+  }
+  function regeneratePosterSet(id) {
+    const p=getProject(Number(id));if(!p)return {ok:false,reason:'Film not found.'};
+    // Changes only cosmetic candidates. An already selected poster or uploaded
+    // custom art is never silently replaced.
+    p.posterDesignBatch=((Number(p.posterDesignBatch)||0)+1)%240;
+    save();emit('poster',p);return {ok:true,batch:p.posterDesignBatch};
   }
   function randomTitle(genre, topic) {
     const t=CONTENT.TITLES, used=new Set();
@@ -5680,7 +5687,7 @@ var Engine = (function () {
     TUNING: TUNING, SLOTS: SLOTS,
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
-    startProject: startProject, previewProject: previewProject, v15MarketingQuote:v15MarketingQuote, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
+    startProject: startProject, previewProject: previewProject, v15MarketingQuote:v15MarketingQuote, randomTitle: randomTitle, setPosterStyle: setPosterStyle, regeneratePosterSet:regeneratePosterSet, ensembleCaps: ensembleCaps,
     v144BudgetInfo:v144BudgetInfo,v144Pay:v144Pay,
     v144Reallocate:v144Reallocate,v144IncreaseCap:v144IncreaseCap,
     sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
