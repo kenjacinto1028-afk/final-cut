@@ -1253,55 +1253,52 @@ var UI = (function () {
     const s=Engine.state,show=!!s&&view!=='saves'&&isFilmMonitorOpen();
     dock.hidden=!show;app.classList.toggle('monitor-open',show);
     if(!show){dock.innerHTML='';return;}
-    // Only active productions and currently screening releases belong in the monitor.
-    // Completed films remain in Filmography and Archive, including residual revenue.
+    // Finished films live in Filmography; the persistent dock is active work only.
     const active=s.projects.filter(p=>p.stage!=='done');
-    const all=active.slice().sort((a,b)=>{
-      const importance=p=>p.stage==='release'?5:4;
-      return importance(b)-importance(a)||(b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0);
-    });
+    const all=active.slice().sort((a,b)=>
+      (b.stage==='release'?1:0)-(a.stage==='release'?1:0)||
+      (b.releaseWeek??b.startWeek??0)-(a.releaseWeek??a.startWeek??0));
     const cards=all.slice(0,6).map(p=>{
-      const fan=p.releaseWeek!=null?Engine.filmFollowing(p):null;
-      const pulse=Engine.projectPulse(p),live=p.stage==='release',feature=p.format==='feature',short=p.format==='short';
-      const fest=short?Engine.shortFestivalStatus(p):null;
-      const phase=p.stage==='done'&&((p.windows||[]).some(w=>w.paid<w.total))?'Rights windows':centerStage(p).status;
-      const metric=live&&feature?'gross':'revenue';
-      const current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue;
-      const reach=feature
-        ?'<span>'+compactCount(p.releaseWeek==null?null:pulse.estimatedAdmissions)+' est. admissions (ticket visits)</span>'
-        :short?'<span>'+compactCount(pulse.estimatedScreeningViewers)+' est. screening visits</span>'
-        :'<span>'+compactCount(pulse.estimatedHouseholdImpressions)+' est. HH impressions</span>';
-      const q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value;
-      const h=Number.isFinite(p.hype)?p.hype+'/100':'Est. '+Math.max(0,Math.min(100,
-        Math.round((s.studio.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype())));
-      const info=short&&fest?'<p class="fc-monitor-festival">'+(p.stage==='done'&&fest.next?'Screenings complete · festival campaign still active · ':'')+fest.selections+' festival recognitions'+
-        (fest.next?' · next '+esc(fest.next.name)+' '+esc(dateLabel(fest.next.week)):'')+'</p>':'';
-      const time=short&&live?' · wk '+p.weeksInRelease+'/'+(p.shortRunWeeks||'?'):
-        live?' · wk '+p.weeksInRelease:'';
-      return '<article class="fc-monitor-card">'+
+      const pulse=Engine.projectPulse(p),live=p.stage==='release',short=p.format==='short',
+        feature=p.format==='feature',phase=centerStage(p).status,
+        metric=live&&feature?'gross':'revenue',
+        current=metric==='gross'?pulse.thisWeekGross:pulse.thisWeekRevenue,
+        percent=Math.round(projectPhasePercent(p)),
+        q=Number.isFinite(p.quality)?p.quality+'/100':'Est. '+centerEstimate(p).value,
+        h=Number.isFinite(p.hype)?p.hype+'/100':
+          'Est. '+Math.max(0,Math.min(100,Math.round((s.studio.fame||0)*.4+(p.hypeMod||0)+Engine.founderHype()))),
+        week=live?' · week '+p.weeksInRelease+(short?'/'+(p.shortRunWeeks||'?'):''):'',
+        fans=p.releaseWeek!=null?Engine.filmFollowing(p):null,
+        fest=short?Engine.shortFestivalStatus(p):null;
+      const reach=feature?compactCount(p.releaseWeek==null?null:pulse.estimatedAdmissions)+' ticket visits':
+        short?compactCount(pulse.estimatedScreeningViewers)+' screening visits':
+        compactCount(pulse.estimatedHouseholdImpressions)+' household impressions';
+      const actions=(live&&feature?releasePushAction(p):'')+(short?shortFilmActions(p,true):'');
+      return '<article class="fc-monitor-card fc-monitor-compact">'+
         '<div class="fc-monitor-card-head"><span class="fc-monitor-symbol">'+esc(feature?'FILM':short?'SHORT':'TV')+'</span>'+
         '<button type="button" onclick="UI.openProject('+p.id+')" title="Open '+esc(p.title)+'">'+esc(p.title)+'</button></div>'+
-        '<div class="fc-monitor-status"><span>'+esc(phase+time)+'</span>'+
-        '<strong>'+Math.round(projectPhasePercent(p))+'%</strong></div>'+
-        '<div class="fc-monitor-track"><i style="width:'+projectPhasePercent(p)+'%"></i></div>'+
-        '<div class="fc-monitor-health"><span>Quality <b>'+esc(q)+'</b></span><span>Hype <b>'+esc(h)+'</b></span></div>'+
-        '<div class="fc-monitor-money"><div><small>'+(metric==='gross'?'This week · box office':'This week · receipts')+
-        '</small><strong>'+money(current)+'</strong></div>'+
-        '<div><small>Studio receipts · total</small><strong>'+money(p.revenue||0)+'</strong></div></div>'+
-        '<div class="fc-monitor-audience">'+reach+
-        '<span class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+
-        money((p.revenue||0)-(p.spent||0))+' P/L</span></div>'+
-        info+(fan?'<div class="fc-monitor-fans">'+compactCount(fan.active)+' followers · '+compactCount(fan.loyal)+' loyal</div>':'')+'<div class="fc-monitor-details"><button type="button" onclick="UI.openProject('+p.id+')">Project Details · Film Hub</button></div>'+filmPulseChart(p,metric,7)+
-        (live&&feature?releasePushAction(p):'')+
-        (short?shortFilmActions(p,true):'')+
-        '</article>';
+        '<div class="fc-monitor-status" title="Current production stage and progress within that stage"><span><strong>'+esc(phase)+'</strong>'+esc(week)+'</span><strong>'+percent+'%</strong></div>'+
+        '<div class="fc-monitor-track" aria-label="Current stage '+percent+' percent"><i style="width:'+percent+'%"></i></div>'+
+        '<div class="fc-monitor-quick-metrics">'+
+          '<span title="Film quality: final after release"><small>Quality</small><b>'+esc(q)+'</b></span>'+
+          '<span title="Current estimated promotion and audience hype"><small>Hype</small><b>'+esc(h)+'</b></span>'+
+          '<span title="'+esc(metric==='gross'?'This week theatrical box office':'This week studio receipts')+'"><small>This week</small><b>'+money(current)+'</b></span></div>'+
+        '<button type="button" class="fc-monitor-open" onclick="UI.openProject('+p.id+')">Manage film</button>'+
+        '<details class="fc-monitor-expand"><summary>More details &amp; actions</summary>'+
+          '<div class="fc-monitor-money"><div><small>Total studio receipts</small><strong>'+money(p.revenue||0)+'</strong></div>'+
+          '<div><small>Direct P/L</small><strong class="'+((p.revenue||0)-(p.spent||0)<0?'neg':'fc-positive')+'">'+money((p.revenue||0)-(p.spent||0))+'</strong></div></div>'+
+          '<p class="fc-monitor-audience" title="Audience visits/impressions are modeled estimates">'+reach+'</p>'+
+          (fans?'<p class="fc-monitor-fans">'+compactCount(fans.active)+' followers · '+compactCount(fans.loyal)+' loyal</p>':'')+
+          (fest?'<p class="fc-monitor-festival">'+fest.selections+' festival recognitions'+(fest.next?' · next '+esc(fest.next.name)+' '+esc(dateLabel(fest.next.week)):'')+'</p>':'')+
+          filmPulseChart(p,metric,7)+actions+
+          '<small class="fc-monitor-method">Audience reach is modeled, not verified unique viewers.</small>'+
+        '</details></article>';
     }).join('');
     dock.innerHTML='<header class="fc-monitor-head"><div><small>LIVE STUDIO FEED</small><h2>Project monitor</h2>'+
-      '<span>'+active.length+' in production/release · completed films in Filmography</span></div>'+
+      '<span>'+active.length+' active film'+(active.length===1?'':'s')+'</span></div>'+
       '<button class="fc-monitor-close" type="button" onclick="UI.toggleFilmMonitor()" aria-label="Collapse project monitor">✕</button></header>'+
-      '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">Greenlight a film to follow weekly production and earnings.</p>')+'</div>'+
-      '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Full Production Center</button>'+
-      '<small>Quality and hype are release scores. Audience reach and households are modeled estimates, not measured unique viewers.</small></footer>';
+      '<div class="fc-monitor-list">'+(cards||'<p class="fc-monitor-none">No active films. Finished films are in Filmography.</p>')+'</div>'+
+      '<footer class="fc-monitor-footer"><button type="button" onclick="UI.go(&quot;projects&quot;)">Production Center</button></footer>';
   }
     function centerPanel() {
     const s=Engine.state,list=s.projects.slice().reverse();
