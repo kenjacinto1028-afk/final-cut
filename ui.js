@@ -1102,6 +1102,7 @@ var UI = (function () {
     const phase=recommendationPhase(p),isReleased=p.releaseWeek!=null;
     const fresh=phase==='development'||phase==='preproduction'||phase==='shoot'||phase==='post';
     const cash=Engine.state.cash||0;
+    const earlyQuality=fresh?centerEstimate(p).value:null;
     const items=[],prefs=recommendationPrefs(p);
     const add=(id,title,reason,tradeoff,action,priority,cost)=>{
       const key=phase+':'+id;
@@ -1125,7 +1126,8 @@ var UI = (function () {
       if(reserve>=50||p.stage==='shoot'&&p.stageWeeksLeft<=2)
         add('budget','Review production budget',
           (reserve>=50?'Unspent reserve '+money(reserve)+'. ':'')+
-          (p.stage==='shoot'?'Filming is underway.':'Check spending before production advances.'),
+          (p.stage==='shoot'?'Filming is underway.':'Check spending before production advances.')+
+          (earlyQuality?' Early quality range '+earlyQuality+' (estimate).':''),
           'Reallocate existing funds or review an optional cap increase; costs require approval.',
           'budget',p.stage==='shoot'?82:69,0);
     }
@@ -1164,7 +1166,9 @@ var UI = (function () {
           'promotions',p.hype<45?94:81,q.cost);
         if(p.weeksInRelease<=6)
           add('reception','Review box office and reception',
-            'The opening weeks reveal actual receipts, critics and audience response.',
+            'Recorded critics '+(Number.isFinite(p.critic)?p.critic+'/100':'pending')+
+          ', audience '+(Number.isFinite(p.audience)?p.audience+'/100':'pending')+
+          ', studio receipts '+money(p.revenue||0)+'. Review momentum before further spending.',
             'Study weekly returns and release conflicts before further investment.',
             'performance',65,0);
       }else if(p.format==='short'){
@@ -1174,7 +1178,9 @@ var UI = (function () {
           money(kit.cost)+' for a merit improvement; selection is not guaranteed.',
           'festivals',83,kit.cost);
         add('screening','Review screening reach',
-          'Screening receipts and estimated audience visits are being recorded.',
+          'Studio receipts '+money(p.revenue||0)+', quality '+
+          (Number.isFinite(p.quality)?p.quality+'/100':'pending')+
+          '. Estimated screening visits are recorded alongside earnings.',
           'Compare actual receipts with spending; audience reach is modeled.',
           'performance',64,0);
       }else add('broadcast','Review television reach',
@@ -1185,8 +1191,10 @@ var UI = (function () {
     if(p.stage==='done'&&isReleased){
       const sequel=Engine.sequelEligibility(p.id);
       if(sequel.ok)add('continuation','Explore a sequel or adaptation',
-        (p.quality!=null?'Quality '+p.quality+'/100. ':'')+
-        'This story has enough reception or recognition to explore another installment.',
+        (p.quality!=null?'Quality '+p.quality+'/100; ':'')+
+        (p.audience!=null?'audience '+p.audience+'/100; ':'')+
+        'direct film P/L '+money((p.revenue||0)-(p.spent||0))+
+        '. This story qualifies for a new installment, not guaranteed success.',
         'A new project needs its own budget and cast; success is not guaranteed.',
         'legacy',87,0);
       if(p.format==='short'){
