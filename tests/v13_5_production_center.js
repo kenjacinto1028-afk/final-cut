@@ -19,7 +19,9 @@ pass('New game sees actual FinalCut Production Center');
 const short=E.startProject({title:'The Last Daylight',format:'short',genre:'drama',topic:'smalltown',tier:0,cast:{director:'founder',writer:'founder'}});
 A(short.ok,short.reason);UI.go('projects');
 let h=screen.get('main');
-for(const item of ['The Last Daylight','Studio slate','Production milestones','Early quality range','WEEKLY BOX OFFICE','All projects'])A(h.includes(item),'Missing '+item);
+for(const item of ['The Last Daylight','Studio slate','Overview','Early quality range','WEEKLY BOX OFFICE','All projects'])A(h.includes(item),'Missing '+item);
+UI.centerSelectTab('timeline'); A(screen.get('main').includes('Production milestones'),'Timeline tab shows the full milestones');
+UI.centerSelectTab('management');A(screen.get('main').includes('Promotions'),'Management tab shows film actions');
 pass('Real short-film slate, milestones, forecast range, archive');
 const p=short.project;let elapsed=0;
 while(p.stage!=='done'&&elapsed<120&&!E.state.gameOver){
@@ -45,6 +47,7 @@ while(feature.stage!=='release'&&weeks<120&&!E.state.gameOver){
 A.equal(feature.stage,'release');
 for(let i=0;i<5;i++){if(E.state.pending)E.choose(E.state.pending.choices.length-1);E.nextTurn();}
 A(feature.gross>=0);A(Number.isFinite(feature.lastWeekGross));
-UI.go('projects');h=screen.get('main');A(h.includes('Autumn of Cinema'));A(h.includes('In theaters'));A(h.includes('Theatrical gross'));
+UI.go('projects');h=screen.get('main');A(h.includes('Autumn of Cinema'));A(h.includes('In theaters'));
+UI.centerFocus(feature.id);UI.centerSelectTab('performance');h=screen.get('main');A(h.includes('Theatrical gross'));
 pass('Feature theatrical run and reported weekly gross from real engine');
 console.log('PASS Final Cut v13.5 integration; save v'+E.state.version+', feature gross '+feature.gross);
