@@ -1487,7 +1487,9 @@ var Engine = (function () {
   function v15HostFanEvent(id){
     const q=v15FanEventQuote(id);if(!q.ok)return q;
     const p=getProject(Number(id)),c=v15FanCommunity(p);
-    state.cash-=q.cost;p.spent+=q.cost;c.momentum=clamp(c.momentum+q.expectedMomentum,-18,18);
+    state.cash-=q.cost;p.spent+=q.cost;state.finance.q.production+=q.cost;
+    recordProjectPulse(p,state.week,0,0,q.cost,p.stage,0);
+    c.momentum=clamp(c.momentum+q.expectedMomentum,-18,18);
     c.eventsHosted++;c.lastHostedWeek=state.week;
     const description='Organized a fan conversation and community screening for '+fmtMoney(q.cost)+'.';
     c.history.push({week:state.week,kind:'engagement',text:description});
