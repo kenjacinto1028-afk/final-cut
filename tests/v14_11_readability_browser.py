@@ -38,7 +38,8 @@ try:
   assert page.locator('.fc-project-detail-tabs button').count()==6
   assert page.locator('#drawer').get_by_text('Current stage').count()>=1
   page.locator('.fc-project-detail-tabs').get_by_role('button',name='Manage').click()
-  assert page.locator('#drawer').get_by_text('Optional budget review').count()>=1
+  page.locator('#drawer .fc-film-action-row').get_by_role('button',name='Budget',exact=False).click()
+  assert page.locator('#drawer .fc-budget-review').count()>=1
   page.evaluate("UI.closeDrawer(); UI.go('dashboard')")
   if page.locator('#film-monitor').is_hidden(): page.evaluate("UI.toggleFilmMonitor()")
   assert page.locator('.fc-monitor-card').count()==1
