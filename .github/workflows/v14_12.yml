@@ -1,0 +1,33 @@
+name: FinalCut v14.12 contextual action recommendations
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  recommendations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify JavaScript and original production behavior
+        run: |
+          node --check ui.js
+          node --check engine.js
+          node tests/v13_5_production_center.js
+          node tests/v14_11_critic_voices.js
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Greenlight recommendations, saved preferences and mobile checks
+        run: |
+          python tests/v14_12_recommendations_browser.py
+          python tests/v14_11_readability_browser.py
