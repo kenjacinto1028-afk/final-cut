@@ -5187,8 +5187,11 @@ var Engine = (function () {
       overhead: overhead, interest: interest, living: TUNING.livingCost });
     // Offer a bounded lifecycle decision before advancing each production stage.
     // This shares the existing pending decision queue and delegation policy.
-    actives.forEach(p=>{if(ACTIVE_STAGES.includes(p.stage))lifecycleTick(p);});
-    actives.forEach(p => { if (ACTIVE_STAGES.includes(p.stage)) advanceProject(p); });
+    const lifecyclePaused=new Set();
+    actives.forEach(p=>{if(ACTIVE_STAGES.includes(p.stage)&&lifecycleTick(p))lifecyclePaused.add(p.id);});
+    // Hold a production at its current phase until the player resolves that
+    // week's decision. The studio still pays normal weekly operating costs.
+    actives.forEach(p => { if (ACTIVE_STAGES.includes(p.stage)&&!lifecyclePaused.has(p.id)) advanceProject(p); });
     // Screenings and catalog follow-ups happen after their real weekly results.
     state.projects.some(p=>(p.stage==='release'||p.stage==='done')&&lifecycleTick(p));
     rivalTick();
