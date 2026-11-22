@@ -21,7 +21,7 @@ try:
     const r=Engine.startProject({title:'Quiet Mail',format:'short',tier:0,
       genre:'drama',topic:'smalltown',cast:{director:'founder',writer:'founder'}});
     if(!r.ok)throw Error(r.reason);
-    UI.go('projects');UI.openProject(r.project.id);
+    UI.go('projects');UI.openProject(r.project.id);UI.projectDetailSelect('timeline');
     return {id:r.project.id};
   }""")
   assert page.locator('#drawer .fc-filmhub-guide').count()==1
@@ -37,7 +37,7 @@ try:
       else Engine.nextTurn();
     }
     if(p.stage!=='done')throw Error('Short did not complete');
-    UI.go('filmography');UI.openProject(id);
+    UI.go('filmography');UI.openProject(id);UI.filmHubSelect('production');
   }""",result['id'])
   assert page.locator('#drawer .fc-filmhub-guide').count()==1
   guide=page.locator('#drawer .fc-filmhub-guide').inner_text()
@@ -49,6 +49,7 @@ try:
   assert page.locator('#drawer').get_by_role('button',name='Open Film Hub',exact=False).count()==1
   page.evaluate("for(let i=0;i<4&&!document.getElementById('premiere-report').hidden;i++)UI.closePremiereReport()")
   page.locator('#drawer').get_by_role('button',name='Open Film Hub',exact=False).click()
+  page.evaluate("UI.filmHubSelect('production')")
   assert page.locator('#drawer').get_by_text('What can I do next?').count()==1
   # The generated movie still must no longer replace a custom uploaded poster.
   page.evaluate("""async (id)=>{
