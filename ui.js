@@ -1020,7 +1020,11 @@ var UI = (function () {
   let centerProjectId = null, centerShowOlder = false, centerTab='overview',centerManageTab='promotions';
   const CENTER_TABS=[['overview','Overview'],['management','Manage'],['performance','Performance'],['timeline','Timeline'],['story','Story']];
   function centerSelectTab(next){if(!CENTER_TABS.some(x=>x[0]===next))return;centerTab=next;render();}
-  function centerAction(next){centerManageTab=next;centerTab='management';render();}
+  function centerAction(next){
+    centerManageTab=next;
+    if(drawer&&(drawer.kind==='film'||drawer.kind==='project'))renderDrawer();
+    else {centerTab='management';render();}
+  }
   function centerBudgetActions(p){
     if(!p.budgetPlan)return '<section class="fc-budget-review"><h3>Budget review</h3><p>'+money(p.spent||0)+' spent of '+money(p.budget||0)+' planned.</p><p class="muted">Detailed stage allocations are unavailable for this project.</p></section>';
     const b=Engine.v144BudgetInfo(p),available=(b.stageRemaining||{}).reserve||0;
@@ -1036,23 +1040,61 @@ var UI = (function () {
         FinalCutBudget.KEYS.map(k=>dl(FinalCutBudget.LABELS[k],money(b.spent[k])+' / '+money(b.allocation[k]))).join('')+
       '</dl></details></section>';
   }
+  function lifecycleEventsPanel(p){
+    const data=Engine.lifecycleQuote(p.id);
+    if(!data.ok)return '<p class="muted">No event history recorded.</p>';
+    const history=data.history.slice(-10).reverse();
+    return '<section class="fc-lifecycle-history"><h3>Production decisions</h3>'+
+      '<p class="muted">Up to '+data.limit+' meaningful opportunities across the film lifecycle. Older films keep their actual recorded history.</p>'+
+      (history.length?history.map(x=>
+        '<div class="fc-lifecycle-entry"><small>'+esc(x.phase)+' · '+dateLabel(x.week)+'</small>'+
+        '<strong>'+esc(x.choice)+'</strong><p>'+esc(x.consequence)+'</p></div>').join(''):
+        '<p class="muted">No new lifecycle choices have occurred yet.</p>')+
+      (data.tags.length?'<details><summary>Story consequences</summary><p>'+data.tags.map(esc).join(' · ')+'</p></details>':'')+
+      '</section>';
+  }
   function centerManagement(p){
-    const options=[['promotions','Promotions'],['budget','Budget'],['distribution','Distribution'],['cast','Cast & Crew'],['release','Release'],['festivals','Festivals']];
-    const buttons='<nav class="fc-film-action-row" aria-label="Film management actions">'+options.map(([id,name])=>
-      '<button type="button" class="'+(centerManageTab===id?'is-active':'')+'" onclick="UI.centerAction(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</nav>';
+    const options=[['promotions','Promotions'],['budget','Budget'],['distribution','Distribution'],
+      ['cast','Cast & Crew'],['release','Release'],['festivals','Festivals'],['decisions','Decisions'],['legacy','Legacy']];
+    const before=p.releaseWeek==null&&!['done','release'].includes(p.stage);
+    const released=p.releaseWeek!=null;
+    const buttons='<nav class="fc-film-action-row" aria-label="Film management actions">'+options.map(([id,name])=>{
+      const available=id==='budget'?before:id==='distribution'?before:
+        id==='release'?before||p.stage==='release':
+        id==='festivals'?released:id==='legacy'?released:true;
+      return '<button type="button" title="'+esc(available?'Review '+name:'Available at a later production stage')+
+        '" aria-current="'+(centerManageTab===id?'page':'false')+'" class="'+(centerManageTab===id?'is-active':'')+
+        '" onclick="UI.centerAction(&quot;'+id+'&quot;)">'+name+(available?'':' · later')+'</button>';
+    }).join('')+'</nav>';
     let content='';
-    if(centerManageTab==='promotions')content=filmPromotionPanel(p);
+    if(centerManageTab==='promotions')content=filmPromotionPanel(p)+(p.stage==='release'&&p.format==='feature'?releasePushAction(p):'');
     else if(centerManageTab==='budget')content=centerBudgetActions(p);
-    else if(centerManageTab==='distribution')content=
-      '<h3>Distribution</h3><p>Review the selected markets and existing release terms in the full Film Hub.</p>'+
-      '<button onclick="UI.openProject('+p.id+')">Open distribution settings</button>';
-    else if(centerManageTab==='cast')content=
-      '<h3>Cast & Crew</h3><p>Review talent availability, contracts and credits for this production.</p>'+
-      '<button onclick="UI.openProject('+p.id+')">View credits and contracts</button>';
-    else if(centerManageTab==='release')content=v14ReleaseControls(p)||
+    else if(centerManageTab==='distribution'){
+      if(before&&(p.format==='feature'||p.format==='short')){
+        const quote=Engine.regionQuote(p,p.regions);
+        content='<h3>Distribution planning</h3>'+
+          '<div class="region-grid">'+CONTENT.REGIONS.map(r=>
+            '<label><input type="checkbox" '+((p.regions||[]).includes(r.id)?'checked ':'')+
+            (r.id===Engine.homeRegion()?'disabled ':'')+
+            'onchange="UI.toggleRegion('+p.id+',&quot;'+r.id+'&quot;,this.checked)"> '+esc(r.name)+'</label>').join('')+'</div>'+
+          '<p>Estimated extra cost: <strong>'+money(quote.cost)+'</strong> · '+esc(quote.estimated)+'</p>';
+      }else content='<p>Distribution is '+(released?'already underway or completed.':'not available at this stage.')+'</p>'+
+        (released?'<strong>Recorded regions: '+esc((p.regions||[]).map(id=>nameOf(CONTENT.REGIONS,id)).join(', ')||'Not recorded')+'</strong>':'');
+    }else if(centerManageTab==='cast'){
+      const bonds=Engine.lifecycleQuote(p.id);
+      content='<h3>Cast & crew</h3><dl>'+Engine.castSummary(p).map(x=>dl(esc(x.label),esc(x.name))).join('')+'</dl>'+
+        (bonds.bonds?.length?'<h4>Studio relationships</h4><dl>'+bonds.bonds.map(t=>
+          dl(esc(t.name),t.bond+'/100 · '+(t.bond>=65?'Trusted':t.bond<=35?'Strained':'Neutral'))).join('')+'</dl>':'')+
+        '<small>Shared history can modestly affect future negotiations and performance.</small>';
+    }else if(centerManageTab==='release')content=v14ReleaseControls(p)||
       '<p class="muted">No release-plan changes are available at the current stage.</p>';
     else if(centerManageTab==='festivals')content=shortFilmActions(p,false)||
-      '<p class="muted">Festival actions unlock when an eligible film is released.</p>';
+      '<p class="muted">Festival actions become available for eligible released shorts.</p>';
+    else if(centerManageTab==='decisions')content=lifecycleEventsPanel(p);
+    else if(centerManageTab==='legacy')content=v14AfterlifeControls(p)+
+      (Engine.sequelEligibility(p.id).ok?'<button type="button" onclick="UI.beginSequel('+p.id+')">Explore sequel or adaptation</button>':
+        '<p class="muted">Franchise opportunities require a qualifying released project.</p>')+
+      lifecycleEventsPanel(p);
     return '<section class="fc-center-management">'+buttons+'<div class="fc-center-action-content">'+content+'</div></section>';
   }
 
@@ -2205,11 +2247,7 @@ var UI = (function () {
       h+='</section>';
     } else if(filmHubTab==='manage'){
       h+='<section class="fc-hub-panel"><h3>Film management</h3>'+
-        (original?'<details open><summary>Promotions and sponsors</summary>'+filmPromotionPanel(original)+'</details>'+
-          '<details><summary>Optional budget review</summary>'+centerBudgetActions(original)+'</details>'+
-          '<details><summary>Release strategy</summary>'+v14ReleaseControls(original)+'</details>'+
-          '<details><summary>Festival and catalog opportunities</summary>'+shortFilmActions(original,false)+v14AfterlifeControls(original)+'</details>':
-          '<p class="muted">Industry films cannot be managed by your studio.</p>')+'</section>';
+        (original?centerManagement(original):'<p class="muted">Industry films cannot be managed by your studio.</p>')+'</section>';
     } else if(filmHubTab==='production'){
       h+='<section class="fc-hub-panel"><h3>Cast and production</h3><dl>'+
         dl('Director',esc(f.credits?.director||'Not recorded'))+
@@ -2634,11 +2672,7 @@ var UI = (function () {
         dl('Hype',p.hype==null?'Not final':p.hype+'/100')+'</dl>'+
         '<button type="button" onclick="UI.projectDetailSelect(&quot;management&quot;)">Manage this film</button></div>';
     }else if(projectDetailTab==='management'){
-      h+='<section class="fc-project-manage"><details open><summary>Promotions &amp; sponsors</summary>'+filmPromotionPanel(p)+'</details>'+
-        '<details><summary>Optional budget review</summary>'+centerBudgetActions(p)+'</details>'+
-        '<details><summary>Distribution &amp; release</summary>'+v14ReleaseControls(p)+
-          '<button type="button" onclick="UI.projectDetailSelect(&quot;details&quot;)">View region settings</button></details>'+
-        '<details><summary>Festivals &amp; post-release</summary>'+shortFilmActions(p,false)+v14AfterlifeControls(p)+'</details></section>';
+      h+=centerManagement(p);
     }else if(projectDetailTab==='performance')h+=projectPerformanceBoard(p)+filmPostmortem(p);
     else if(projectDetailTab==='timeline')h+=filmTimeline(p)+filmLifecycleGuide(p);
     else h+=v14StoryPanel(p,false)+filmCriticsPanel(p);
@@ -2741,6 +2775,8 @@ var UI = (function () {
     h += dl('Skill', t.skill + ' <div class="bar"><div style="width:' + t.skill + '%"></div></div>');
     h += dl('Fame', t.fame + ' <div class="bar"><div style="width:' + t.fame + '%"></div></div>');
     h += dl('Recognition', esc(Engine.recognition(t).name));
+    h += dl('Studio relationship',Math.round(t.studioBond==null?50:t.studioBond)+'/100 · '+(t.studioBond>=65?'Trusted':t.studioBond<=35?'Strained':'Neutral'));
+
     h += dl('Home region', esc(nameOf(CONTENT.REGIONS, t.homeRegion || 'northamerica')));
     h += dl('Career', esc(t.career && t.career.trend || 'Established'));
     if(t.career && t.career.recent && t.career.recent.length) {
@@ -2833,10 +2869,13 @@ var UI = (function () {
       const pd = s.pending;
       const plain = pd.scope === 'score';
       const head = pd.scope === 'score' ? 'Final score' : ((pd.category && CONTENT.EVENT_CATEGORIES && CONTENT.EVENT_CATEGORIES[pd.category]) || 'Decision');
-      m.innerHTML = '<div class="card"><h2>' + esc(head) + (pd.disaster ? ' <span class="neg">· Crisis</span>' : '') + (s.queue.length ? ' <span class="muted">(+' + s.queue.length + ' waiting)</span>' : '') + '</h2><p>' + esc(pd.text) + '</p>' +
+      m.innerHTML = '<div class="card"><h2>' + esc(head) + (pd.disaster ? ' <span class="neg">· Crisis</span>' : '') + (s.queue.length ? ' <span class="muted">(+' + s.queue.length + ' waiting)</span>' : '') + '</h2>'+
+        (pd.lifecyclePhase?'<small class="fc-event-stage">'+esc(pd.lifecyclePhase.replace(/([A-Z])/g,' $1'))+' · Film opportunity</small>':'')+
+        '<p>' + esc(pd.text) + '</p>' +
         (pd.lines && pd.lines.length ? '<ul class="plain">' + pd.lines.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' : '') +
         pd.choices.map((c, i) => '<button class="choice" onclick="UI.choose(' + i + ')"><strong>' + esc(c.label) + '</strong>' +
-          (plain ? '' : '<br><span class="muted">' + effectHint(c.effects) + '</span>') + '</button>').join('') +
+          (plain ? '' : '<br><span class="muted">' + effectHint(c.effects) +
+            (pd.lifecyclePhase&&c.relationship?' · Studio relationship '+(c.relationship>0?'+':'')+c.relationship:'')+'</span>') + '</button>').join('') +
         '</div>';
       m.hidden = false;
     } else {
