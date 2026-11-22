@@ -311,3 +311,15 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Documentation: `docs/CHANGELOG_V14_12.md`. Release recommendation details show real critics/audience/receipts; early quality ranges are labeled estimates (`ui.js`, `7f1dd3b`).
 - [x] Hype accounting fixed when v14.11 after-release decisions modify scores (`engine.js`, `25e509e`), avoiding stale score-attribution totals.
 - [ ] Previous v14 integrated browser suite still has legacy UI/test compatibility failures; investigate separately, and perform physical phone acceptance. Avoid claiming full suite completion.
+
+## v14.12 — Awards, earnings, and goal-aware strategy extension (2026-11-22)
+- [x] Confirmed correct FinalCut repository and resumed previous v14.12 action recommendations on main (not Studio Syndicate).
+- [x] Corrected extreme awards winner thresholds while retaining merit floor, rival competition, max wins per studio and no fabricated trophy; engine.js (0c0d7c0, 2f14918).
+- [x] Ranked highest-earning annual release by recorded revenue rather than theatrical gross only; renamed year-end label; engine.js, ui.js (0c0d7c0, 2de8f66).
+- [x] Goal-aware player recommendations during development, production and release; financial/prestige/franchise/talent warnings and planning navigation; ui.js (2de8f66).
+- [x] Accepted annual opportunities expose strategy-specific recommended actions (follow-up, acclaim, budget, market, partnerships, rivals), linked to existing actions and saved review state; ui.js (2de8f66).
+- [x] Added pre-greenlight annual goals check in New Project; ui.js (b992710).
+- [x] Added year-end earnings and goals scorecard, marking current lifetime receipts vs costs honestly and not treating them as annual cash flow; ui.js (88b5484).
+- [x] Extended browser regression for pre-greenlight goal advisory; tests/v14_10_browser.py (333f64b).
+- [ ] Wait for final main GitHub Actions v14.10 / v14.12 / integrated tests and Pages deployment to report result; fix any failures.
+- [ ] Physical mobile device acceptance remains outstanding.
