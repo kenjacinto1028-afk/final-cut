@@ -5372,6 +5372,155 @@ var Engine = (function () {
   }
 
 // ===== SECTION: NEWS =====
+
+  // v15f: bounded offers born from actual film results, established rivals,
+  // and studio credibility. Offers require a choice; expiry costs nothing.
+  function v15World(){
+    if(!state.v15||typeof state.v15!=='object')state.v15={};
+    const w=state.v15;
+    if(!Array.isArray(w.offers))w.offers=[];
+    if(!Array.isArray(w.history))w.history=[];
+    if(!Number.isFinite(w.nextOfferId))w.nextOfferId=1;
+    return w;
+  }
+  function v15ActiveOffers(){
+    return v15World().offers.filter(o=>o.status==='open'&&o.expiresWeek>=state.week)
+      .map(o=>Object.assign({},o));
+  }
+  function v15OfferList(){return v15World().offers.slice(-18).reverse().map(o=>Object.assign({},o));}
+  function v15OpportunityTick(){
+    if(state.week<26||state.week%13!==0)return;
+    const w=v15World(),quarter=Math.floor(state.week/13);
+    if(w.lastOfferQuarter===quarter)return;
+    w.lastOfferQuarter=quarter;
+    for(const offer of w.offers){
+      if(offer.status==='open'&&offer.expiresWeek<state.week){
+        offer.status='expired';w.history.push({week:state.week,text:offer.title+' expired unanswered.'});
+      }
+    }
+    w.history=w.history.slice(-20);
+    if(v15ActiveOffers().length>=2)return;
+    // 1 or 2 opportunities per active studio year at most; relevance before RNG.
+    const recent=w.offers.filter(o=>state.week-o.week<52);
+    if(recent.length>=3)return;
+    const films=state.projects.filter(p=>p.releaseWeek!=null&&
+      state.week-p.releaseWeek>=4&&state.week-p.releaseWeek<52*5);
+    const candidates=[];
+    for(const p of films){
+      if(p.stage==='done'&&p.format==='feature'&&p.revenue>0&&
+         p.critic>=58&&!(p.v15IndustryDeals||[]).includes('catalog')&&
+         !w.offers.some(o=>o.projectId===p.id&&o.kind==='catalog')){
+        const upfront=Math.round(Math.min(12000,Math.max(180,(p.revenue||0)*.035+
+          Math.min(2000,(p.critic||0)*12))));
+        candidates.push({kind:'catalog',projectId:p.id,title:'Specialty distributor approaches for "'+p.title+'"',
+          detail:'A limited, one-time nonexclusive local catalog showcase. This offer does not rewrite the existing home-video or streaming royalty schedule.',
+          cost:0,upfront,quality:0,impact:'One-time studio receipts, plus a record in the film history.'});
+      }
+      if(p.critic>=74&&p.stage==='done'&&!(p.v15IndustryDeals||[]).includes('showcase')&&
+         !w.offers.some(o=>o.projectId===p.id&&o.kind==='showcase')){
+        const cost=Math.round(Math.min(5000,Math.max(120,p.budget*.007)));
+        candidates.push({kind:'showcase',projectId:p.id,title:'Curated festival conversation for "'+p.title+'"',
+          detail:'A festival curator offers a retrospective discussion. Attendance and further recognition are not guaranteed.',
+          cost,upfront:0,quality:0,impact:'Potential modest prestige and existing fan community momentum.'});
+      }
+      if(p.format==='pilot'&&p.stage==='done'&&p.audience>=70&&p.revenue>0&&
+        !(p.v15IndustryDeals||[]).includes('broadcast')&&
+        !w.offers.some(o=>o.projectId===p.id&&o.kind==='broadcast')){
+        const upfront=Math.round(Math.min(8000,Math.max(300,p.revenue*.035)));
+        candidates.push({kind:'broadcast',projectId:p.id,title:'International replay interest in "'+p.title+'"',
+          detail:'A secondary one-off programming window based on the show’s documented household performance.',
+          cost:0,upfront,quality:0,impact:'One-time licensing receipts; no new reported households are invented.'});
+      }
+    }
+    // Creative development partnerships need a real relationship, an active
+    // production and funds in the approved reserve, so they cannot be free buffs.
+    const partner=activeRivals().filter(r=>r.playerRelation>=12&&r.cash>0)
+      .sort((a,b)=>b.playerRelation-a.playerRelation)[0];
+    if(partner){
+      for(const p of activeProjects().filter(p=>['development','preproduction','shoot'].includes(p.stage))){
+        if((p.v15IndustryDeals||[]).includes('partnership')||
+            w.offers.some(o=>o.projectId===p.id&&o.kind==='partnership'))continue;
+        const cost=Math.max(90,Math.round(p.budget*.008));
+        if(state.cash<cost||p.budgetPlan&&v144Available(p,'reserve')<cost)continue;
+        candidates.push({kind:'partnership',projectId:p.id,rivalId:partner.id,
+          title:partner.name+' proposes a creative collaboration on "'+p.title+'"',
+          detail:'A bounded paid script/production consultation; sharing expertise helps the creative plan without guaranteeing reviews or ticket sales.',
+          cost,upfront:0,quality:2,impact:'+2 craft potential and stronger rival relationship.'});
+      }
+    }
+    if(!candidates.length||Math.random()>=.58)return;
+    // Avoid taking always the same first large catalog film.
+    candidates.sort((a,b)=>b.projectId-a.projectId);
+    const offer=candidates[Math.floor(Math.random()*Math.min(5,candidates.length))];
+    const item=Object.assign({id:w.nextOfferId++,week:state.week,
+      expiresWeek:state.week+16,status:'open'},offer);
+    w.offers.push(item);w.offers=w.offers.slice(-24);
+    addLog('Industry opportunity: '+item.title+'. Review Industry → News before '+dateOf(item.expiresWeek).year+'.','market');
+    emit('industry_offer',item);
+  }
+  function v15OfferAction(id,action){
+    const offer=v15World().offers.find(o=>o.id===Number(id));
+    if(!offer||offer.status!=='open'||offer.expiresWeek<state.week)
+      return {ok:false,reason:'That industry offer is no longer active.'};
+    if(!['accept','counter','decline'].includes(action))
+      return {ok:false,reason:'Choose to accept, counter or decline.'};
+    const p=getProject(offer.projectId);
+    if(!p)return {ok:false,reason:'The film record is unavailable.'};
+    if(action==='counter'){
+      // A counteroffer is a single risky negotiation, not a repeatable spin.
+      const chance=offer.kind==='partnership'?.52:.55;
+      if(Math.random()>=chance){
+        offer.status='lost';offer.resolvedWeek=state.week;
+        addLog('Negotiations failed: '+offer.title+'.','market');
+        save();return {ok:true,status:'lost'};
+      }
+    }
+    if(action==='decline'){
+      offer.status='declined';offer.resolvedWeek=state.week;
+      addLog('Declined '+offer.title+'.','market');
+      save();return {ok:true,status:'declined'};
+    }
+    // Recheck affordability after the offer was generated. A stale offer
+    // cannot create an unfunded +quality grant or negative available reserve.
+    const cost=Math.max(0,Math.round(offer.cost*(action==='counter'?.82:1)));
+    if(cost>state.cash||offer.kind==='partnership'&&p.budgetPlan&&cost>v144Available(p,'reserve'))
+      return {ok:false,reason:'Insufficient available cash or approved production reserve.'};
+    if(offer.kind==='partnership'&&(!['development','preproduction','shoot'].includes(p.stage)))
+      return {ok:false,reason:'That production has progressed past collaborative development.'};
+    if((p.v15IndustryDeals||[]).includes(offer.kind))
+      return {ok:false,reason:'This film has already concluded a similar agreement.'};
+    if(cost){
+      if(p.budgetPlan&&offer.kind==='partnership'){
+        if(!v144Pay(p,'reserve',cost))return {ok:false,reason:'The production reserve is no longer available.'};
+      }else{state.cash-=cost;p.spent+=cost;}
+      state.finance.q.production+=cost;
+      recordProjectPulse(p,state.week,0,0,cost,p.stage,0);
+    }
+    const upfront=Math.round((offer.upfront||0)*(action==='counter'?1.18:1));
+    if(upfront){
+      earn(upfront);p.revenue+=upfront;
+      recordProjectPulse(p,state.week,0,upfront,0,p.stage,0);
+    }
+    if(offer.kind==='partnership'){
+      p.qualityMod=clamp((p.qualityMod||0)+2,-30,30);
+      const rival=getRival(offer.rivalId);
+      if(rival)v15RivalRelationship(rival,7,'Creative partnership on '+p.title+'.',p);
+    }else if(offer.kind==='showcase'){
+      const fan=v15FanCommunity(p);
+      fan.momentum=clamp(fan.momentum+3,-18,18);
+      state.studio.criticsRep=clamp((state.studio.criticsRep||0)+1,0,100);
+    }
+    p.v15IndustryDeals=p.v15IndustryDeals||[];
+    p.v15IndustryDeals.push(offer.kind);
+    offer.status='accepted';offer.resolvedWeek=state.week;offer.acceptedCost=cost;offer.receipts=upfront;
+    const note='Industry agreement: '+offer.title+'. '+(cost?fmtMoney(cost)+' spent. ':'')+
+      (upfront?fmtMoney(upfront)+' booked as rights revenue. ':'')+
+      (offer.kind==='partnership'?'Creative consultation approved.':'');
+    filmStory(p,'industry',note);
+    addLog(note,'market');emit('industry_offer',offer);save();
+    return {ok:true,status:'accepted',cost,receipts:upfront};
+  }
+
   function newsCat(l) {
     const N = CONTENT.NEWS;
     if (l.cat) {
@@ -5595,6 +5744,7 @@ var Engine = (function () {
     checkCalendar();
     reputationTick();
     v15FanTick();
+    v15OpportunityTick();
     shiftTick();
     if (dateOf().week === 1) rivalYear();
     if (state.week % TUNING.economy.quarterWeeks === 0) { marketQuarter(); rivalQuarter(); closeQuarter(); }
@@ -6011,6 +6161,8 @@ var Engine = (function () {
     roster: roster, rosterCap: rosterCap, weeksLeft: weeksLeft, isExpiring: isExpiring, expiringContracts: expiringContracts,
     contractQuote: contractQuote, signExclusive: signExclusive, renewContract: renewContract, releaseContract: releaseContract, severanceOf: severanceOf,
     news: news, newsFilters: newsFilters,
+    v15ActiveOffers:v15ActiveOffers,v15OfferList:v15OfferList,v15OfferAction:v15OfferAction,
+    v15OpportunityTick:v15OpportunityTick,
     awardsInfo: awardsInfo, awardCampaign: awardCampaign, campaignQuote: campaignQuote,
     reputationInfo: reputationInfo, legacyInfo: legacyInfo, initiativeQuote: initiativeQuote, startInitiative: startInitiative, reissueQuote: reissueQuote, reissueFilm: reissueFilm,
     scoreInfo: scoreInfo, scoreLines: scoreLines, legacyRecap: legacyRecap, leaderboard: leaderboard, clearLeaderboard: clearLeaderboard,
