@@ -3191,7 +3191,16 @@ var UI = (function () {
     h += dl('Studio relationship',Math.round(t.studioBond==null?50:t.studioBond)+'/100 · '+(t.studioBond>=65?'Trusted':t.studioBond<=35?'Strained':'Neutral'));
 
     h += dl('Home region', esc(nameOf(CONTENT.REGIONS, t.homeRegion || 'northamerica')));
+    const careerPlan=Engine.v15TalentProfile(t.id);
     h += dl('Career', esc(t.career && t.career.trend || 'Established'));
+    if(careerPlan){
+      h+=dl('Age and stage',careerPlan.age+' · '+esc(careerPlan.stage))+
+        dl('Career ambition',esc(careerPlan.goal)+' — '+esc(careerPlan.preference))+
+        dl('Career best',careerPlan.careerPeak+' skill · '+careerPlan.peakFame+' fame');
+      if(careerPlan.currentSalary!=null)h+=dl('Market pay pressure',
+        money(careerPlan.marketSalary)+'/wk market vs '+money(careerPlan.currentSalary)+
+        '/wk contract · '+(careerPlan.pressure>=0?'+':'')+careerPlan.pressure+'%');
+    }
     if(t.career && t.career.recent && t.career.recent.length) {
       const recent=t.career.recent.slice(-3).reverse();
       h += dl('Recent work', recent.map(x=>esc(x.film)+' · skill '+x.skill+' / fame '+x.fame).join('<br>'));
