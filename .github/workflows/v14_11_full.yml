@@ -22,7 +22,6 @@ jobs:
           node tests/v14_11_lifecycle.js
           node tests/v14_11_critic_voices.js
           node tests/v14_8_regression.js
-          node tests/v14_10_browser.py --help 2>/dev/null || true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
