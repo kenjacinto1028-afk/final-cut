@@ -1022,7 +1022,7 @@ var UI = (function () {
   function centerSelectTab(next){if(!CENTER_TABS.some(x=>x[0]===next))return;centerTab=next;render();}
   function centerAction(next){centerManageTab=next;centerTab='management';render();}
   function centerBudgetActions(p){
-    if(!p.budgetPlan)return '<p class="muted">This project has no detailed budget allocation.</p>';
+    if(!p.budgetPlan)return '<section class="fc-budget-review"><h3>Budget review</h3><p>'+money(p.spent||0)+' spent of '+money(p.budget||0)+' planned.</p><p class="muted">Detailed stage allocations are unavailable for this project.</p></section>';
     const b=Engine.v144BudgetInfo(p),available=(b.stageRemaining||{}).reserve||0;
     const editable=['development','preproduction','shoot','post'].includes(p.stage);
     return '<section class="fc-budget-review"><h3>Optional budget review</h3>'+
