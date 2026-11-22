@@ -2350,6 +2350,15 @@ var UI = (function () {
       (r.focusNames.length ? dl('Chasing genres', esc(r.focusNames.join(', '))) : '') +
       dl('Quarter results', r.results.length ? r.results.map(signed).join(' · ') : '<span class="muted">None yet</span>') +
       dl('Founded', dateLabel(r.foundedWeek)) + dl('Home region', esc(nameOf(CONTENT.REGIONS,r.region))) + '</dl>';
+    if(r.status==='active'){
+      const quote=Engine.v15RivalOutreachQuote(r.id);
+      h+='<section class="fc-rival-outreach"><h3>Industry relations</h3>'+
+        '<p class="muted">Invite this studio to discuss future cooperation. A meeting costs real money and does not guarantee better relations. Stronger relationships can unlock creative partnerships on active films.</p>'+
+        '<button type="button" '+(!quote.ok?'disabled title="'+esc(quote.reason)+'" ':'')+
+        'onclick="UI.v15RivalOutreach('+r.id+')">Approach studio'+
+        (quote.ok?' · '+money(quote.cost)+' · '+Math.round(quote.chance*100)+'% interest':'')+'</button>'+
+        (!quote.ok?'<p class="muted">'+esc(quote.reason)+'</p>':'')+'</section>';
+    }
     if(r.living&&r.living.history.length)h+='<details class="fc-disclosure"><summary>Studio ambitions & industry encounters</summary>'+
       '<ul class="plain">'+r.living.history.map(e=>'<li><small>'+dateLabel(e.week)+'</small> · '+esc(e.text)+'</li>').join('')+'</ul></details>';
     h += '<h3>Recent releases</h3>' + (released.length
@@ -2366,6 +2375,17 @@ var UI = (function () {
           ' · under contract there until ' + dateLabel(t.contract.endWeek) + '</span></li>').join('') + '</ul>'
       : '<p class="muted">No one under contract here has left your studio. Past moves are in the Log.</p>');
     return h;
+  }
+  async function v15RivalOutreach(id){
+    const quote=Engine.v15RivalOutreachQuote(id),r=Engine.getRival(Number(id));
+    if(!quote.ok){setFlash(quote.reason);render();return;}
+    if(!await confirmGame('Invite '+r.name+' to a studio meeting for '+money(quote.cost)+
+      '? Interest is estimated at '+Math.round(quote.chance*100)+
+      '%. There is no guaranteed partnership.'))return;
+    const result=Engine.v15RivalOutreach(id);
+    setFlash(result.ok?result.success?'The meeting went well. Relations improved.':
+      'The studio declined closer relations.':result.reason);
+    render();
   }
   function viewRivals() {
     const act = Engine.activeRivals();
@@ -4678,7 +4698,7 @@ var UI = (function () {
     budgetCapPreview:budgetCapPreview,setAllocation:setAllocation,budgetPreset:budgetPreset,
     v14Delegation:v14Delegation, v14Ambition:v14Ambition,
     filmPromote:filmPromote,filmSponsor:filmSponsor,filmSponsorDecline:filmSponsorDecline,
-    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent,v15OfferAction:v15OfferAction,v15MediaAction:v15MediaAction, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
+    v14Position:v14Position, v14Respond:v14Respond, v14Afterlife:v14Afterlife,v15FanEvent:v15FanEvent,v15OfferAction:v15OfferAction,v15MediaAction:v15MediaAction,v15RivalOutreach:v15RivalOutreach, beginSequel: beginSequel, beginFollowUp:beginFollowUp, cancelSequel: cancelSequel, startGame: startGame, loadGame: loadGame,
     quit: quit, saveNow: saveNow, openSave: openSave, renameSave: renameSave, copySave: copySave, deleteSave: deleteSave,
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
