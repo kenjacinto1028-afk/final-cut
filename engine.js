@@ -1730,10 +1730,10 @@ var Engine = (function () {
       filmStory(p,'post','The creative team settled the final cut: '+c.label+'.');
     }else if(pd.id==='release_date'){
       filmStory(p,'release','Positioned the release date against the current rival slate.');
-    }else if(pd.category==='production'){
+    }else if(pd.category==='production'&&!pd.lifecyclePhase){
       filmStory(p,'production',c.result||c.label);
     }
-    if(pd.category==='production'||(pd.id&&pd.id.startsWith('v14_issue_')))
+    if((pd.category==='production'&&!pd.lifecyclePhase)||(pd.id&&pd.id.startsWith('v14_issue_')))
       p.storyChoices=Math.min(5,(p.storyChoices||0)+1);
   }
   function v14MaybeIssue(p){
@@ -1835,10 +1835,27 @@ var Engine = (function () {
     if(!pool.length)return false;
     const chosen=pool[Math.floor(Math.random()*pool.length)];
     const event=Object.assign({},chosen,{category:'production',lifecyclePhase:phase});
+    const initialStop=state.stopFlag;
     raise(p,event);
     data.counts[phase]=(data.counts[phase]||0)+1;
     data.lastWeek=state.week;
     state.events.recentProduction=(state.events.recentProduction||[]).concat(chosen.id).slice(-12);
+    const policy=v14State().delegation;
+    const major=['lc_shoot_conflict','lc_pre_sponsor','lc_post_rights','lc_prerelease_rival','lc_after_legacy'];
+    if((policy==='director'||policy==='commercial')&&!major.includes(event.id)&&
+       state.pending?.projectId===p.id&&state.pending?.id===event.id){
+      const score=x=>{
+        const e=x.effects||{},cost=Number(e.costPct)||0;
+        return policy==='director'?(Number(e.quality)||0)*3+(Number(x.relationship)||0)*1.5+
+          (Number(e.hype)||0)*.3-Math.max(0,cost)*65-Math.max(0,Number(e.weeks)||0):
+          (Number(e.hype)||0)*3+(Number(e.quality)||0)*.4-
+          Math.max(0,cost)*60-Math.max(0,Number(e.weeks)||0)*1.5;
+      };
+      const ranked=event.choices.map((choice,i)=>({choice,i})).sort((x,y)=>score(y.choice)-score(x.choice));
+      choose(ranked[0].i);
+      state.stopFlag=initialStop; // delegated routine decisions do not stop Skip Quiet Weeks
+      return false;
+    }
     return true;
   }
   function maybeEvent(p) {
