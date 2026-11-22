@@ -1451,6 +1451,7 @@ var Engine = (function () {
     const p = {
       id: state.nextId++, title: o.title.trim().slice(0, 60), format: o.format, genre: o.genre, topic: o.topic, tier: pv.tier,
       budget: pv.budget, fees: pv.fees, prodBudget: pv.prodBudget, weekly: pv.weekly, spent: pv.fees, marketingSpend: 0,
+      marketingPlan:o.marketingPlan?v15MarketingQuote(o,pv):null,
       mediaVariant:pv.mediaVariant||o.format,productionScope:pv.scope||null,
       requestedEpisodes:pv.flexible?clamp(Math.round(Number(o.episodeCount)||8),4,16):null,
       budgetPlan:pv.flexible?{cap:pv.budget,allocation:Object.assign({},pv.allocation),
@@ -1573,7 +1574,8 @@ var Engine = (function () {
     const f = TUNING.formats[p.format];
     if (p.stage === 'post') {
       if (!p.flags.cutDone) { raise(p, CONTENT.FIXED_DECISIONS.cut); return; }
-      if (p.format === 'feature' && !p.flags.marketingDone) { raiseMarketing(p); return; }
+      if (p.marketingPlan && !p.flags.marketingDone) v15ExecuteMarketing(p);
+      else if (p.format === 'feature' && !p.flags.marketingDone) { raiseMarketing(p); return; }
       if ((p.format === 'feature' || p.format === 'short') && !p.flags.regionsDone) { raiseDistribution(p); return; }
       if (p.format === 'feature' && !p.flags.dateDone) { raiseReleaseDate(p); return; }
       release(p);
@@ -1920,6 +1922,59 @@ var Engine = (function () {
       state.events.recentProduction = (recent.concat(selection)).slice(-10);
     }
   }
+
+  // v15a: campaigns are selected at greenlight and settled at post-production.
+  // Earlier saves with no marketingPlan retain their existing choice prompt.
+  const V15_TARGETS=['general','genre','critics','fans'];
+  const V15_MESSAGES=['story','cast','prestige','event'];
+  function v15MarketingQuote(o,pv) {
+    pv=pv||previewProject(o);
+    const raw=o.marketingPlan||{};
+    const intensity=TUNING.marketing.some(m=>m.id===raw.intensity)?raw.intensity:'medium';
+    const target=V15_TARGETS.includes(raw.target)?raw.target:'genre';
+    const message=V15_MESSAGES.includes(raw.message)?raw.message:'story';
+    const opt=TUNING.marketing.find(m=>m.id===intensity);
+    const pool=pv.flexible?Math.max(0,(pv.allocation||{}).marketing||0):Math.max(1,pv.budget||1);
+    const share=pv.flexible?({none:0,small:.25,medium:.55,large:1}[intensity]):opt.share;
+    const cost=Math.max(0,Math.round(pool*share));
+    const base=pv.flexible?Math.round(opt.hype*clamp((pool/Math.max(1,pv.budget))/.25,0,1)):opt.hype;
+    const fit=topicFit({genre:o.genre,topic:o.topic});
+    const targetBonus=target==='general'?1:target==='genre'?(fit>0?3:2):
+      target==='critics'?(o.vision==='prestige'?3:1):(o.sequelOf!=null?4:0);
+    const messageBonus=message==='story'?(fit>0?2:1):message==='cast'?(o.cast&&o.cast.lead?2:0):
+      message==='prestige'?(o.vision==='prestige'?2:0):(o.format==='feature'?2:1);
+    return {intensity,target,message,cost,pool,
+      estimatedHype:cost>0?base+Math.min(5,targetBonus+messageBonus):0};
+  }
+  function v15ExecuteMarketing(p) {
+    if(!p.marketingPlan || p.flags.marketingDone)return;
+    const q=v15MarketingQuote({
+      marketingPlan:p.marketingPlan,format:p.format,genre:p.genre,topic:p.topic,
+      vision:p.dna&&p.dna.vision,cast:p.cast,sequelOf:p.sequelOf
+    },{budget:p.budget,flexible:!!p.budgetPlan,
+      allocation:p.budgetPlan?p.budgetPlan.allocation:null});
+    // Never overdraw studio cash or exceed the approved marketing allocation.
+    const remaining=p.budgetPlan?v144Available(p,'marketing'):Infinity;
+    const spend=Math.max(0,Math.min(q.cost,remaining,state.cash));
+    const paid=spend>0?(p.budgetPlan?v144Pay(p,'marketing',spend):
+      (state.cash-=spend,p.spent+=spend,true)):true;
+    const actual=paid?spend:0;
+    const hype=q.cost>0?Math.round(q.estimatedHype*actual/q.cost):0;
+    p.marketingSpend=(p.marketingSpend||0)+actual;
+    p.hypeMod=(p.hypeMod||0)+hype;
+    p.marketingPlan.executedWeek=state.week;
+    p.marketingPlan.spent=actual;
+    p.marketingPlan.hypeGained=hype;
+    p.flags.marketingDone=true;
+    if(!p.usedEvents.includes('marketing'))p.usedEvents.push('marketing');
+    const note=q.intensity==='none'?'No opening marketing commissioned.':
+      actual?'Approved '+q.intensity+' campaign targeted '+q.target+' audiences for '+fmtMoney(actual)+
+        ' (hype +'+hype+').'+(actual<q.cost?' Funds constrained the original plan.':''):
+        'Approved opening marketing could not run; funds were unavailable.';
+    filmStory(p,'marketing',note);
+    addLog('"'+p.title+'": '+note,'project');
+  }
+
   function raiseMarketing(p) {
     const pool=p.budgetPlan?p.budgetPlan.allocation.marketing:p.budget;
     raise(p, {
@@ -5625,7 +5680,7 @@ var Engine = (function () {
     TUNING: TUNING, SLOTS: SLOTS,
     on: on,
     newGame: newGame, nextTurn: nextTurn, advance: advance, choose: choose,
-    startProject: startProject, previewProject: previewProject, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
+    startProject: startProject, previewProject: previewProject, v15MarketingQuote:v15MarketingQuote, randomTitle: randomTitle, setPosterStyle: setPosterStyle, ensembleCaps: ensembleCaps,
     v144BudgetInfo:v144BudgetInfo,v144Pay:v144Pay,
     v144Reallocate:v144Reallocate,v144IncreaseCap:v144IncreaseCap,
     sequelContinuity: sequelContinuity, sequelCastSuggestion: sequelCastSuggestion,
