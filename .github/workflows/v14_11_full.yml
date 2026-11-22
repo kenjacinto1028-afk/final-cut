@@ -1,0 +1,36 @@
+name: FinalCut v14.11a-f gameplay lifecycle
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  game-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax, event dependencies and long-horizon survival
+        run: |
+          node --check content.js
+          node --check engine.js
+          node --check ui.js
+          node tests/v14_11_lifecycle.js
+          node tests/v14_11_critic_voices.js
+          node tests/v14_8_regression.js
+          node tests/v14_10_browser.py --help 2>/dev/null || true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: UI regressions
+        run: |
+          python tests/v14_11_readability_browser.py
+          python tests/v14_8_browser.py
