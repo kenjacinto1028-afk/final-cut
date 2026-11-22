@@ -46,6 +46,7 @@ try:
     UI.go('dashboard');return r.project.id;
   }""")
   page.evaluate('(id)=>UI.openProject(id)',project)
+  page.evaluate("UI.projectDetailSelect('timeline')")
   assert 'Film Timeline' in page.locator('#drawer').inner_text()
   page.evaluate('UI.closeDrawer();UI.go("newproject")')
   assert 'Release Conflict Check' in page.locator('#main').inner_text()
