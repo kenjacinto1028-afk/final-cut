@@ -1017,7 +1017,45 @@ var UI = (function () {
 
   // v13.5 — Final Cut Production Center (uses existing studio, project, and
   // decision state; no simulation or save-data duplication).
-  let centerProjectId = null, centerShowOlder = false;
+  let centerProjectId = null, centerShowOlder = false, centerTab='overview',centerManageTab='promotions';
+  const CENTER_TABS=[['overview','Overview'],['management','Manage'],['performance','Performance'],['timeline','Timeline'],['story','Story']];
+  function centerSelectTab(next){if(!CENTER_TABS.some(x=>x[0]===next))return;centerTab=next;render();}
+  function centerAction(next){centerManageTab=next;centerTab='management';render();}
+  function centerBudgetActions(p){
+    if(!p.budgetPlan)return '<p class="muted">This project has no detailed budget allocation.</p>';
+    const b=Engine.v144BudgetInfo(p),available=(b.stageRemaining||{}).reserve||0;
+    const editable=['development','preproduction','shoot','post'].includes(p.stage);
+    return '<section class="fc-budget-review"><h3>Optional budget review</h3>'+
+      '<p>'+money(p.spent||0)+' spent of '+money(p.budget||0)+' planned · reserve '+money(available)+'</p>'+
+      (editable?'<div class="fc-actions">'+
+        (available>=50&&p.stage!=='post'?'<button onclick="UI.v144Shift('+p.id+',&quot;reserve&quot;,&quot;shoot&quot;)">Move $50 to filming</button>':'')+
+        (available>=50?'<button onclick="UI.v144Shift('+p.id+',&quot;reserve&quot;,&quot;post&quot;)">Move $50 to post</button>':'')+
+        '<button onclick="UI.v144Extra('+p.id+')">Review $250 contingency</button></div>':
+        '<p class="muted">Production budgeting is closed after filming and post-production.</p>')+
+      '<details><summary>Full budget breakdown</summary><dl>'+
+        FinalCutBudget.KEYS.map(k=>dl(FinalCutBudget.LABELS[k],money(b.spent[k])+' / '+money(b.allocation[k]))).join('')+
+      '</dl></details></section>';
+  }
+  function centerManagement(p){
+    const options=[['promotions','Promotions'],['budget','Budget'],['distribution','Distribution'],['cast','Cast & Crew'],['release','Release'],['festivals','Festivals']];
+    const buttons='<nav class="fc-film-action-row" aria-label="Film management actions">'+options.map(([id,name])=>
+      '<button type="button" class="'+(centerManageTab===id?'is-active':'')+'" onclick="UI.centerAction(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</nav>';
+    let content='';
+    if(centerManageTab==='promotions')content=filmPromotionPanel(p);
+    else if(centerManageTab==='budget')content=centerBudgetActions(p);
+    else if(centerManageTab==='distribution')content=
+      '<h3>Distribution</h3><p>Review the selected markets and existing release terms in the full Film Hub.</p>'+
+      '<button onclick="UI.openProject('+p.id+')">Open distribution settings</button>';
+    else if(centerManageTab==='cast')content=
+      '<h3>Cast & Crew</h3><p>Review talent availability, contracts and credits for this production.</p>'+
+      '<button onclick="UI.openProject('+p.id+')">View credits and contracts</button>';
+    else if(centerManageTab==='release')content=v14ReleaseControls(p)||
+      '<p class="muted">No release-plan changes are available at the current stage.</p>';
+    else if(centerManageTab==='festivals')content=shortFilmActions(p,false)||
+      '<p class="muted">Festival actions unlock when an eligible film is released.</p>';
+    return '<section class="fc-center-management">'+buttons+'<div class="fc-center-action-content">'+content+'</div></section>';
+  }
+
   const CENTER_STAGES = ['development','preproduction','shoot','post','release','done'];
   function centerStage(p) {
     const labels = ['Development','Pre-production','Filming','Post-production',
@@ -1040,7 +1078,7 @@ var UI = (function () {
     const guide=Math.min(90,Math.max(20,Math.round(20+average*.65+(p.qualityMod||0))));
     return {value:Math.max(1,guide-15)+'–'+Math.min(100,guide+15),note:'Broad early estimate; final reviews may differ'};
   }
-  function centerFocus(id) { centerProjectId=Number(id); render(); }
+  function centerFocus(id) { centerProjectId=Number(id); centerTab='overview';render(); }
   function centerShowMore(){centerShowOlder=!centerShowOlder;render();}
   function compactCount(n){
     if(n==null||!Number.isFinite(n))return '—';
@@ -1349,7 +1387,22 @@ var UI = (function () {
     const pulse='<div class="fc-pulse"><div><small>WEEKLY BOX OFFICE & SCREENINGS</small><h2>Now releasing</h2>'+
       '<p>Features show theatrical gross; shorts show weekly screening receipts. Stronger shorts have longer circuits.</p></div>'+
       '<div class="fc-pulse-list">'+(recent||'<p>No active releases. Completed films may still earn rights revenue and festival recognition.</p>')+'</div></div>';
-    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(mediaName(chosen))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+meta+projectPerformanceBoard(chosen)+v14StoryPanel(chosen,true)+v14ReleaseControls(chosen)+v14AfterlifeControls(chosen)+stageDetails+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
+    const tabs='<nav class="fc-center-tabs" aria-label="Selected film sections">'+CENTER_TABS.map(([id,name])=>
+      '<button type="button" aria-current="'+(centerTab===id?'page':'false')+'" class="'+(centerTab===id?'is-active':'')+
+      '" onclick="UI.centerSelectTab(&quot;'+id+'&quot;)">'+name+'</button>').join('')+'</nav>';
+    const overview='<div class="fc-center-overview">'+meta+
+      '<div class="fc-center-actions-brief"><button type="button" onclick="UI.centerAction(&quot;promotions&quot;)">Promotions</button>'+
+      '<button type="button" onclick="UI.centerAction(&quot;budget&quot;)">Budget</button>'+
+      '<button type="button" onclick="UI.centerAction(&quot;distribution&quot;)">Distribution</button>'+
+      '<button type="button" onclick="UI.centerAction(&quot;release&quot;)">Release</button>'+
+      '<button type="button" onclick="UI.openProject('+chosen.id+')">Full Film Hub</button></div>'+
+      '<div class="fc-center-quick-decision">'+(current?decision:'<span class="muted">Production continues automatically unless a decision needs attention.</span>')+'</div></div>';
+    const section=centerTab==='overview'?overview:
+      centerTab==='management'?centerManagement(chosen):
+      centerTab==='performance'?projectPerformanceBoard(chosen)+v14AfterlifeControls(chosen):
+      centerTab==='timeline'?stageDetails:
+      v14StoryPanel(chosen,true);
+    return '<section class="fc-center">'+header+summary+'<div class="fc-grid"><div class="fc-main"><div class="fc-feature"><div class="fc-feature-art" aria-hidden="true">'+posterFor(chosen)+'</div><div><small>FEATURED PRODUCTION · '+esc(nameOf(CONTENT.GENRES,chosen.genre))+'</small><h2>'+esc(chosen.title)+'</h2><span class="fc-label">'+esc(st.status)+'</span><p>'+esc(mediaName(chosen))+' · '+(chosen.releaseWeek!=null?'Released '+dateLabel(chosen.releaseWeek):left+' work weeks remaining (estimated)')+'</p></div></div>'+tabs+section+'</div><aside class="fc-slate"><h2>Studio slate</h2>'+slate+old+'</aside></div>'+pulse+'</section>';
   }
   function viewProjects() {
     const s = Engine.state;
@@ -3923,7 +3976,7 @@ var UI = (function () {
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
     nextWeek: nextWeek, advance: advance, choose: choose, startProject: startProject, loan: loan,
     filmHubSelect:filmHubSelect,closePremiereReport:closePremiereReport,viewPremiereFilm:viewPremiereFilm,replayPremiere:replayPremiere,
-    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
+    tblSort: tblSort, tblFilter: tblFilter, tblSearch: tblSearch, tblRow: tblRow, centerFocus: centerFocus, centerShowMore: centerShowMore, centerSelectTab:centerSelectTab,centerAction:centerAction, openProject: openProject, openFilm: openFilm, resetMyFilmographyFilters:resetMyFilmographyFilters, setFilmFilter: setFilmFilter, setFilmQuery: setFilmQuery, filmPage: filmPage, toggleRegion: toggleRegion, openTalent: openTalent, closeDrawer: closeDrawer,
     sign: sign, renew: renew, releaseTalent: releaseTalent, upgrade: upgrade, launchInitiative: launchInitiative, reissueClassic: reissueClassic, staff: staff, awardCampaign: awardCampaign, clearLeaderboard: clearLeaderboard,
     toggleMusic: toggleMusic, setVolume: setVolume, toggleSfx: toggleSfx, toggleMotion: toggleMotion, selectPosterStyle: selectPosterStyle, beginPosterUpload: beginPosterUpload, posterCropPreview: posterCropPreview, saveCustomPoster: saveCustomPoster, closePosterEditor: closePosterEditor, removePoster: removePoster, exportBackup: exportBackup, importBackup: importBackup };
 })();
