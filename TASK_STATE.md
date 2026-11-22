@@ -273,8 +273,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [ ] Confirm final GitHub Pages deployment and physical mobile acceptance separately.
 
 ## v14.11 readability and critic-review variety (2026-11-22)
-- [ ] Expand critic review language using deterministic genre/topic/score-aware variety without changing critic scores or save schema.
-- [ ] Simplify Project Monitor to show unambiguous production stage, key numbers and compact actions; move graphs/festival/technical detail into expandable sections.
-- [ ] Add Production Center per-film subtabs and shared stage-aware quick-action row, with detailed content progressively revealed.
+- [x] Genre/topic-aware critics with more score-appropriate sentence structures (`engine.js`, `f8e26f7`); numeric review system unchanged.
+- [x] Project Monitor now puts stage, progress and three metrics first; charts, followers, festivals and action history expand on demand (`ui.js`, `022e382`).
+- [ ] Production Center tabs/action row implemented (`ui.js`, `a62d8ec`); still need Project Details parity and UI regression checks.
 - [ ] Audit major screens for repeated explanatory text and shift secondary information to tooltips/collapsible details; responsive CSS.
 - [ ] Run syntax, film, mobile and end-to-end regressions, fix failures; checkpoint and verify deployment.
