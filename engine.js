@@ -3704,6 +3704,42 @@ var Engine = (function () {
         r.playerRelation>=22?'Friendly':'Neutral',
       history:r.livingHistory.slice(-10).reverse()};
   }
+
+  // v15h: player-initiated relationship building. Two successful annual talks
+  // can earn eligibility for the v15f creative collaboration opportunities.
+  function v15RivalOutreachQuote(id){
+    const r=getRival(Number(id));
+    if(!r||r.status!=='active')return {ok:false,reason:'This studio is no longer operating.'};
+    const trait=v15RivalTrait(r),year=dateOf().year;
+    if(r.lastOutreachYear===year)
+      return {ok:false,reason:'The studio has already met with this rival this year.'};
+    const w=v15World();
+    const total=(w.rivalMeetings||[]).filter(x=>x.year===year).length;
+    if(total>=3)return {ok:false,reason:'Your team has already held three major rival meetings this year.'};
+    const cost=Math.round(Math.max(100,Math.min(3000,rivalBudget(r)*.002)));
+    if(state.cash<cost)return {ok:false,reason:'Insufficient studio cash for an industry meeting.',cost};
+    const chance=clamp((r.personality==='networker'?.73:r.personality==='challenger'?.39:
+      r.personality==='visionary'?.62:r.personality==='methodical'?.58:.51)+
+      Math.min(.12,(state.studio.prestige||0)*.0015)+(r.playerRelation||0)*.0015,.22,.92);
+    return {ok:true,cost,chance,trait:trait.name,relation:r.playerRelation};
+  }
+  function v15RivalOutreach(id){
+    const q=v15RivalOutreachQuote(id);if(!q.ok)return q;
+    const r=getRival(Number(id)),year=dateOf().year,w=v15World();
+    state.cash-=q.cost;
+    r.lastOutreachYear=year;
+    w.rivalMeetings=w.rivalMeetings||[];
+    const success=Math.random()<q.chance;
+    w.rivalMeetings.push({year,week:state.week,rivalId:r.id,success,cost:q.cost});
+    w.rivalMeetings=w.rivalMeetings.slice(-12);
+    const delta=success?9:-3;
+    const note=success?r.name+' met with your producers and is more open to working together.':
+      r.name+' declined to pursue a closer relationship after your industry meeting.';
+    v15RivalRelationship(r,delta,note);
+    addLog(note+' Travel and negotiation costs '+fmtMoney(q.cost)+'.','rival');
+    save();emit('rival',r);
+    return {ok:true,success,cost:q.cost,relation:r.playerRelation};
+  }
   function rivalBudget(r, tier) {
     return Math.round(TUNING.rivals.tierBudget[tier == null ? r.tier : tier] * stratDef(r.strategy).budgetMult * eraScale() / 1000) * 1000;
   }
@@ -6262,7 +6298,9 @@ var Engine = (function () {
     lifecycleQuote:lifecycleQuote, lifecycleTick:lifecycleTick,
     filmSponsorQuote:filmSponsorQuote,acceptFilmSponsor:acceptFilmSponsor,declineFilmSponsor:declineFilmSponsor,
     worldStandings: studioWorldStandings, worldYearbook:()=>state.world,
-    rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, v15RivalProfile:v15RivalProfile, rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
+    rivals: rivalList, activeRivals: activeRivals, getRival: getRival, rivalInfo: rivalInfo, v15RivalProfile:v15RivalProfile,
+    v15RivalOutreachQuote:v15RivalOutreachQuote,v15RivalOutreach:v15RivalOutreach,
+    rivalName: rivalName, audienceShare: audienceShare, talentMorale: talentMorale,
     founderRole: founderRole, founderFreelancing: founderFreelancing, founderProject: founderProject, dealDiscount: dealDiscount, founderHype: founderHype,
     talent: talentList, getTalent: getTalent, talentFee: talentFee, salaryOf: salaryOf, v15TalentProfile:v15TalentProfile, traitsOf: traitsOf, effReliability: effReliability,
     talentStatus: talentStatus, recognition: recognition, talentReach: talentReach, talentContribution: talentContribution, slotOptions: slotOptions, recruitmentInterest: recruitmentInterest, castSummary: castSummary,talentCareer:talentCareer,
