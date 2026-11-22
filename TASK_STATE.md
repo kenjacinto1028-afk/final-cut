@@ -282,8 +282,8 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 
 ## v14.11a–f full gameplay expansion (2026-11-22)
 - [ ] v14.11a: Complete shared production/Film Hub management action controls and stage-aware eligibility, avoid dead-end buttons.
-- [ ] v14.11b: Added curated event definitions in `content.js` (`b84f4fe`); runtime triggering and end-to-end choice validation still pending.
-- [ ] v14.11c: Added conditional on-set and post-production event definitions (`content.js`, `b84f4fe`); chain effects pending.
-- [ ] v14.11d: Added 28 lifecycle event definitions across six phases (`content.js`, `b84f4fe`); triggers and legacy consequences pending.
+- [x] v14.11b: Curated development/pre-production decisions in `content.js` and capped triggers in `engine.js` (`b84f4fe`, `e6a705c`), pending tests.
+- [x] v14.11c: Filming/post-production conditional chains with saved tags, trust changes and real cost/schedule effects (`content.js`, `engine.js`, `e6a705c`, `9dccab0`), pending tests.
+- [x] v14.11d: 28 lifecycle events including before-release, release, and completed-film follow-ups; bounded selection and saved sequel/cult/reunion hooks (`content.js`, `engine.js`), pending tests.
 - [ ] v14.11e: Talent relationship data/chemistry and persistent future-production consequences.
 - [ ] v14.11f: Rate controls, delegation policies, legacy save migration, tests/CI and long-career balance checks.
