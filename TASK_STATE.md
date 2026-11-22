@@ -350,3 +350,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Added and fixed deterministic Node tests and desktop/320px/390px browser tests (`tests/v15a_v15b.js`, `tests/v15a_v15b_browser.py`), with dedicated CI workflow. v15 workflow and GitHub Pages deployment passed at a0d36b1.
 - [x] Authored `docs/CHANGELOG_V15A_V15B.md` and updated `README.md`, on main. Save version stays v13.
 - [ ] Physical Android and iPhone acceptance, plus later v15c–h living-world features, remain future work.
+
+- [x] v15c checkpoint (2026-11-22): stable rival trait/goal/relationship history; goal and risk affect genre choices, financing and release-date competition; Industry → Rivals lists traits, ambitions and studio relationship (`engine.js`, `ui.js`; commits 4fadc20, a4520ef).
