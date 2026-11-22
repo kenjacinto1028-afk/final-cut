@@ -1223,10 +1223,42 @@ var UI = (function () {
     return items.filter(x=>x.cost<=cash).sort((a,b)=>b.priority-a.priority||a.id.localeCompare(b.id))
       .slice(0,opts?.all?12:3);
   }
+  // Annual objectives remain advisory; actions use existing quote and confirmation flows.
+  function activeAnnualPlan(){
+    const year=Engine.dateOf().year;
+    return (Engine.state?.yearPlans||[]).filter(p=>p.year<year).sort((a,b)=>b.year-a.year)[0]||null;
+  }
+  function filmGoalAdvisory(p){
+    const plan=activeAnnualPlan(),priorities=plan?.priorities||[];
+    if(!priorities.length||!p)return '';
+    const notices=[],cash=Engine.state.cash||0,budget=p.budget||0,spent=p.spent||0;
+    const income=p.revenue||0;
+    if(priorities.includes('profit')){
+      if(p.releaseWeek==null&&budget>cash*.55)
+        notices.push('Profitability warning: this film budget is large relative to available cash. Review spending and sponsorship eligibility.');
+      else if(p.releaseWeek!=null&&income<spent)
+        notices.push('Profitability watch: receipts have not yet covered recorded film spending. Review distribution and financial performance.');
+      else notices.push('Profitability: track the full film cost and actual receipts before expanding the slate.');
+    }
+    if(priorities.includes('prestige')){
+      if(p.releaseWeek!=null&&(p.critic||0)>=65)
+        notices.push('Prestige opportunity: strong critical response may support festival, awards and creative partnership decisions.');
+      else if(p.releaseWeek!=null&&(p.critic||0)<50)
+        notices.push('Prestige warning: weaker critical response may limit this film’s award potential. Consider the next project’s creative fit.');
+      else notices.push('Prestige: protect creative quality and compare potential awards and festival fit before release.');
+    }
+    if(priorities.includes('franchise'))
+      notices.push(p.sequelOf!=null?'Franchise priority: preserve audience appeal and check returning cast continuity.':'Franchise priority: this original film could establish a future property, but success is not guaranteed.');
+    if(priorities.includes('talent'))
+      notices.push('Talent priority: consider lasting relationships with your director, writer and lead when making project decisions.');
+    return '<aside class="fc-annual-summary fc-goal-advisory"><h3>Annual strategy advisory</h3><p class="muted">Guidance for '+(plan.year+1)+' · no action is blocked</p>'+
+      notices.map(t=>'<p>'+esc(t)+'</p>').join('')+
+      '<button type="button" onclick="UI.go(&quot;studio_profile&quot;)">View annual goals</button></aside>';
+  }
   function recommendationPanel(p,compact){
-    const list=recommendationItems(p);
-    if(!list.length)return '';
-    return '<section class="fc-film-recommendations"><div class="fc-recommendation-head">'+
+    const list=recommendationItems(p),goal=filmGoalAdvisory(p);
+    if(!list.length)return goal;
+    return goal+'<section class="fc-film-recommendations"><div class="fc-recommendation-head">'+
       '<h3>Recommended next actions</h3><small>'+esc(RECOMMENDATION_STAGES[p.stage]||'Film')+
       ' · optional</small></div>'+
       list.map(x=>'<article class="fc-recommendation-item"><div><strong>'+esc(x.title)+'</strong>'+
@@ -3323,6 +3355,32 @@ var UI = (function () {
     if(item.action==='project'&&Engine.state.projects.some(p=>p.id===item.projectId))openProject(item.projectId);
     else go(item.action||'studio_profile');
   }
+  function yearOpportunityAdvice(o){
+    const map={
+      sequel:[['Review follow-up feasibility','Review the original film, franchise potential, cast continuity and production costs.','project'],['Examine available funding','Check cash reserves before authorizing a sequel.','finance']],
+      adaptation:[['Review adaptation potential','Consider a different media format and its budget scope.','project']],
+      awards:[['Review awards potential','Check nominations, ceremony eligibility and campaign timing.','awards'],['Review acclaimed film','Check critics, festivals and the film’s post-release options.','project']],
+      budget:[['Review production finances','Examine cash reserves, spending and film P/L before the next slate.','finance']],
+      market:[['Study market trends','Compare trending genres and topics before commissioning a new script.','market']],
+      international:[['Review distribution market','Compare audience demand, reach and release costs.','market']],
+      talent:[['Review talent renewals','Check availability and relationships before casting.','roster']],
+      partnership:[['Review creative partners','Inspect the people behind successful productions.','roster']],
+      rivals:[['Compare competing releases','Check the rival calendar and identify potential conflicts.','calendar']],
+      revival:[['Review the original film','Evaluate audience demand and new production formats.','project']],
+      studio:[['Review studio identity','Compare current identity against the annual priorities.','studio_profile']]
+    };
+    return (map[o.id]||[]).map(([title,why,target])=>
+      '<div class="fc-annual-task"><div><strong>'+esc(title)+'</strong><p>'+esc(why)+'</p></div>'+
+      '<button type="button" onclick="UI.reviewYearStrategyAction('+o.year+',&quot;'+o.id+'&quot;,&quot;'+target+'&quot;)">Review</button></div>').join('');
+  }
+  function reviewYearStrategyAction(year,id,target){
+    const plan=(Engine.state?.yearPlans||[]).find(p=>p.year===Number(year));
+    const o=plan?.opportunities?.find(x=>x.id===id);
+    if(!o||o.status!=='accepted')return;
+    o.reviewed=true;Engine.save();
+    if(target==='project'&&o.projectId!=null&&Engine.getProject(o.projectId))openProject(o.projectId);
+    else go(target==='calendar'?'rivals':target);
+  }
   function yearPlanSummary(){
     const plans=Engine.state?.yearPlans||[];
     const plan=plans[plans.length-1];if(!plan)return '';
@@ -3332,7 +3390,7 @@ var UI = (function () {
       '<p class="muted">Planning priorities guide your decisions; they do not automatically spend money or guarantee results.</p>'+
       '<p><strong>Priorities:</strong> '+esc(chosen.join(' + ')||'Not set')+'</p>'+
       (accepted.length?accepted.map(o=>'<div class="fc-annual-task"><span>'+esc(o.title)+(o.reviewed?' · reviewed':' · to review')+'</span>'+
-        '<button type="button" onclick="UI.reviewYearPlanOpportunity('+plan.year+',&quot;'+o.id+'&quot;)">Open</button></div>').join(''):'<p class="muted">No opportunities accepted yet.</p>')+
+        '<button type="button" onclick="UI.reviewYearPlanOpportunity('+plan.year+',&quot;'+o.id+'&quot;)">Open</button></div>'+yearOpportunityAdvice(o)).join(''):'<p class="muted">No opportunities accepted yet.</p>')+
       '<button type="button" onclick="UI.replayYearEnd('+plan.year+')">Review annual plan</button></section>';
   }
   function yearEndPlanning(report){
@@ -3348,7 +3406,7 @@ var UI = (function () {
         '" onclick="UI.chooseYearPriority('+report.year+',&quot;'+x[0]+'&quot;)"><strong>'+esc(x[1])+'</strong><small>'+esc(x[2])+'</small></button>').join('')+'</div>'+
       '<h3>Recommended opportunities</h3>'+
       (plan.opportunities||[]).map(o=>'<div class="fc-annual-task"><div><strong>'+esc(o.title)+'</strong><p>'+esc(o.detail)+'</p>'+
-        '<small>Status: '+esc(o.status)+'</small></div><div class="fc-annual-options">'+
+        '<small>Status: '+esc(o.status)+'</small>'+(o.status==='accepted'?yearOpportunityAdvice(o):'')+'</div><div class="fc-annual-options">'+
         [['accepted','Accept'],['deferred','Postpone'],['dismissed','Dismiss']].map(v=>
           '<button type="button" aria-pressed="'+(o.status===v[0])+'" class="'+(o.status===v[0]?'is-selected':'')+
           '" onclick="UI.decideYearOpportunity('+report.year+',&quot;'+o.id+'&quot;,&quot;'+v[0]+'&quot;)">'+v[1]+'</button>').join('')+
@@ -3391,8 +3449,8 @@ var UI = (function () {
       '<p id="year-end-description">The industry celebrates the year. See the actual award winners, your studio’s nominations, and your most acclaimed films.</p>' +
       '<div class="year-end-stats"><div><strong>' + facts.wins.length + '</strong><span>ceremony wins</span></div><div><strong>' + facts.nominations.length + '</strong><span>nominations</span></div><div><strong>' + facts.festivals.length + '</strong><span>festival prizes</span></div></div></div>';
     const outcome = '<div class="year-end-results"><div class="year-end-summary">' +
-      '<div><small>Your highest grossing release</small><strong>' + esc(facts.topGross ? facts.topGross.title : 'No releases this year') + '</strong>' +
-      (facts.topGross ? '<span>' + money(facts.topGross.gross || 0) + '</span>' : '') + '</div>' +
+      '<div><small>Your highest earning release</small><strong>' + esc(facts.topGross ? facts.topGross.title : 'No releases this year') + '</strong>' +
+      (facts.topGross ? '<span>' + money(facts.topGross.revenue || 0) + '</span>' : '') + '</div>' +
       '<div><small>Critics’ favorite release</small><strong>' + esc(facts.topCritic ? facts.topCritic.title : 'No releases this year') + '</strong>' +
       (facts.topCritic ? '<span>' + Math.round(facts.topCritic.critic || 0) + '/100 critics</span>' : '') + '</div></div>' +
       (facts.wins.length ? '<h3>🏆 Your major wins</h3><ul class="year-end-honors-list">' + facts.wins.map(x =>
@@ -4314,7 +4372,7 @@ var UI = (function () {
     nextAction:nextAction,gotoAlert:gotoAlert,skipQuietWeeks:skipQuietWeeks,
     recommendationOpen:recommendationOpen,recommendationDismiss:recommendationDismiss,recommendationClose:recommendationClose,
     recommendationItems:recommendationItems,
-    chooseYearPriority:chooseYearPriority,decideYearOpportunity:decideYearOpportunity,reviewYearPlanOpportunity:reviewYearPlanOpportunity,showYearEndPlanning:showYearEndPlanning,
+    chooseYearPriority:chooseYearPriority,decideYearOpportunity:decideYearOpportunity,reviewYearPlanOpportunity:reviewYearPlanOpportunity,reviewYearStrategyAction:reviewYearStrategyAction,showYearEndPlanning:showYearEndPlanning,
     toggleFilmMonitor: toggleFilmMonitor, setWireFilter:setWireFilter,setWireTab:setWireTab,setWireTrendKind:setWireTrendKind, promoteFilm: promoteFilm,
     showPulseDetail:showPulseDetail,toggleHelpTip:toggleHelpTip,
     shortReleaseAction:shortReleaseAction,shortActionCancel:shortActionCancel,shortActionConfirm:shortActionConfirm,
