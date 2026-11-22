@@ -23,6 +23,17 @@ function make(format,title,tier=0){
 }
 E.newGame({studioName:'Festival Test Workshop',founderName:'Film Creator',homeRegion:'northamerica'});
 const short=make('short','The Winter Cinema');
+// With additional pre-release decisions, a festival can judge during the
+// screening run. Buy the press kit while the next jury is still upcoming.
+until(()=>short.stage==='release',90);
+const launchPress=E.shortPostReleaseQuote(short.id,'press');
+if(launchPress.ok){
+  const cashBefore=E.state.cash,spentBefore=short.spent;
+  A(E.shortPostReleaseAction(short.id,'press').ok);
+  A.equal(E.state.cash,cashBefore-launchPress.cost);
+  A.equal(short.spent,spentBefore+launchPress.cost);
+  A(!E.shortPostReleaseAction(short.id,'press').ok,'press kit cannot be purchased twice');
+}
 until(()=>short.stage==='done',90);
 A(short.shortRunWeeks>=3&&short.shortRunWeeks<=12);
 A.equal(short.weeksInRelease,short.shortRunWeeks);
@@ -43,12 +54,14 @@ console.log('PASS screen circuits: '+short.shortRunWeeks+' paying weeks, total '
 // festivals remain judged by the same juries.
 const festival=E.shortFestivalStatus(short);A(festival && festival.planned>=1);
 const press=E.shortPostReleaseQuote(short.id,'press');
-A(press.ok,press.reason);
+if(launchPress.ok){
+  A(!press.ok,'a prepared festival kit cannot be purchased twice');
+  A(short.shortFestivalPressKit,'purchased kit remains attached to film');
+}else{
+  A(!press.ok||E.shortPostReleaseAction(short.id,'press').ok,
+    'a newly eligible festival press kit must remain purchasable');
+}
 let balance=E.state.cash,spent=short.spent;
-A(E.shortPostReleaseAction(short.id,'press').ok);
-A.equal(E.state.cash,balance-press.cost);A.equal(short.spent,spent+press.cost);
-A(!E.shortPostReleaseQuote(short.id,'press').ok);
-A(!E.shortPostReleaseAction(short.id,'press').ok,'press kit cannot be purchased twice');
 const earlyRevenue=short.revenue;
 for(let i=0;i<52;i++)next();
 A.equal(short.revenue,earlyRevenue,'press alone must not mint cash');
