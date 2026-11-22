@@ -275,6 +275,6 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 ## v14.11 readability and critic-review variety (2026-11-22)
 - [x] Genre/topic-aware critics with more score-appropriate sentence structures (`engine.js`, `f8e26f7`); numeric review system unchanged.
 - [x] Project Monitor now puts stage, progress and three metrics first; charts, followers, festivals and action history expand on demand (`ui.js`, `022e382`).
-- [ ] Production Center tabs/action row implemented (`ui.js`, `a62d8ec`); still need Project Details parity and UI regression checks.
-- [ ] Audit major screens for repeated explanatory text and shift secondary information to tooltips/collapsible details; responsive CSS.
-- [ ] Run syntax, film, mobile and end-to-end regressions, fix failures; checkpoint and verify deployment.
+- [x] Production Center stage-aware Overview/Manage/Performance/Timeline/Story with horizontal action controls; Project Details tabbed for in-progress films and Film Hub reduced overview (`ui.js`, `a62d8ec`, `f1762fd`, `7d42241`).
+- [x] Audited Production Center, Film Hub, Monitor, Finance, Market, Roster, Talent, Rankings and Rivals; collapsed long market, rival and contract explanations and moved KPI microcopy to hover/focus helper (`ui.js`, `design-v14_7.css`, `964db20`, `6d58daf`).
+- [ ] Added v14.11 Node critic and browser UI regression tests and CI workflow; baseline tab assumptions and legacy-budget fallback updated (`tests/v14_11_critic_voices.js`, `tests/v14_11_readability_browser.py`, `.github/workflows/v14_11.yml`). Check full CI and deployment before closing.
