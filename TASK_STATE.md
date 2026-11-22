@@ -356,3 +356,5 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] v15d checkpoint (2026-11-22): artist age and career stage, four enduring career goals, salary/fee sensitivity, retirement after late-career threshold, one bounded annual career-demand decision with raise/promise/decline consequences, actual casting fulfills promises (`engine.js`, `ui.js`; commits d7daf9a, 7877849, 2b75dca).
 
 - [x] v15e checkpoint (2026-11-22): community momentum derived from existing recorded audience reach and actual film reception, bounded grassroots/backlash quarterly changes, optional priced fan discussion with cooldown and total cap, history and UI on released Film Hubs (`engine.js`, `ui.js`; commits 71f2d40, 6c64153).
+
+- [x] v15f checkpoint (2026-11-22): grounded catalog, festival, broadcast and rival co-development offers; all bounded, once per eligible film, expiring, accept/counter/decline with payment ledger and relationship/quality changes; surfaced Industry → News, Next Action and inbox (`engine.js`, `ui.js`; commits b91bd99, 5836a00).
