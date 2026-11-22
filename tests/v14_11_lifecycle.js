@@ -54,7 +54,14 @@ function world(seed){
  assert.equal(E.lifecycleQuote(p.id).history.length,6);
  assert.equal(E.getTalent(t.id).studioBond,t.studioBond);
  assert.equal(E.state.version,13);
- console.log('PASS linked early-to-late lifecycle phases, risk echo, bond and persistence');
+ // Upgrade a legacy v13 save missing every newly introduced optional field.
+ delete E.getProject(p.id).lifecycle;
+ delete E.getTalent(t.id).studioBond;
+ assert(E.save());assert(E.load().ok,'old saves missing lifecycle data still load');
+ assert.deepEqual(Array.from(E.lifecycleQuote(p.id).history),[]);
+ assert(E.talentFee(E.getTalent(t.id),'short')>0,'missing bond defaults safely');
+ assert.equal(E.state.version,13);
+ console.log('PASS linked early-to-late lifecycle phases, risk echo, bond and legacy save compatibility');
 }
 // Delegation resolves routine opportunities but never automatically decides a
 // high-stakes sponsorship, rights dispute or major cast conflict.
