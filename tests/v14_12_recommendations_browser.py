@@ -31,6 +31,10 @@ try:
   original=page.evaluate('(id)=>UI.recommendationItems(Engine.getProject(id))',film)
   assert 1<=len(original)<=3,original
   assert all(x['reason'] and x['tradeoff'] and x['action'] for x in original)
+  # Recommendations are advisory and never spend or sign on the player's behalf.
+  cash=page.evaluate('Engine.state.cash')
+  page.evaluate('(id)=>{UI.recommendationItems(Engine.getProject(id)); UI.render()}',film)
+  assert page.evaluate('Engine.state.cash')==cash
   page.set_viewport_size({'width':390,'height':780})
   assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+2')
   bounds=page.locator('.fc-recommendation-dialog').bounding_box()
@@ -39,6 +43,7 @@ try:
   assert page.locator('#fc-greenlight-recommendations').is_hidden()
   assert page.locator('#drawer.open').count()==1
   assert page.locator('#drawer .fc-film-action-row').count()==1
+  assert page.evaluate('Engine.state.cash')==cash, 'Review navigation must not automatically purchase an action'
   # Dismissal is scoped to this film and stage and survives normal saves.
   page.evaluate('UI.closeDrawer()')
   before=page.evaluate('(id)=>UI.recommendationItems(Engine.getProject(id))',film)
@@ -79,6 +84,15 @@ try:
     p.releaseWeek=null;p.result='';p.quality=12;p.critic=10;p.audience=10;
   }""",film)
   assert page.evaluate('(id)=>UI.recommendationItems(Engine.getProject(id))',film)==[]
+  # Even after many simulated weeks, recommendations never create repeated
+  # interrupting popups. The advisory system is evaluated on demand.
+  page.evaluate("""()=>{
+    for(let i=0;i<520;i++){
+      Engine.state.week++;
+      UI.go(i%2?'dashboard':'projects');
+    }
+  }""")
+  assert page.locator('#fc-greenlight-recommendations').is_hidden()
   assert not errors,errors
   browser.close()
 finally:
