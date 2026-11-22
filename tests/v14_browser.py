@@ -40,6 +40,7 @@ try:
   project=page.evaluate("Engine.state.projects[0]")
   assert project['dna']['hook']==script['hook']
   page.evaluate("UI.go('projects')")
+  page.locator('.fc-center-tabs').get_by_role('button',name='Story').click()
   assert page.locator('.fc-v14-film-story').count()>=1
   assert script['hook'] in page.locator('.fc-v14-film-story').inner_text()
   page.screenshot(path='/tmp/finalcut-v14-production-story.png',animations='disabled')
