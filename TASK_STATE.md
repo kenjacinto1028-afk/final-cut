@@ -279,3 +279,11 @@ Baseline: v13.3 published on GitHub `main` (`5e7e4371128290c3cd7cf09816df14a8016
 - [x] Audited Production Center, Film Hub, Monitor, Finance, Market, Roster, Talent, Rankings and Rivals; collapsed long market, rival and contract explanations and moved KPI microcopy to hover/focus helper (`ui.js`, `design-v14_7.css`, `964db20`, `6d58daf`).
 - [x] Added v14.11 Node critic/browser UI regressions and CI workflow; corrected old production-center test expectations, legacy budget fallback, and collapsed-monitor setup. Targeted v14.11 workflow passed on `64647a7` (run `44982347881`), and Pages deployment of that code succeeded (`44982347603`). See `docs/CHANGELOG_V14_11.md`.
 - [ ] Confirm final integrated filmmaking browser QA and deployment of documentation-only follow-up; physical phone acceptance remains separate.
+
+## v14.11a–f full gameplay expansion (2026-11-22)
+- [ ] v14.11a: Complete shared production/Film Hub management action controls and stage-aware eligibility, avoid dead-end buttons.
+- [ ] v14.11b: Development/pre-production event catalog, meaningful options and staged selection.
+- [ ] v14.11c: Filming/post-production event chains with saved dependencies, risk and project consequences.
+- [ ] v14.11d: Before-release, release and post-release choices, long-term catalog hooks.
+- [ ] v14.11e: Talent relationship data/chemistry and persistent future-production consequences.
+- [ ] v14.11f: Rate controls, delegation policies, legacy save migration, tests/CI and long-career balance checks.
